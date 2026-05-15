@@ -13,7 +13,7 @@ export const Route = createFileRoute("/auth")({ component: AuthPage });
 
 function AuthPage() {
   const nav = useNavigate();
-  const location = Route.useSearch<{ message?: string }>();
+  const location = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
