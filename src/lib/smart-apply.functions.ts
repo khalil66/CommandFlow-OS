@@ -193,7 +193,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
       }
     }
 
-    let approved = 0, blocked = 0, prepared = 0, skipped = 0;
+    let approved = 0, blocked = 0, prepared = 0, skipped = 0, rejected = 0;
+    let evaluated = 0; // jobs evaluated against auto-review (for pass-rate guard)
+    let guardTripped = false;
     const generateFn = (data: any) => generatePacket({ data });
 
     for (const j of jobs ?? []) {
@@ -209,7 +211,6 @@ export const runSmartApply = createServerFn({ method: "POST" })
         skipped++; continue;
       }
 
-      // 30-day per-company cooldown
       const { data: recentApp } = await (supabase as any).from("applications")
         .select("id, created_at, job_listings!inner(company_name)")
         .eq("user_id", userId)
@@ -218,12 +219,10 @@ export const runSmartApply = createServerFn({ method: "POST" })
         .limit(1).maybeSingle();
       const recentCompany = !!recentApp;
 
-      // Existing application = duplicate
       const { data: existing } = await (supabase as any).from("applications")
         .select("id").eq("user_id", userId).eq("job_id", j.id).maybeSingle();
       const duplicate = !!existing;
 
-      // Generate packet (this enforces packet creation; counts toward packetCap)
       let packet: any;
       try {
         packet = await generateFn({ job_id: j.id });
@@ -241,49 +240,74 @@ export const runSmartApply = createServerFn({ method: "POST" })
         .eq("user_id", userId).eq("job_id", j.id)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
-      const gate = evaluateGates({
+      const review = evaluateAutoReview({
         job: j, company: j.companies, quality: packet.quality?.score ?? 0,
         ats_check: atsCheck, duplicate, recent_company_app: recentCompany,
       });
 
-      // Detection flags
       const detection = [
         atsCheck?.has_captcha && "captcha",
         atsCheck?.has_mfa && "mfa",
         atsCheck?.requires_login && "login_required",
       ].filter(Boolean) as string[];
 
-      if (mode === "auto_review" && !fridayPrepareOnly && gate.pass && detection.length === 0) {
+      // Pass-rate guard: after a small warmup, if today's auto-pass rate
+      // exceeds the cap, force remaining jobs to Manual Review.
+      evaluated++;
+      const liveRate = evaluated >= 5 ? approved / evaluated : 0;
+      if (mode === "auto_review" && liveRate > AUTO_GATES.passRateCap) {
+        guardTripped = true;
+      }
+
+      if (detection.length > 0) {
+        await log({
+          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+          action: "safety_blocked",
+          reason: `Detection signals: ${detection.join(", ")} — Manual Review. No retry.`,
+          gates: { detection, ...review },
+        });
+        blocked++;
+      } else if (review.decision === "reject") {
+        await log({
+          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+          action: "rejected", reason: `Hard reject: ${review.rejected_for.join("; ")}`,
+          gates: review,
+        });
+        rejected++;
+      } else if (
+        mode === "auto_review" && !fridayPrepareOnly &&
+        !guardTripped && review.decision === "auto"
+      ) {
         await (supabase as any).from("applications")
-          .update({ status: "approved", priority: "high", notes: `Auto-approved · quality ${packet.quality?.score}` })
+          .update({ status: "approved", priority: "high",
+            notes: `Auto-approved · quality ${packet.quality?.score}` })
           .eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "auto_approved",
           reason: `All gates passed · quality ${packet.quality?.score} · ${confidenceLabel(packet.quality?.score ?? 0)}`,
-          gates: gate,
+          gates: review,
         });
         approved++;
         atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
-      } else if (detection.length > 0) {
-        await log({
-          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-          action: "safety_blocked",
-          reason: `Detection signals: ${detection.join(", ")} — moved to Manual Review. Will not retry automatically.`,
-          gates: { detection, ...gate },
-        });
-        blocked++;
       } else {
-        const note = mode === "auto_review"
-          ? (fridayPrepareOnly ? "Friday — prepare-only mode, manual review required" : `Failed gates: ${gate.failed.join(", ")}`)
-          : "Manual Review mode — packet ready for approval";
+        let note: string;
+        if (guardTripped) note = `Pass-rate guard tripped (>${Math.round(AUTO_GATES.passRateCap*100)}%) — sent to Manual Review`;
+        else if (mode === "auto_review" && fridayPrepareOnly) note = "Friday prepare-only — Manual Review required";
+        else if (mode === "auto_review") note = `Failed gates: ${review.failed.join(", ")}`;
+        else note = "Manual Review mode — packet ready for approval";
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-          action: "prepared", reason: note, gates: gate,
+          action: "prepared", reason: note, gates: review,
         });
         atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
       }
     }
 
-    return { ok: true, processed: prepared, approved, blocked, skipped, mode, fridayPrepareOnly };
+    return {
+      ok: true, processed: prepared, approved, blocked, rejected, skipped,
+      mode, fridayPrepareOnly, guardTripped,
+      pass_rate: prepared > 0 ? +(approved / prepared).toFixed(3) : 0,
+    };
   });
+
