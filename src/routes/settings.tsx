@@ -27,12 +27,14 @@ function Settings() {
   const analyticsFn = useServerFn(getUsageAnalytics);
   const getFn = useServerFn(getSettings);
   const saveFn = useServerFn(updateSettings);
+  const testSmsFn = useServerFn(sendTestSms);
 
   const [usage, setUsage] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [s, setS] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingSms, setTestingSms] = useState(false);
 
   useEffect(() => {
     Promise.all([
