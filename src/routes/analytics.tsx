@@ -237,6 +237,8 @@ function Analytics() {
             </Card>
           </div>
 
+          <ResponseHeatmap />
+
           {/* Learning loop */}
           {learn && (
             <>
