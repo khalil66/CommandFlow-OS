@@ -478,3 +478,29 @@ export const setFollowUp = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { follow_up_due_at: due };
   });
+
+export const listFollowUps = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("applications")
+      .select("*, job_listings(title, company_name, ats, source_url)")
+      .eq("user_id", context.userId)
+      .not("follow_up_due_at", "is", null)
+      .order("follow_up_due_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return { applications: data ?? [] };
+  });
+
+export const completeFollowUp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ application_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("applications")
+      .update({ follow_up_due_at: null })
+      .eq("id", data.application_id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
