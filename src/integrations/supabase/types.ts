@@ -185,6 +185,48 @@ export type Database = {
           },
         ]
       }
+      automation_safety_logs: {
+        Row: {
+          action: string
+          application_id: string | null
+          ats: string | null
+          company_name: string | null
+          created_at: string
+          gates: Json
+          id: string
+          job_id: string | null
+          job_title: string | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          application_id?: string | null
+          ats?: string | null
+          company_name?: string | null
+          created_at?: string
+          gates?: Json
+          id?: string
+          job_id?: string | null
+          job_title?: string | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          application_id?: string | null
+          ats?: string | null
+          company_name?: string | null
+          created_at?: string
+          gates?: Json
+          id?: string
+          job_id?: string | null
+          job_title?: string | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           careers_url: string | null
@@ -732,21 +774,31 @@ export type Database = {
       }
       user_settings: {
         Row: {
+          active_weekdays: number[]
+          application_mode: string
           auto_apply: boolean | null
+          auto_review_daily_cap: number
+          automation_paused: boolean
+          company_cooldown_days: number
           created_at: string
           daily_cap: number | null
           email: string | null
           excluded_ats: string[]
           excluded_companies: string[]
+          friday_prepare_only: boolean
           full_name: string | null
           id: string
           linkedin_url: string | null
           location: string | null
           manual_review_only: boolean | null
           onboarded_at: string | null
+          packet_daily_cap: number
+          per_ats_daily_cap: number
           remote_only: boolean
           role_categories: string[]
           salary_min: number
+          schedule_hour: number
+          schedule_minute: number
           target_roles: string[] | null
           trust_threshold: number | null
           updated_at: string
@@ -754,21 +806,31 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          active_weekdays?: number[]
+          application_mode?: string
           auto_apply?: boolean | null
+          auto_review_daily_cap?: number
+          automation_paused?: boolean
+          company_cooldown_days?: number
           created_at?: string
           daily_cap?: number | null
           email?: string | null
           excluded_ats?: string[]
           excluded_companies?: string[]
+          friday_prepare_only?: boolean
           full_name?: string | null
           id?: string
           linkedin_url?: string | null
           location?: string | null
           manual_review_only?: boolean | null
           onboarded_at?: string | null
+          packet_daily_cap?: number
+          per_ats_daily_cap?: number
           remote_only?: boolean
           role_categories?: string[]
           salary_min?: number
+          schedule_hour?: number
+          schedule_minute?: number
           target_roles?: string[] | null
           trust_threshold?: number | null
           updated_at?: string
@@ -776,21 +838,31 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          active_weekdays?: number[]
+          application_mode?: string
           auto_apply?: boolean | null
+          auto_review_daily_cap?: number
+          automation_paused?: boolean
+          company_cooldown_days?: number
           created_at?: string
           daily_cap?: number | null
           email?: string | null
           excluded_ats?: string[]
           excluded_companies?: string[]
+          friday_prepare_only?: boolean
           full_name?: string | null
           id?: string
           linkedin_url?: string | null
           location?: string | null
           manual_review_only?: boolean | null
           onboarded_at?: string | null
+          packet_daily_cap?: number
+          per_ats_daily_cap?: number
           remote_only?: boolean
           role_categories?: string[]
           salary_min?: number
+          schedule_hour?: number
+          schedule_minute?: number
           target_roles?: string[] | null
           trust_threshold?: number | null
           updated_at?: string
