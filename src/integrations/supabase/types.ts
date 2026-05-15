@@ -246,6 +246,8 @@ export type Database = {
           mba_friendly: boolean | null
           name: string
           notes: string | null
+          ranking_label: string | null
+          ranking_score: number
           red_flags: string[] | null
           trust_score: number | null
           updated_at: string
@@ -272,6 +274,8 @@ export type Database = {
           mba_friendly?: boolean | null
           name: string
           notes?: string | null
+          ranking_label?: string | null
+          ranking_score?: number
           red_flags?: string[] | null
           trust_score?: number | null
           updated_at?: string
@@ -298,6 +302,8 @@ export type Database = {
           mba_friendly?: boolean | null
           name?: string
           notes?: string | null
+          ranking_label?: string | null
+          ranking_score?: number
           red_flags?: string[] | null
           trust_score?: number | null
           updated_at?: string
@@ -481,6 +487,102 @@ export type Database = {
           source_url?: string | null
           success?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      interview_briefs: {
+        Row: {
+          company_id: string | null
+          company_name: string
+          company_size: string | null
+          created_at: string
+          funding_stage: string | null
+          headquarters: string | null
+          id: string
+          industry: string | null
+          interview_themes: string[]
+          job_id: string | null
+          keywords: string[]
+          leadership: string | null
+          mission_values: string | null
+          overview: string | null
+          product_summary: string | null
+          questions_to_ask: string[]
+          recent_news: string | null
+          recruiter_questions: string[]
+          red_flags: string[]
+          remote_policy: string | null
+          role_questions: string[]
+          star_outlines: string[]
+          talking_points: string[]
+          tell_me_about_yourself: string | null
+          updated_at: string
+          user_id: string
+          why_company: string | null
+          why_fit: string | null
+          why_role: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          company_name: string
+          company_size?: string | null
+          created_at?: string
+          funding_stage?: string | null
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          interview_themes?: string[]
+          job_id?: string | null
+          keywords?: string[]
+          leadership?: string | null
+          mission_values?: string | null
+          overview?: string | null
+          product_summary?: string | null
+          questions_to_ask?: string[]
+          recent_news?: string | null
+          recruiter_questions?: string[]
+          red_flags?: string[]
+          remote_policy?: string | null
+          role_questions?: string[]
+          star_outlines?: string[]
+          talking_points?: string[]
+          tell_me_about_yourself?: string | null
+          updated_at?: string
+          user_id: string
+          why_company?: string | null
+          why_fit?: string | null
+          why_role?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          company_name?: string
+          company_size?: string | null
+          created_at?: string
+          funding_stage?: string | null
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          interview_themes?: string[]
+          job_id?: string | null
+          keywords?: string[]
+          leadership?: string | null
+          mission_values?: string | null
+          overview?: string | null
+          product_summary?: string | null
+          questions_to_ask?: string[]
+          recent_news?: string | null
+          recruiter_questions?: string[]
+          red_flags?: string[]
+          remote_policy?: string | null
+          role_questions?: string[]
+          star_outlines?: string[]
+          talking_points?: string[]
+          tell_me_about_yourself?: string | null
+          updated_at?: string
+          user_id?: string
+          why_company?: string | null
+          why_fit?: string | null
+          why_role?: string | null
         }
         Relationships: []
       }
@@ -683,6 +785,45 @@ export type Database = {
           },
         ]
       }
+      notification_logs: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          provider_sid: string | null
+          status: string
+          to_number: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          provider_sid?: string | null
+          status?: string
+          to_number?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          provider_sid?: string | null
+          status?: string
+          to_number?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       openai_usage: {
         Row: {
           completion_tokens: number | null
@@ -812,11 +953,21 @@ export type Database = {
           onboarded_at: string | null
           packet_daily_cap: number
           per_ats_daily_cap: number
+          phone_number: string | null
           remote_only: boolean
           role_categories: string[]
           salary_min: number
           schedule_hour: number
           schedule_minute: number
+          sms_daily_cap: number
+          sms_enabled: boolean
+          sms_notify_auto_mode: boolean
+          sms_notify_batch_complete: boolean
+          sms_notify_batch_start: boolean
+          sms_notify_followups: boolean
+          sms_notify_high_probability: boolean
+          sms_notify_manual_mode: boolean
+          sms_notify_safety_block: boolean
           target_roles: string[] | null
           trust_threshold: number | null
           updated_at: string
@@ -844,11 +995,21 @@ export type Database = {
           onboarded_at?: string | null
           packet_daily_cap?: number
           per_ats_daily_cap?: number
+          phone_number?: string | null
           remote_only?: boolean
           role_categories?: string[]
           salary_min?: number
           schedule_hour?: number
           schedule_minute?: number
+          sms_daily_cap?: number
+          sms_enabled?: boolean
+          sms_notify_auto_mode?: boolean
+          sms_notify_batch_complete?: boolean
+          sms_notify_batch_start?: boolean
+          sms_notify_followups?: boolean
+          sms_notify_high_probability?: boolean
+          sms_notify_manual_mode?: boolean
+          sms_notify_safety_block?: boolean
           target_roles?: string[] | null
           trust_threshold?: number | null
           updated_at?: string
@@ -876,11 +1037,21 @@ export type Database = {
           onboarded_at?: string | null
           packet_daily_cap?: number
           per_ats_daily_cap?: number
+          phone_number?: string | null
           remote_only?: boolean
           role_categories?: string[]
           salary_min?: number
           schedule_hour?: number
           schedule_minute?: number
+          sms_daily_cap?: number
+          sms_enabled?: boolean
+          sms_notify_auto_mode?: boolean
+          sms_notify_batch_complete?: boolean
+          sms_notify_batch_start?: boolean
+          sms_notify_followups?: boolean
+          sms_notify_high_probability?: boolean
+          sms_notify_manual_mode?: boolean
+          sms_notify_safety_block?: boolean
           target_roles?: string[] | null
           trust_threshold?: number | null
           updated_at?: string
