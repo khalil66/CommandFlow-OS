@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
 import { withRetry } from "@/lib/api-utils";
 import { toast } from "sonner";
 import { exportApplicationPdf } from "@/lib/pdf-export";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
@@ -65,6 +66,7 @@ function readinessScore(j: any): number {
 }
 
 function Dashboard() {
+  const nav = useNavigate();
   const listAppsFn = useServerFn(listApplications);
   const listJobsFn = useServerFn(listJobs);
   const listLogsFn = useServerFn(listActivityLogs);
@@ -85,6 +87,12 @@ function Dashboard() {
   const [exporting, setExporting] = useState(false);
 
   const refresh = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.access_token) {
+      nav({ to: "/auth" });
+      return;
+    }
+
     const [a, j, l, s, m, hp]: any = await Promise.all([
       withRetry(() => listAppsFn(), { label: "Apps", silent: true }).catch(() => ({ applications: [] })),
       withRetry(() => listJobsFn(), { label: "Jobs", silent: true }).catch(() => ({ jobs: [] })),
