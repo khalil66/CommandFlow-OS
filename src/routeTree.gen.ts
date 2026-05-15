@@ -28,7 +28,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
 
 const TrackerRoute = TrackerRouteImport.update({
@@ -124,6 +123,11 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SmartApplyRoute = SmartApplyRouteImport.update({
+  id: '/smart-apply',
+  path: '/smart-apply',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PacketJobIdRoute = PacketJobIdRouteImport.update({
