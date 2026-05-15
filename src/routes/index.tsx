@@ -3,30 +3,41 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge, ScoreBar } from "@/components/score-bar";
-import { TrendingUp, Target, CheckCircle2, Clock, ArrowUpRight, Zap, Activity, Loader2, Database, Shield, Lock, Sparkles, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/score-bar";
+import {
+  TrendingUp, Target, CheckCircle2, Clock, ArrowUpRight, Zap, Activity, Loader2,
+  Database, Shield, Lock, Sparkles, XCircle, CalendarCheck, Building2, Star,
+  Gauge, FileCheck, BellRing, Download, PlayCircle,
+} from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { listApplications, listActivityLogs } from "@/lib/applications.functions";
 import { listJobs } from "@/lib/jobs.functions";
 import { checkBackendStatus } from "@/lib/seed.functions";
+import {
+  getDailyMetrics, runDailyBatch, listHighProbabilityJobs, getAnalyticsBreakdown,
+} from "@/lib/engine.functions";
 import { withRetry } from "@/lib/api-utils";
+import { toast } from "sonner";
+import { exportApplicationPdf } from "@/lib/pdf-export";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
-function Stat({ icon: Icon, label, value, sub, accent }: any) {
+function MetricCard({ icon: Icon, label, value, sub, accent, hint }: any) {
   return (
     <Card>
       <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-            <div className="mt-2 text-3xl font-semibold tabular-nums">{value}</div>
-            {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+            <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
+            {sub && <div className="mt-1 text-xs text-muted-foreground truncate">{sub}</div>}
           </div>
-          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${accent}`}>
-            <Icon className="h-5 w-5" />
+          <div className={`flex h-9 w-9 items-center justify-center rounded-lg shrink-0 ${accent}`}>
+            <Icon className="h-4 w-4" />
           </div>
         </div>
+        {hint && <div className="mt-3 text-[11px] text-muted-foreground">{hint}</div>}
       </CardContent>
     </Card>
   );
@@ -42,36 +53,95 @@ function StatusPill({ ok, icon: Icon, label }: any) {
   );
 }
 
+function readinessScore(j: any): number {
+  // Combine: trust + ATS compat + interview prob + salary quality + resume quality + portfolio alignment
+  const trust = j.companies?.trust_score ?? j.legitimacy ?? 0;
+  const atsOK = ["Greenhouse", "Lever", "Ashby", "Breezy", "Workable"].includes(j.ats) ? 100 : 50;
+  const interview = j.interview_probability ?? j.final_score ?? 0;
+  const salary = Math.min(100, Math.round(((j.salary_min ?? 0) / 100000) * 100));
+  const resume = j.resume_match ?? 0;
+  const portfolio = j.role_category ? 100 : 60;
+  return Math.round(trust * 0.22 + atsOK * 0.13 + interview * 0.28 + salary * 0.12 + resume * 0.18 + portfolio * 0.07);
+}
+
 function Dashboard() {
   const listAppsFn = useServerFn(listApplications);
   const listJobsFn = useServerFn(listJobs);
   const listLogsFn = useServerFn(listActivityLogs);
   const statusFn = useServerFn(checkBackendStatus);
+  const metricsFn = useServerFn(getDailyMetrics);
+  const batchFn = useServerFn(runDailyBatch);
+  const highProbFn = useServerFn(listHighProbabilityJobs);
+  const analyticsFn = useServerFn(getAnalyticsBreakdown);
+
   const [apps, setApps] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [status, setStatus] = useState<any>(null);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [highProb, setHighProb] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
+  const refresh = async () => {
+    const [a, j, l, s, m, hp]: any = await Promise.all([
       withRetry(() => listAppsFn(), { label: "Apps", silent: true }).catch(() => ({ applications: [] })),
       withRetry(() => listJobsFn(), { label: "Jobs", silent: true }).catch(() => ({ jobs: [] })),
       withRetry(() => listLogsFn(), { label: "Logs", silent: true }).catch(() => ({ logs: [] })),
       withRetry(() => statusFn(), { label: "Status", silent: true }).catch(() => null),
-    ]).then(([a, j, l, s]: any) => {
-      setApps(a.applications); setJobs(j.jobs); setLogs(l.logs); setStatus(s);
-    }).finally(() => setLoading(false));
-  }, []);
+      withRetry(() => metricsFn(), { label: "Metrics", silent: true }).catch(() => null),
+      withRetry(() => highProbFn(), { label: "HighProb", silent: true }).catch(() => ({ jobs: [] })),
+    ]);
+    setApps(a.applications); setJobs(j.jobs); setLogs(l.logs);
+    setStatus(s); setMetrics(m); setHighProb(hp.jobs);
+  };
 
-  const stats = useMemo(() => {
-    const review = apps.filter(a => a.status === "manual_review").length;
-    const approved = apps.filter(a => a.status === "approved").length;
-    const submitted = apps.filter(a => ["submitted","interview","offer"].includes(a.status)).length;
-    const interview = apps.filter(a => a.status === "interview").length;
-    const responseRate = submitted > 0 ? Math.round((interview / submitted) * 100) : 0;
-    return { review, approved, submitted, responseRate };
-  }, [apps]);
+  useEffect(() => { refresh().finally(() => setLoading(false)); }, []);
+
+  const handleRunBatch = async () => {
+    setRunning(true);
+    try {
+      const r: any = await batchFn();
+      if (r.reviewDay) toast.success("Today is a review & follow-ups day — no new applications prepared.");
+      else toast.success(`Batch complete: ${r.batch?.applications_prepared ?? 0} prepared, ${r.batch?.jobs_found ?? 0} jobs found.`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setRunning(false); }
+  };
+
+  const handleExportWeekly = async () => {
+    setExporting(true);
+    try {
+      const a: any = await analyticsFn();
+      const lines: string[] = [
+        "Khalil Hickson — Weekly Hiring Engine Report",
+        `Generated: ${new Date().toLocaleString()}`,
+        "",
+        `Approval rate: ${a.approval_rate}% · Rejection rate: ${a.rejection_rate}%`,
+        `Follow-up completion: ${a.follow_up_completion}% · Decided applications: ${a.decided_count}`,
+        "",
+        "Top resumes (by interviews):",
+        ...a.resume_performance.slice(0, 5).map((r: any) => `  - ${r.name}: ${r.interviews} interviews / ${r.applications} apps · match ${r.match_score}`),
+        "",
+        "Top role categories (avg interview probability):",
+        ...a.role_probability.slice(0, 5).map((r: any) => `  - ${r.name}: ${r.value}`),
+        "",
+        "Top company categories:",
+        ...a.category_performance.slice(0, 5).map((r: any) => `  - ${r.name}: ${r.value}`),
+        "",
+        "Top ATS platforms:",
+        ...a.ats_performance.slice(0, 5).map((r: any) => `  - ${r.name}: ${r.value}`),
+      ];
+      const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = `weekly-analytics-${new Date().toISOString().slice(0, 10)}.txt`;
+      link.click(); URL.revokeObjectURL(url);
+      toast.success("Weekly analytics exported");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setExporting(false); }
+  };
 
   const dailyStats = useMemo(() => {
     const days: { day: string; saved: number; approved: number; submitted: number }[] = [];
@@ -89,34 +159,57 @@ function Dashboard() {
     return days;
   }, [logs]);
 
-  const topJobs = useMemo(() => [...jobs].sort((a, b) => (b.final_score ?? 0) - (a.final_score ?? 0)).slice(0, 5), [jobs]);
+  const topReadiness = useMemo(() => {
+    return [...highProb]
+      .map((j: any) => ({ ...j, _readiness: readinessScore(j) }))
+      .sort((a, b) => b._readiness - a._readiness)
+      .slice(0, 5);
+  }, [highProb]);
+
   const recentLogs = logs.slice(0, 6);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+    <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Command Center</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Daily Verified Remote Hiring Engine</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            AI-driven remote job applications · Targeting Data Analyst, TechOps, CSM, PM roles
+            {metrics
+              ? <>Today is <span className="font-medium text-foreground">{metrics.day_of_week}</span> · Category: <span className="font-medium text-foreground">{metrics.todays_category_label}</span></>
+              : "Loading today's plan…"}
           </p>
         </div>
-        <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-          <Link to="/queue"><Zap className="h-4 w-4 mr-1.5" /> Run Discovery</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleRunBatch} disabled={running} className="bg-accent text-accent-foreground hover:bg-accent/90">
+            {running ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <PlayCircle className="h-4 w-4 mr-1.5" />}
+            Run Today's Batch
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/high-probability"><Sparkles className="h-4 w-4 mr-1.5" /> Review High-Probability Jobs</Link>
+          </Button>
+          <Button variant="outline" onClick={handleExportWeekly} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
+            Export Weekly Analytics
+          </Button>
+        </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Stat icon={Clock} label="Manual Review" value={stats.review} sub="Awaiting your decision" accent="bg-info/15 text-info" />
-            <Stat icon={Target} label="Approved" value={stats.approved} sub="Ready to submit" accent="bg-success/15 text-success" />
-            <Stat icon={CheckCircle2} label="Submitted" value={stats.submitted} sub="Tracking outcome" accent="bg-accent/15 text-accent-foreground" />
-            <Stat icon={TrendingUp} label="Interview Rate" value={`${stats.responseRate}%`} sub="of submissions" accent="bg-warning/15 text-warning-foreground" />
+          {/* 7 live metric cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+            <MetricCard icon={CalendarCheck} label="Daily Batch" value={metrics?.batch_complete ? "Complete" : "Pending"} sub={metrics?.batch ? `${metrics.batch.applications_prepared ?? 0} prepared` : "Run today's batch"} accent={metrics?.batch_complete ? "bg-success/15 text-success" : "bg-warning/15 text-warning-foreground"} />
+            <MetricCard icon={Building2} label="Verified Companies" value={`${metrics?.verified_companies ?? 0}/${metrics?.total_companies ?? 0}`} sub="Trust ≥ 90 verified" accent="bg-info/15 text-info" />
+            <MetricCard icon={Star} label="High-Prob Jobs" value={metrics?.high_probability_jobs ?? 0} sub="Ready to apply" accent="bg-accent/15 text-accent-foreground" />
+            <MetricCard icon={Gauge} label="Avg Interview Prob" value={`${metrics?.avg_interview_probability ?? 0}`} sub="across all jobs" accent="bg-chart-2/15 text-chart-2" />
+            <MetricCard icon={Shield} label="Avg Trust Score" value={`${metrics?.avg_company_trust ?? 0}`} sub="company verification" accent="bg-chart-1/15 text-chart-1" />
+            <MetricCard icon={FileCheck} label="Resume Match" value={`${metrics?.avg_resume_match ?? 0}`} sub="avg tailored score" accent="bg-chart-3/15 text-chart-3" />
+            <MetricCard icon={BellRing} label="Follow-ups Due" value={metrics?.follow_ups_due ?? 0} sub="action required" accent={metrics?.follow_ups_due > 0 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground"} />
           </div>
 
+          {/* Backend status */}
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Backend status</CardTitle></CardHeader>
             <CardContent>
@@ -165,25 +258,35 @@ function Dashboard() {
               </CardContent>
             </Card>
 
+            {/* Application Readiness Score */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Top scoring jobs</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><Target className="h-4 w-4 text-accent" /> Application Readiness</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {topJobs.length === 0 && <p className="text-xs text-muted-foreground">No saved jobs yet. Visit the Queue to save some.</p>}
-                {topJobs.map(j => (
-                  <div key={j.id} className="flex items-start justify-between gap-3 p-3 rounded-md border border-border hover:bg-muted/40 transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm truncate">{j.title}</div>
-                      <div className="text-xs text-muted-foreground truncate">{j.company_name} · {j.ats}</div>
+                {topReadiness.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No high-probability jobs yet. Run today's batch.</p>
+                ) : topReadiness.map((j: any) => (
+                  <div key={j.id} className="p-3 rounded-md border border-border space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{j.title}</div>
+                        <div className="text-xs text-muted-foreground truncate">{j.company_name} · {j.ats}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xl font-semibold tabular-nums text-accent">{j._readiness}</div>
+                        <div className="text-[10px] text-muted-foreground">readiness</div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold tabular-nums text-accent">{j.final_score ?? 0}</div>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline" className="text-[10px]">Trust {j.companies?.trust_score ?? j.legitimacy ?? 0}</Badge>
+                      <Badge variant="outline" className="text-[10px]">Interview {j.interview_probability ?? 0}</Badge>
+                      <Badge variant="outline" className="text-[10px]">Match {j.resume_match ?? 0}</Badge>
                     </div>
                   </div>
                 ))}
                 <Button variant="ghost" size="sm" asChild className="w-full">
-                  <Link to="/queue">View queue <ArrowUpRight className="h-3 w-3 ml-1" /></Link>
+                  <Link to="/high-probability">All ready-to-apply <ArrowUpRight className="h-3 w-3 ml-1" /></Link>
                 </Button>
               </CardContent>
             </Card>
