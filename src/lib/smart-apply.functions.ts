@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generatePacket, computeQuality, confidenceLabel } from "./packet.functions";
 import { SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
+import { enrichSalary, type SalaryGateStatus } from "./salary-estimator";
 
 // Auto-Review safety constants. Tightened intentionally — see "Auto Review Safety Gates".
 export const AUTO_GATES = {
