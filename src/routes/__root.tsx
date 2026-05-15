@@ -111,9 +111,39 @@ function RootShell({ children }: { children: React.ReactNode }) {
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { useEffect } from "react";
+import { useNavigate, useLocation } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { user, loading } = useAuth();
+  const nav = useNavigate();
+  const loc = useLocation();
+
+  useEffect(() => {
+    if (!loading && !user && loc.pathname !== "/auth") nav({ to: "/auth" });
+  }, [user, loading, loc.pathname, nav]);
+
+  if (loc.pathname === "/auth") {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -125,8 +155,11 @@ function RootComponent() {
               <SidebarTrigger />
               <div className="flex-1" />
               <div className="text-xs text-muted-foreground hidden sm:block">
-                khalilhickson.com · Remote-first
+                {user.email} · Manual Review mode
               </div>
+              <Button size="sm" variant="ghost" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }}>
+                <LogOut className="h-3.5 w-3.5" />
+              </Button>
             </header>
             <main className="flex-1 min-w-0">
               <Outlet />
