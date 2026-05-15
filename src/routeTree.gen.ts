@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
+import { Route as SystemRouteImport } from './routes/system'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
@@ -30,6 +31,11 @@ import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SourcesRoute = SourcesRouteImport.update({
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
 }
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
 }
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
 }
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/sources'
+    | '/system'
     | '/tracker'
     | '/packet/$jobId'
   fileRoutesByTo: FileRoutesByTo
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/sources'
+    | '/system'
     | '/tracker'
     | '/packet/$jobId'
   id:
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/sources'
+    | '/system'
     | '/tracker'
     | '/packet/$jobId'
   fileRoutesById: FileRoutesById
@@ -247,6 +259,7 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SourcesRoute: typeof SourcesRoute
+  SystemRoute: typeof SystemRoute
   TrackerRoute: typeof TrackerRoute
   PacketJobIdRoute: typeof PacketJobIdRoute
 }
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/tracker'
       fullPath: '/tracker'
       preLoaderRoute: typeof TrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sources': {
@@ -391,6 +411,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SourcesRoute: SourcesRoute,
+  SystemRoute: SystemRoute,
   TrackerRoute: TrackerRoute,
   PacketJobIdRoute: PacketJobIdRoute,
 }
