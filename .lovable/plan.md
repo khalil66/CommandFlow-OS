@@ -1,67 +1,136 @@
-# Daily Verified Remote Hiring Engine — Build Plan
+# Smart Apply — Final Optimization Upgrades
 
-A focused upgrade in 6 layers. Browser automation stays disabled; everything ships in Manual Review mode.
+A focused, non-destructive expansion of the existing Smart Apply pipeline. No
+auto-submit, no browser automation, no CAPTCHA/MFA bypass. Auto Review cap stays
+at 5/day. Manual override stays available everywhere.
 
-## 1. Database (one migration)
+## 1. Schema additions (one migration)
 
-Add columns + tables to support trust scoring, daily batches, interview probability, and follow-ups.
+New columns / tables to support ranking, A/B testing, follow-ups, QC, and
+learning reports:
 
-- `companies` — add: `trust_score int`, `verification_status` enum (`verified|manual_review|rejected`), `is_remote_first bool`, `hiring_activity int`, `mba_friendly bool`, `category` enum (`saas|data|cs_ops|product_pm|remote_first|mba_friendly|other`), `funding_stage text`, `careers_url text`, `linkedin_url text`, `red_flags text[]`, `last_applied_at timestamptz`.
-- `job_listings` — add: `category` (same enum), `interview_probability int`, `role_category text`, `ready_to_apply bool default false`, `salary_estimated bool`, `posted_at timestamptz`, `dedupe_hash text` (unique per user).
-- `applications` — add: `priority` enum (`high|good|manual|skip`), `follow_up_due_at timestamptz`, `portfolio_project text`.
-- New table `daily_batches` — `id, user_id, batch_date date, day_of_week text, category text, companies_reviewed int, jobs_found int, jobs_rejected int, applications_prepared int, applications_approved int, applications_submitted int, interview_responses int, status (running|complete), summary jsonb`.
-- New table `verification_checks` — `id, user_id, company_id, has_official_site bool, has_careers_page bool, has_linkedin bool, ats_domain_match bool, business_footprint_score int, news_signals_count int, scam_flags text[], personal_email_domain bool, payment_request bool, score int, decision text, raw jsonb`.
-- Indexes on `(user_id, last_applied_at)` and unique `(user_id, dedupe_hash)`.
+- `job_sources`: add `response_count`, `interview_count`, `rejection_count`,
+  `safety_block_count`, `high_prob_count`, `quality_score_avg`,
+  `priority_score` (computed at run-time), `last_quality_recalc_at`.
+- `resume_versions`: add `variant_key` (text: `data_analyst | operations |
+  customer_success | product_ops | generic`), `is_template` (bool).
+- `applications`: add `resume_variant_key`, `response_received_at`,
+  `interview_requested_at`, `rejected_at`, `ghosted_at`, `offer_at`,
+  `qc_passed` (bool), `qc_failures` (text[]), `freshness_bucket` (text).
+- `job_listings`: add `freshness_bucket` (text: `0-3 | 4-7 | 8-14 | stale`)
+  populated at ingest + on read.
+- New table `follow_up_tasks`:
+  `id, user_id, application_id, job_id, kind (followup_5d | followup_10d |
+  linkedin_connect), due_at, status (pending | done | dismissed),
+  completed_at, created_at`. RLS owner-only.
+- New table `interview_prep`:
+  `id, user_id, application_id, job_id, brief jsonb, generated_at`.
+  RLS owner-only. (Reuses existing `interview_briefs` if compatible — check.)
+- New table `weekly_learning_reports`:
+  `id, user_id, week_start, week_end, payload jsonb, recommendations text[],
+  created_at`. RLS owner-only.
 
-## 2. Server functions (new file `src/lib/engine.functions.ts`)
+## 2. Source ranking (`src/lib/source-ranking.ts` + serverFn)
 
-All gated by `requireSupabaseAuth`. No browser automation.
+- Aggregate per-source metrics from `applications`, `automation_safety_logs`,
+  `job_listings`.
+- `priority_score = response_rate*40 + interview_rate*30 + quality_avg*0.2 -
+  safety_block_rate*30 - rejection_rate*10`.
+- `recomputeSourcePriority` serverFn — called nightly + at start of each
+  Smart Apply run. Persists `priority_score` on `job_sources`.
+- Smart Apply ingest loop already iterates sources; sort by `priority_score
+  desc` before iterating, and skip sources whose `safety_block_rate > 0.2`.
 
-- `verifyCompany({ name, domain, careers_url?, linkedin_url? })` — runs the trust scoring rubric (deterministic, no external calls in MVP — uses heuristics + fields user provides + scam/red-flag word list). Returns trust score 0–100, decision (verified/manual_review/reject), red flags. Persists to `verification_checks` and updates `companies.trust_score` + `verification_status`.
-- `scoreInterviewProbability({ job_id })` — computes 0–100 from the 11 factors listed (resume_match, skills_match, salary_fit, experience_fit, remote_fit, education_fit, mba_relevance, portfolio_relevance, profile_strength, hiring_activity, ats_compat). Returns breakdown + total + priority bucket. Updates job row.
-- `runDailyBatch()` — picks today's category by weekday, pulls candidate companies in that category (or seeds them), runs verifyCompany on each, generates job stubs that meet salary + remote + ATS + dedupe rules, runs scoreInterviewProbability per job, marks Ready-to-Apply when all gates pass (trust 90+, prob 85+, salary > $55k, remote, supported ATS), writes a `daily_batches` row, returns counts.
-- `getDailyMetrics({ date? })` — aggregates today's batch + roll-up stats for the dashboard cards.
-- `listHighProbabilityJobs()` — `interview_probability >= 85 AND ready_to_apply = true`.
-- `markFollowUpDue({ application_id, days })` and `listFollowUpsDue()`.
-- `getPortfolioProjects({ role_category })` — server-side mapping table from role → 1-2 portfolio projects from khalilhickson.com.
+## 3. Resume A/B testing
 
-Resume tailoring (`tailorResume`) is extended to:
-- pull job's keywords + role category, reuse the verified proof points (10,000+ tickets, 25% escalation reduction, 91% CSAT, 35% efficiency, 50k+ transactions, $1.2M revenue analysis, 24h avg resolution, 92% SLA, forecasting 92% accuracy)
-- inject portfolio project + LinkedIn + website
-- tag the saved `resume_versions` row with `target_role` so the analytics view can roll up best-performing versions
+- Seed 4 variant templates in `resume_versions` with `is_template=true` and
+  `variant_key` set per category (one-time seed serverFn).
+- `assignResumeVariant(role_category)` helper picks the right template.
+- `tailorResume` accepts `variant_key`, persists it on the new resume row.
+- `applications.resume_variant_key` populated when packet generated.
+- Analytics route gets a "Response rate by resume variant" card driven by a
+  `getResumeVariantStats` serverFn.
 
-## 3. Seed data overhaul
+## 4. Job freshness priority
 
-Replace `seed.functions.ts` payload with ~30 real-name companies pre-tagged across the 7 categories (Linear, Vercel, Stripe, Notion, Zapier, GitLab, Cloudflare, Datadog, Sentry, Twilio, Asana, Snowflake, Databricks, Mixpanel, Amplitude, PostHog, Retool, Plaid, Brex, Ramp, Mercury, Segment, Loom, HashiCorp, Figma, ClickUp, Monday, Airtable, Greenhouse, Lever) with `category`, `is_remote_first`, `mba_friendly`, `linkedin_url`, `careers_url`. Pre-seed each with a `verification_checks` row so trust scores exist out of the box.
+- `computeFreshnessBucket(posted_at)` utility (0-3 / 4-7 / 8-14 / stale).
+- Ingest sets `freshness_bucket`; jobs with `stale` are auto-rejected at
+  ingest (matches existing 14-day gate, just makes it explicit).
+- Queue / Review / Smart Apply rows get a `<FreshnessBadge>` component.
+- Auto Review scoring already enforces ≤14d; adds a small bonus for 0–3d.
 
-## 4. UI — new + reworked routes
+## 5. Follow-up scheduling
 
-- `src/routes/index.tsx` (Dashboard) — add a top section with the 7 metric cards: Daily Batch Complete, Verified Companies, High-Probability Jobs, Avg Interview Probability, Avg Company Trust Score, Resume Match Score, Follow-ups Due. Add "Run today's batch" button.
-- `src/routes/queue.tsx` — split into 3 tabs: **High-Probability Applications** (Ready-to-Apply only), **All Jobs**, **Daily Batch**. Each row shows trust score + interview probability + priority chip.
-- `src/routes/companies.tsx` (NEW) — list companies with trust score, verification status, last_applied_at, category. Re-verify button.
-- `src/routes/batches.tsx` (NEW) — daily batch history with per-day metrics + the "rotate by weekday" schedule visible.
-- `src/routes/analytics.tsx` — add charts for: best-performing resume version, best role category, best company type, applications-by-priority funnel.
-- `src/components/app-sidebar.tsx` — add "Companies" and "Daily Batches" links.
+- When an application transitions to `submitted` (manual mark), a serverFn
+  `scheduleFollowUps(application_id)` inserts three `follow_up_tasks` rows:
+  +5d, +10d, +3d LinkedIn connect.
+- `Follow-Ups` route lists `follow_up_tasks` ordered by `due_at`, with
+  Mark-Done / Dismiss / Snooze buttons.
+- Dashboard "Follow-Ups Scheduled" card counts pending tasks due within 7d.
 
-## 5. Supporting libraries
+## 6. Final QC gate (auto review)
 
-- `src/lib/scoring.ts` — pure functions for trust score and interview probability (so the same math is reusable + easy to unit-test mentally).
-- `src/lib/portfolio.ts` — Khalil's portfolio project map keyed by role_category.
-- `src/lib/scam-signals.ts` — word lists for scam-language detection (payment requests, crypto, training fees, equipment purchases, personal email domains).
+- New `src/lib/qc-gate.ts` `runFinalQC(packet)` returns `{ passed, failures[]
+  }` with checks for: no fabricated metrics (cross-check vs KHALIL_PROOF),
+  no keyword stuffing (>15% repetition), company/title/salary/ATS/portfolio
+  presence, resume_id + cover_id non-null.
+- Smart Apply `auto` decision now requires `qc_passed === true`. Failures
+  push the application to `manual_review` with `qc_failures` populated and
+  surface in Review UI.
 
-## 6. Safety + behavior guarantees
+## 7. Interview prep automation
 
-- Default `applications.status` stays `manual_review`. No auto-submit anywhere in the codebase.
-- "High-Probability Applications" view is read-only beyond the existing Approve / Reject / Export buttons.
-- 30-day reapply guard enforced inside `runDailyBatch` (skips companies whose `last_applied_at` is within 30 days).
-- All toasts + loading + empty + error states preserved.
+- Trigger: when `applications.status` changes to `interview_requested`
+  (handled in `decideApplication` + a new `markInterviewRequested` serverFn).
+- Calls existing OpenAI prep logic (already in `packet.functions.ts`) +
+  expands to include 60-second pitch and salary talking points; persists to
+  `interview_prep` (or extended `interview_briefs`).
+- Interview prep visible on the packet page + linked from dashboard.
+
+## 8. Weekly learning report
+
+- `generateWeeklyLearningReport` serverFn (extends existing
+  `weekly-report.functions.ts`): aggregates the last 7d into a
+  `weekly_learning_reports` row with best role category, best variant,
+  best company type, best/worst source, avg interview prob, response rate,
+  and a `recommendations[]` array.
+- pg_cron Sunday 09:00 → `/api/public/hooks/weekly-report` route that runs
+  the report for every user with `sms_enabled=true` and optionally SMS-es
+  the headline. (Cron is optional polish; serverFn is callable from UI too.)
+
+## 9. Dashboard updates
+
+`src/routes/index.tsx` gets six new cards driven by one `getDashboardSummary`
+serverFn:
+- Best Source This Week
+- Best Resume Version
+- Fresh Jobs 0–3 Days
+- Follow-Ups Scheduled
+- Interviews Requested
+- Weekly Recommendation (latest row from `weekly_learning_reports`)
+
+## 10. Guardrails preserved
+
+- `application_mode='auto_review'` remains capped at `auto_review_daily_cap=5`.
+- No `submitted_at` is ever auto-set.
+- No browser automation code paths added.
+- Safety-block fallback + manual override unchanged.
 
 ---
 
-## Out of scope (not in this turn)
+## Build order
 
-- Real web crawling / Firecrawl wiring for verification (heuristic only — wiring noted as a future step).
-- Email/calendar follow-up reminders (we record the due date, but no notifications).
-- Browser automation / auto-submit.
+1. Migration (schema for all features).
+2. Utilities (`source-ranking.ts`, `qc-gate.ts`, freshness helper, variant
+   assignment).
+3. ServerFns: `recomputeSourcePriority`, `scheduleFollowUps`,
+   `markInterviewRequested`, `generateWeeklyLearningReport`,
+   `getDashboardSummary`, `getResumeVariantStats`, resume variant seed.
+4. Wire into existing pipeline: ingest sets freshness, source ranking gates
+   ingest order, packet generation runs QC + assigns variant, decision flow
+   schedules follow-ups + triggers prep.
+5. UI: FreshnessBadge, Follow-Ups page, Analytics resume-variant card,
+   Dashboard six new cards.
+6. Optional cron route for weekly report.
 
-Once approved, I'll ship the migration first, then the server functions + UI in one batch.
+Estimated touch: 1 migration + ~6 new files + edits to ~8 existing files.
