@@ -17,6 +17,7 @@ import { checkBackendStatus } from "@/lib/seed.functions";
 import {
   getDailyMetrics, runDailyBatch, listHighProbabilityJobs, getAnalyticsBreakdown,
 } from "@/lib/engine.functions";
+import { getDashboardOptimization } from "@/lib/optimization.functions";
 import { withRetry } from "@/lib/api-utils";
 import { toast } from "sonner";
 import { exportApplicationPdf } from "@/lib/pdf-export";
@@ -85,6 +86,8 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [opt, setOpt] = useState<any>(null);
+  const optFn = useServerFn(getDashboardOptimization);
 
   const refresh = async () => {
     const { data } = await supabase.auth.getSession();
@@ -93,16 +96,17 @@ function Dashboard() {
       return;
     }
 
-    const [a, j, l, s, m, hp]: any = await Promise.all([
+    const [a, j, l, s, m, hp, o]: any = await Promise.all([
       withRetry(() => listAppsFn(), { label: "Apps", silent: true }).catch(() => ({ applications: [] })),
       withRetry(() => listJobsFn(), { label: "Jobs", silent: true }).catch(() => ({ jobs: [] })),
       withRetry(() => listLogsFn(), { label: "Logs", silent: true }).catch(() => ({ logs: [] })),
       withRetry(() => statusFn(), { label: "Status", silent: true }).catch(() => null),
       withRetry(() => metricsFn(), { label: "Metrics", silent: true }).catch(() => null),
       withRetry(() => highProbFn(), { label: "HighProb", silent: true }).catch(() => ({ jobs: [] })),
+      withRetry(() => optFn(), { label: "Opt", silent: true }).catch(() => null),
     ]);
     setApps(a.applications); setJobs(j.jobs); setLogs(l.logs);
-    setStatus(s); setMetrics(m); setHighProb(hp.jobs);
+    setStatus(s); setMetrics(m); setHighProb(hp.jobs); setOpt(o);
   };
 
   useEffect(() => { refresh().finally(() => setLoading(false)); }, []);
@@ -217,6 +221,18 @@ function Dashboard() {
             <Link to="/follow-ups" className="contents">
               <MetricCard icon={BellRing} label="Follow-ups Due" value={metrics?.follow_ups_due ?? 0} sub="action required" accent={metrics?.follow_ups_due > 0 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground"} />
             </Link>
+          </div>
+
+          {/* Optimization cards: source, variant, freshness, follow-ups, interviews, weekly rec */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <MetricCard icon={Target} label="Best Source / Wk" value={opt?.best_source?.name ?? "—"} sub={opt?.best_source ? `priority ${Math.round(opt.best_source.priority_score ?? 0)} · ${opt.best_source.interview_count ?? 0} intvs` : "Run a few packets"} accent="bg-chart-1/15 text-chart-1" />
+            <MetricCard icon={FileCheck} label="Best Resume" value={opt?.best_variant?.label ?? "—"} sub={opt?.best_variant ? `${(opt.best_variant.response_rate * 100).toFixed(0)}% response` : "No data yet"} accent="bg-chart-2/15 text-chart-2" />
+            <MetricCard icon={Zap} label="Fresh 0–3 Days" value={opt?.fresh_jobs_0_3 ?? 0} sub="highest priority" accent="bg-success/15 text-success" />
+            <Link to="/follow-ups" className="contents">
+              <MetricCard icon={BellRing} label="Follow-Ups Scheduled" value={opt?.follow_ups_pending ?? 0} sub="due in next 7d" accent={opt?.follow_ups_pending > 0 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground"} />
+            </Link>
+            <MetricCard icon={Sparkles} label="Interviews / Wk" value={opt?.interviews_this_week ?? 0} sub="last 7 days" accent="bg-accent/15 text-accent-foreground" />
+            <MetricCard icon={Activity} label="Weekly Tip" value={opt?.weekly_recommendation ? "Available" : "—"} sub={opt?.weekly_recommendation ?? "Generate a weekly report"} accent="bg-info/15 text-info" />
           </div>
 
           {/* Backend status */}

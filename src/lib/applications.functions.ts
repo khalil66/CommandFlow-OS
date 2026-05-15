@@ -95,12 +95,40 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: row, error } = await supabase
-      .from("applications").update({ status: data.status }).eq("id", data.application_id).select().single();
+    const updates: any = { status: data.status };
+    const now = new Date().toISOString();
+    if (data.status === "submitted" || data.status === "submitted_manually") {
+      updates.submitted_at = now;
+    }
+    if (data.status === "interview_requested" || data.status === "interview") {
+      updates.interview_requested_at = now;
+      updates.response_received_at = now;
+    }
+    if (data.status === "rejected") updates.rejected_at = now;
+    if (data.status === "ghosted") updates.ghosted_at = now;
+    if (data.status === "offer") updates.offer_at = now;
+
+    const { data: row, error } = await (supabase as any)
+      .from("applications").update(updates).eq("id", data.application_id).select().single();
     if (error) throw new Error(error.message);
     await logActivity(supabase, userId, "status_change", {
       application_id: row.id, job_id: row.job_id, details: { new_status: data.status },
     });
+
+    // Side effects: schedule follow-ups on submission, generate prep on interview request.
+    if (data.status === "submitted" || data.status === "submitted_manually") {
+      try {
+        const { scheduleFollowUps } = await import("./optimization.functions");
+        await scheduleFollowUps({ data: { application_id: row.id } });
+      } catch (e) { /* best-effort */ }
+    }
+    if (data.status === "interview_requested" || data.status === "interview") {
+      try {
+        const { markInterviewRequested } = await import("./optimization.functions");
+        await markInterviewRequested({ data: { application_id: row.id } });
+      } catch (e) { /* best-effort */ }
+    }
+
     return { application: row };
   });
 

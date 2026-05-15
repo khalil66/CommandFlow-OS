@@ -4,6 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generatePacket, confidenceLabel } from "./packet.functions";
 import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
 import { sendSmsInternal } from "./sms.functions";
+import { runFinalQC, assignResumeVariant } from "./qc-gate";
+import { freshnessBucket } from "./freshness";
 
 // Auto-Review safety constants. Source of truth lives in auto-review-scoring.ts.
 export const AUTO_GATES = {
@@ -293,18 +295,45 @@ export const runSmartApply = createServerFn({ method: "POST" })
         mode === "auto_review" && !fridayPrepareOnly &&
         !guardTripped && review.decision === "auto"
       ) {
-        await (supabase as any).from("applications")
-          .update({ status: "approved", priority: "high",
-            notes: `Auto-approved · quality ${packet.quality?.score}` })
-          .eq("user_id", userId).eq("job_id", j.id);
-        await log({
-          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-          action: "auto_approved",
-          reason: `All gates passed · quality ${packet.quality?.score} · ${confidenceLabel(packet.quality?.score ?? 0)}`,
-          gates: review,
+        // Final QC gate before auto-approval
+        const qc = runFinalQC({
+          job: j, company: j.companies, packet,
+          resume_id: (packet as any).resume?.resume_id ?? (packet as any).resume_id ?? null,
+          cover_id: (packet as any).cover?.cover_id ?? (packet as any).cover_id ?? null,
         });
-        approved++;
-        atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
+        const variantKey = assignResumeVariant(j.role_category, j.title);
+        const bucket = freshnessBucket(j.posted_at);
+        if (!qc.passed) {
+          for (const f of qc.failures) manualReasons.set(f, (manualReasons.get(f) ?? 0) + 1);
+          await (supabase as any).from("applications").update({
+            status: "manual_review", priority: "manual",
+            qc_passed: false, qc_failures: qc.failures,
+            resume_variant_key: variantKey, freshness_bucket: bucket,
+            notes: `QC failed: ${qc.failures.slice(0, 3).join("; ")}`,
+          }).eq("user_id", userId).eq("job_id", j.id);
+          await log({
+            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+            action: "prepared",
+            reason: `Final QC failed → Manual Review: ${qc.failures.join(", ")}`,
+            gates: { ...review, qc_failures: qc.failures },
+          });
+          atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
+        } else {
+          await (supabase as any).from("applications").update({
+            status: "approved", priority: "high",
+            qc_passed: true, qc_failures: [],
+            resume_variant_key: variantKey, freshness_bucket: bucket,
+            notes: `Auto-approved · quality ${packet.quality?.score} · QC clean`,
+          }).eq("user_id", userId).eq("job_id", j.id);
+          await log({
+            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+            action: "auto_approved",
+            reason: `All gates + QC passed · quality ${packet.quality?.score} · ${confidenceLabel(packet.quality?.score ?? 0)}`,
+            gates: { ...review, qc: "passed" },
+          });
+          approved++;
+          atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
+        }
       } else {
         let note: string;
         if (guardTripped) note = `Pass-rate guard tripped (>${Math.round(AUTO_GATES.passRateCap*100)}%) — sent to Manual Review`;
