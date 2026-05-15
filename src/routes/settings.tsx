@@ -6,15 +6,28 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
+import { Gauge, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
 function Settings() {
-  const [autoApply, setAutoApply] = useState(true);
+  const [autoApply, setAutoApply] = useState(false);
   const [trustThreshold, setTrust] = useState([90]);
   const [dailyCap, setCap] = useState([25]);
+  const [usage, setUsage] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const usageFn = useServerFn(getUsageToday);
+  const analyticsFn = useServerFn(getUsageAnalytics);
+
+  useEffect(() => {
+    usageFn().then(setUsage).catch(() => {});
+    analyticsFn().then(setAnalytics).catch(() => {});
+  }, []);
 
   return (
     <div className="p-6 space-y-6 max-w-[900px] mx-auto">
