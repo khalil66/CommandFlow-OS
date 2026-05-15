@@ -28,6 +28,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
 
 const TrackerRoute = TrackerRouteImport.update({
