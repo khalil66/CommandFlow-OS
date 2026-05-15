@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScoreBar, StatusBadge } from "@/components/score-bar";
 import { MOCK_JOBS, SUPPORTED_ATS } from "@/lib/mock-data";
-import { Search, Filter as FilterIcon, ExternalLink, CheckCircle2, Save, Package } from "lucide-react";
+import { Search, Filter as FilterIcon, ExternalLink, CheckCircle2, Save, FileDown, Package } from "lucide-react";
 import { toast } from "sonner";
 import { saveJob, getJobPacket } from "@/lib/jobs.functions";
 import { upsertApplication } from "@/lib/applications.functions";
+import { withRetry } from "@/lib/api-utils";
+import { exportApplicationPdf } from "@/lib/pdf-export";
 
 export const Route = createFileRoute("/queue")({ component: QueuePage });
 
@@ -39,30 +41,41 @@ function QueuePage() {
 
   const handleSave = async (j: any) => {
     try {
-      const { job } = await saveJobFn({ data: {
+      const { job } = await withRetry(() => saveJobFn({ data: {
         title: j.title, company_name: j.company, location: j.location,
         remote: j.remote, salary_min: j.salaryMin, salary_max: j.salaryMax,
         ats: j.ats, source_url: j.url ?? null,
         resume_match: j.resumeMatch, legitimacy: j.legitimacy,
         final_score: j.finalScore, blockers: j.blockers ?? [],
-      }});
-      await upsertAppFn({ data: { job_id: job.id, status: "manual_review" } });
+      }}), { label: "Save job", silent: true });
+      await withRetry(() => upsertAppFn({ data: { job_id: job.id, status: "manual_review" } }), { label: "Create application", silent: true });
       setSavedIds(prev => ({ ...prev, [j.id]: job.id }));
       toast.success(`Saved ${j.company} to Manual Review`);
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const handleExport = async (j: any) => {
+  const handleExportJson = async (j: any) => {
     const dbId = savedIds[j.id];
     if (!dbId) return toast.error("Save the job first");
     try {
-      const packet = await getPacketFn({ data: { jobId: dbId } });
+      const packet = await withRetry(() => getPacketFn({ data: { jobId: dbId } }), { label: "Build packet" });
       const blob = new Blob([JSON.stringify(packet, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = `packet-${j.company.replace(/\W+/g,"-")}.json`;
       a.click(); URL.revokeObjectURL(url);
-      toast.success("Application packet exported");
+      toast.success("Application packet exported (JSON)");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleExportPdf = async (j: any) => {
+    const dbId = savedIds[j.id];
+    if (!dbId) return toast.error("Save the job first");
+    try {
+      const packet = await withRetry(() => getPacketFn({ data: { jobId: dbId } }), { label: "Build packet" });
+      if (!packet.job) return toast.error("Job not found");
+      exportApplicationPdf(packet as any, `${j.company.replace(/\W+/g,"-")}-${j.title.replace(/\W+/g,"-")}.pdf`);
+      toast.success("PDF exported");
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -180,7 +193,10 @@ function QueuePage() {
                         <Button size="sm" variant="ghost" title="Save to Manual Review" onClick={() => handleSave(j)} disabled={!!savedIds[j.id]}>
                           {savedIds[j.id] ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : <Save className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button size="sm" variant="ghost" title="Export Application Packet" onClick={() => handleExport(j)} disabled={!savedIds[j.id]}>
+                        <Button size="sm" variant="ghost" title="Export PDF Packet" onClick={() => handleExportPdf(j)} disabled={!savedIds[j.id]}>
+                          <FileDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" title="Export JSON Packet" onClick={() => handleExportJson(j)} disabled={!savedIds[j.id]}>
                           <Package className="h-3.5 w-3.5" />
                         </Button>
                         <Button size="sm" variant="ghost" title="Open"><ExternalLink className="h-3.5 w-3.5" /></Button>

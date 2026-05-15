@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import { toast } from "sonner";
 import { Briefcase } from "lucide-react";
 
@@ -32,17 +32,6 @@ function AuthPage() {
     nav({ to: "/" });
   };
 
-  const signUp = async () => {
-    setLoading(true);
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: redirectUrl },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — check your email to confirm");
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -58,20 +47,13 @@ function AuthPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="signin">
-            <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="signin">Sign in</TabsTrigger><TabsTrigger value="signup">Sign up</TabsTrigger></TabsList>
-            <TabsContent value="signin" className="space-y-3 mt-4">
-              <div><Label className="text-xs">Email</Label><Input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-              <div><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
-              <Button onClick={signIn} disabled={loading} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Sign in</Button>
-            </TabsContent>
-            <TabsContent value="signup" className="space-y-3 mt-4">
-              <div><Label className="text-xs">Email</Label><Input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-              <div><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
-              <Button onClick={signUp} disabled={loading} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Create account</Button>
-            </TabsContent>
-          </Tabs>
+        <CardContent className="space-y-3">
+          <div><Label className="text-xs">Email</Label><Input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></div>
+          <div><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
+          <Button onClick={signIn} disabled={loading} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Sign in</Button>
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            Single-admin workspace. Public sign-up is disabled.
+          </p>
         </CardContent>
       </Card>
     </div>
