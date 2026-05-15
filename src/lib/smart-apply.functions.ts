@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generatePacket, confidenceLabel } from "./packet.functions";
 import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
+import { sendSmsInternal } from "./sms.functions";
 
 // Auto-Review safety constants. Source of truth lives in auto-review-scoring.ts.
 export const AUTO_GATES = {
