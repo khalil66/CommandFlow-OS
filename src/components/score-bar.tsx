@@ -26,10 +26,20 @@ export function StatusBadge({ status }: { status: string }) {
     "Easy": "bg-success/15 text-success border-success/30",
     "Medium": "bg-warning/15 text-warning-foreground border-warning/30",
     "Hard": "bg-destructive/15 text-destructive border-destructive/30",
+    // DB statuses
+    queued: "bg-muted text-foreground border-border",
+    manual_review: "bg-info/15 text-info border-info/30",
+    approved: "bg-success/15 text-success border-success/30",
+    submitted: "bg-accent/15 text-accent-foreground border-accent/30",
+    interview: "bg-accent/15 text-accent-foreground border-accent/30",
+    rejected: "bg-destructive/15 text-destructive border-destructive/30",
+    offer: "bg-success text-success-foreground border-transparent",
+    withdrawn: "bg-muted text-muted-foreground border-border",
   };
+  const label = status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   return (
     <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap", map[status] || "bg-muted text-foreground border-border")}>
-      {status}
+      {label}
     </span>
   );
 }
