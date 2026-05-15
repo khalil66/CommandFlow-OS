@@ -6,7 +6,14 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useNavigate,
+  useRouterState,
 } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
 
@@ -98,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -112,29 +119,32 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { Toaster } from "@/components/ui/sonner";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
-
-function AuthGate({ children }: { children: React.ReactNode }) {
+function AuthGate({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let active = true;
+    const isAuthRoute = path === "/auth";
+    if (!isAuthRoute) setReady(false);
+
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      if (!data.session && path !== "/auth") {
-        nav({ to: "/auth" });
-      } else {
-        setReady(true);
+      if (!data.session?.access_token) {
+        setReady(isAuthRoute);
+        if (!isAuthRoute) nav({ to: "/auth", replace: true });
+        return;
       }
+      setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session && path !== "/auth") nav({ to: "/auth" });
+      if (!active) return;
+      if (!session?.access_token) {
+        setReady(isAuthRoute);
+        if (!isAuthRoute) nav({ to: "/auth", replace: true });
+        return;
+      }
+      setReady(true);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [path, nav]);
@@ -159,24 +169,24 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthGate>
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar />
-          <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
-              <SidebarTrigger />
-              <div className="flex-1" />
-              <div className="text-xs text-muted-foreground hidden sm:block">
-                khalilhickson.com · Remote-first
-              </div>
-            </header>
-            <main className="flex-1 min-w-0">
-              <Outlet />
-            </main>
+        <SidebarProvider>
+          <div className="min-h-screen flex w-full bg-background">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col min-w-0">
+              <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
+                <SidebarTrigger />
+                <div className="flex-1" />
+                <div className="text-xs text-muted-foreground hidden sm:block">
+                  khalilhickson.com · Remote-first
+                </div>
+              </header>
+              <main className="flex-1 min-w-0">
+                <Outlet />
+              </main>
+            </div>
           </div>
-        </div>
-        <Toaster />
-      </SidebarProvider>
+          <Toaster />
+        </SidebarProvider>
       </AuthGate>
     </QueryClientProvider>
   );
