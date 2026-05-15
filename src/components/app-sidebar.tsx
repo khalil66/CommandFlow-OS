@@ -13,6 +13,7 @@ const nav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "High-Probability", url: "/high-probability", icon: Sparkles },
   { title: "Job Queue", url: "/queue", icon: Search },
+  { title: "Job Sources", url: "/sources", icon: Download },
   { title: "Companies", url: "/companies", icon: Building2 },
   { title: "Daily Batches", url: "/batches", icon: CalendarDays },
   { title: "Follow-Ups", url: "/follow-ups", icon: BellRing },
