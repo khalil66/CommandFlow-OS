@@ -1,9 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generatePacket, computeQuality, confidenceLabel } from "./packet.functions";
-import { SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
-import { enrichSalary, type SalaryGateStatus } from "./salary-estimator";
+import { generatePacket, confidenceLabel } from "./packet.functions";
+import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
 
 // Auto-Review safety constants. Tightened intentionally — see "Auto Review Safety Gates".
 export const AUTO_GATES = {
