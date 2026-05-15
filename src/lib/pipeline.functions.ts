@@ -41,8 +41,8 @@ export const updatePipelineFields = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { application_id, ...rest } = data;
-    const updates = Object.fromEntries(Object.entries(rest).filter(([_, v]) => v !== undefined));
-    const { data: row, error } = await context.supabase
+    const updates: Record<string, any> = Object.fromEntries(Object.entries(rest).filter(([_, v]) => v !== undefined));
+    const { data: row, error } = await (context.supabase as any)
       .from("applications").update(updates).eq("id", application_id).select().single();
     if (error) throw new Error(error.message);
     return { application: row };
