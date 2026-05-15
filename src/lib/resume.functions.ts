@@ -94,3 +94,14 @@ Return JSON with: matchScore (0-100), summary (3-4 sentences), skills (array of 
 
     return { ...out, resume_id, cover_id };
   });
+
+export const listResumes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("resume_versions")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { resumes: data ?? [] };
+  });

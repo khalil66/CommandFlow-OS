@@ -4,10 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, ScoreBar } from "@/components/score-bar";
-import { TrendingUp, Target, CheckCircle2, Clock, ArrowUpRight, Zap, Activity, Loader2 } from "lucide-react";
+import { TrendingUp, Target, CheckCircle2, Clock, ArrowUpRight, Zap, Activity, Loader2, Database, Shield, Lock, Sparkles, XCircle } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { listApplications, listActivityLogs } from "@/lib/applications.functions";
 import { listJobs } from "@/lib/jobs.functions";
+import { checkBackendStatus } from "@/lib/seed.functions";
 import { withRetry } from "@/lib/api-utils";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
@@ -31,13 +32,25 @@ function Stat({ icon: Icon, label, value, sub, accent }: any) {
   );
 }
 
+function StatusPill({ ok, icon: Icon, label }: any) {
+  return (
+    <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${ok ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
+      {ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+      <Icon className="h-3.5 w-3.5 opacity-70" />
+      <span className="text-xs font-medium">{label}</span>
+    </div>
+  );
+}
+
 function Dashboard() {
   const listAppsFn = useServerFn(listApplications);
   const listJobsFn = useServerFn(listJobs);
   const listLogsFn = useServerFn(listActivityLogs);
+  const statusFn = useServerFn(checkBackendStatus);
   const [apps, setApps] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,8 +58,9 @@ function Dashboard() {
       withRetry(() => listAppsFn(), { label: "Apps", silent: true }).catch(() => ({ applications: [] })),
       withRetry(() => listJobsFn(), { label: "Jobs", silent: true }).catch(() => ({ jobs: [] })),
       withRetry(() => listLogsFn(), { label: "Logs", silent: true }).catch(() => ({ logs: [] })),
-    ]).then(([a, j, l]: any) => {
-      setApps(a.applications); setJobs(j.jobs); setLogs(l.logs);
+      withRetry(() => statusFn(), { label: "Status", silent: true }).catch(() => null),
+    ]).then(([a, j, l, s]: any) => {
+      setApps(a.applications); setJobs(j.jobs); setLogs(l.logs); setStatus(s);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -102,6 +116,21 @@ function Dashboard() {
             <Stat icon={CheckCircle2} label="Submitted" value={stats.submitted} sub="Tracking outcome" accent="bg-accent/15 text-accent-foreground" />
             <Stat icon={TrendingUp} label="Interview Rate" value={`${stats.responseRate}%`} sub="of submissions" accent="bg-warning/15 text-warning-foreground" />
           </div>
+
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Backend status</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <StatusPill ok={!!status?.supabase_connected} icon={Database} label="Supabase connected" />
+                <StatusPill ok={!!status?.auth_active} icon={Lock} label="Auth active" />
+                <StatusPill ok={!!status?.rls_enabled} icon={Shield} label="RLS enabled" />
+                <StatusPill ok={!!status?.openai_connected} icon={Sparkles} label="OpenAI connected" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Browser automation: <span className="font-medium text-foreground">disabled</span> · Mode: <span className="font-medium text-foreground">Manual Review only</span>
+              </p>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2">
