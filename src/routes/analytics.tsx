@@ -7,8 +7,9 @@ import {
   PieChart, Pie, Legend, LineChart, Line,
 } from "recharts";
 import { getAnalyticsBreakdown } from "@/lib/engine.functions";
+import { getLearningInsights } from "@/lib/outcomes.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
@@ -22,13 +23,18 @@ const axisProps = { stroke: "var(--color-muted-foreground)", fontSize: 11 };
 
 function Analytics() {
   const fn = useServerFn(getAnalyticsBreakdown);
+  const learnFn = useServerFn(getLearningInsights);
   const [data, setData] = useState<any>(null);
+  const [learn, setLearn] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    withRetry(() => fn(), { label: "Analytics", silent: true })
-      .then(setData)
+    Promise.all([
+      withRetry(() => fn(), { label: "Analytics", silent: true }),
+      withRetry(() => learnFn(), { label: "Learning insights", silent: true }),
+    ])
+      .then(([d, l]) => { setData(d); setLearn(l); })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -220,6 +226,42 @@ function Analytics() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Learning loop */}
+          {learn && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <KPI icon={Target} label="Total submitted" value={learn.total_submitted} />
+                <KPI icon={CheckCircle2} accent="text-success" label="Total responses" value={learn.total_responses} />
+                <KPI icon={Clock} label="Avg days to response" value={learn.avg_days_to_response ?? "—"} />
+                <KPI icon={TrendingUp} label="Recommendations" value={learn.recommendations.length} />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <RateCard title="Response rate by resume version" rows={learn.by_resume} />
+                <RateCard title="Response rate by role category" rows={learn.by_role} />
+                <RateCard title="Response rate by company type" rows={learn.by_company_type} />
+                <RateCard title="Response rate by ATS platform" rows={learn.by_ats} />
+              </div>
+
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Lightbulb className="h-4 w-4 text-warning-foreground" />Recommendations</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {learn.recommendations.map((r: any, i: number) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-md border bg-card/50">
+                      {r.tone === "positive" && <CheckCircle2 className="h-4 w-4 mt-0.5 text-success" />}
+                      {r.tone === "warning" && <AlertTriangle className="h-4 w-4 mt-0.5 text-warning-foreground" />}
+                      {r.tone === "info" && <Info className="h-4 w-4 mt-0.5 text-muted-foreground" />}
+                      <div>
+                        <div className="text-sm font-medium">{r.title}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{r.detail}</div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </>
       )}
     </div>
@@ -242,4 +284,34 @@ function KPI({ icon: Icon, label, value, sub, accent }: any) {
 }
 function Empty({ msg }: { msg: string }) {
   return <p className="text-xs text-muted-foreground text-center pt-12">{msg}</p>;
+}
+
+function RateCard({ title, rows }: { title: string; rows: any[] }) {
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <Empty msg="No data yet" />
+        ) : (
+          <div className="space-y-2">
+            {rows.slice(0, 8).map((r) => (
+              <div key={r.name} className="flex items-center justify-between text-sm">
+                <div className="truncate flex-1">
+                  <span className="font-medium">{r.name}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{r.submitted}/{r.total}</span>
+                </div>
+                <div className="flex items-center gap-2 ml-3">
+                  <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-accent" style={{ width: `${Math.min(100, r.response_rate)}%` }} />
+                  </div>
+                  <span className="font-semibold tabular-nums w-10 text-right">{r.response_rate}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

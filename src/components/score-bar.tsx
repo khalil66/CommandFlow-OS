@@ -31,10 +31,15 @@ export function StatusBadge({ status }: { status: string }) {
     manual_review: "bg-info/15 text-info border-info/30",
     approved: "bg-success/15 text-success border-success/30",
     submitted: "bg-accent/15 text-accent-foreground border-accent/30",
+    submitted_manually: "bg-accent/15 text-accent-foreground border-accent/30",
+    follow_up_due: "bg-warning/15 text-warning-foreground border-warning/30",
     interview: "bg-accent/15 text-accent-foreground border-accent/30",
+    interview_requested: "bg-accent/15 text-accent-foreground border-accent/30",
     rejected: "bg-destructive/15 text-destructive border-destructive/30",
+    ghosted: "bg-muted text-muted-foreground border-border",
     offer: "bg-success text-success-foreground border-transparent",
     withdrawn: "bg-muted text-muted-foreground border-border",
+    archived: "bg-muted text-muted-foreground border-border",
   };
   const label = status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   return (
