@@ -7,8 +7,9 @@ import {
   PieChart, Pie, Legend, LineChart, Line,
 } from "recharts";
 import { getAnalyticsBreakdown } from "@/lib/engine.functions";
+import { getLearningInsights } from "@/lib/outcomes.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
