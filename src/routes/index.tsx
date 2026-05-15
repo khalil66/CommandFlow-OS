@@ -32,6 +32,16 @@ function Stat({ icon: Icon, label, value, sub, accent }: any) {
   );
 }
 
+function StatusPill({ ok, icon: Icon, label }: any) {
+  return (
+    <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${ok ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
+      {ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+      <Icon className="h-3.5 w-3.5 opacity-70" />
+      <span className="text-xs font-medium">{label}</span>
+    </div>
+  );
+}
+
 function Dashboard() {
   const listAppsFn = useServerFn(listApplications);
   const listJobsFn = useServerFn(listJobs);
