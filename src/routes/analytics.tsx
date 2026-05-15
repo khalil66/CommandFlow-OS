@@ -1,167 +1,245 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell, PieChart, Pie, Legend } from "recharts";
-import { listApplications, listActivityLogs } from "@/lib/applications.functions";
-import { listJobs } from "@/lib/jobs.functions";
-import { listResumes } from "@/lib/resume.functions";
+import {
+  Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell,
+  PieChart, Pie, Legend, LineChart, Line, FunnelChart, Funnel, LabelList,
+} from "recharts";
+import { getAnalyticsBreakdown } from "@/lib/engine.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Loader2, BarChart3 } from "lucide-react";
+import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing } from "lucide-react";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
+const COLORS = [
+  "var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)",
+  "var(--color-chart-4)", "var(--color-chart-5)",
+];
+
+const tooltipStyle = { background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 };
+const axisProps = { stroke: "var(--color-muted-foreground)", fontSize: 11 };
+
 function Analytics() {
-  const listAppsFn = useServerFn(listApplications);
-  const listJobsFn = useServerFn(listJobs);
-  const listLogsFn = useServerFn(listActivityLogs);
-  const listResumesFn = useServerFn(listResumes);
-  const [apps, setApps] = useState<any[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [resumes, setResumes] = useState<any[]>([]);
+  const fn = useServerFn(getAnalyticsBreakdown);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      withRetry(() => listAppsFn(), { label: "Apps", silent: true }),
-      withRetry(() => listJobsFn(), { label: "Jobs", silent: true }),
-      withRetry(() => listLogsFn(), { label: "Logs", silent: true }),
-      withRetry(() => listResumesFn(), { label: "Resumes", silent: true }).catch(() => ({ resumes: [] })),
-    ]).then(([a, j, l, r]: any) => {
-      setApps(a.applications); setJobs(j.jobs); setLogs(l.logs); setResumes(r.resumes ?? []);
-    }).catch((e: any) => setError(e.message))
+    withRetry(() => fn(), { label: "Analytics", silent: true })
+      .then(setData)
+      .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const totals = useMemo(() => {
-    const submitted = apps.filter(a => ["submitted","interview","offer"].includes(a.status));
-    const interviews = apps.filter(a => a.status === "interview" || a.status === "offer");
-    return {
-      apps: apps.length, submitted: submitted.length, interviews: interviews.length,
-      respRate: submitted.length ? Math.round((interviews.length / submitted.length) * 100) : 0,
-    };
-  }, [apps]);
-
-  const dailyStats = useMemo(() => {
-    const days: { day: string; saved: number; submitted: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0,10);
-      const dayLogs = logs.filter((l: any) => l.created_at?.slice(0,10) === key);
-      days.push({
-        day: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        saved: dayLogs.length,
-        submitted: apps.filter(a => a.submitted_at?.slice(0,10) === key).length,
-      });
-    }
-    return days;
-  }, [logs, apps]);
-
-  const atsBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {};
-    jobs.forEach(j => { if (j.ats) counts[j.ats] = (counts[j.ats] ?? 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [jobs]);
-  const colors = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)"];
-
   if (loading) return <div className="flex items-center justify-center py-32 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading analytics…</div>;
   if (error) return <div className="p-6 text-destructive">{error}</div>;
+  if (!data) return null;
 
-  const empty = apps.length === 0 && jobs.length === 0;
+  const empty = data.funnel.every((f: any) => f.value === 0) && data.resume_performance.length === 0;
 
   return (
     <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-1">Live performance from your application pipeline.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Analytics Engine</h1>
+        <p className="text-sm text-muted-foreground mt-1">Live performance — what's converting, what's not.</p>
       </div>
 
       {empty ? (
         <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
           <BarChart3 className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No data yet. Save some jobs from the Queue or seed sample data.</p>
+          <p className="text-sm text-muted-foreground">No data yet. Run today's batch or seed sample data.</p>
         </CardContent></Card>
       ) : (
         <>
+          {/* KPI strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPI label="Applications" value={totals.apps} />
-            <KPI label="Submitted" value={totals.submitted} />
-            <KPI label="Interviews" value={totals.interviews} />
-            <KPI label="Response rate" value={`${totals.respRate}%`} />
+            <KPI icon={CheckCircle2} accent="text-success" label="Approval rate" value={`${data.approval_rate}%`} sub={`${data.decided_count} decided`} />
+            <KPI icon={XCircle} accent="text-destructive" label="Rejection rate" value={`${data.rejection_rate}%`} />
+            <KPI icon={BellRing} accent="text-warning-foreground" label="Follow-up completion" value={`${data.follow_up_completion}%`} />
+            <KPI icon={TrendingUp} accent="text-accent" label="Activity today" value={data.logs_today} sub="logged events" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="lg:col-span-2">
-              <CardHeader><CardTitle className="text-base">Daily activity</CardTitle></CardHeader>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Best-performing resume version */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Best-performing resume versions</CardTitle></CardHeader>
+              <CardContent>
+                {data.resume_performance.length === 0 ? <Empty msg="No resume versions yet." /> : (
+                  <div className="space-y-3">
+                    {data.resume_performance.slice(0, 6).map((r: any) => (
+                      <div key={r.name} className="flex items-center gap-3 p-3 rounded-md border border-border">
+                        <div className="font-mono text-xs w-48 truncate">{r.name}</div>
+                        <div className="flex-1">
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full bg-accent" style={{ width: `${r.match_score}%` }} />
+                          </div>
+                        </div>
+                        <div className="text-xs tabular-nums w-24 text-right text-muted-foreground">{r.interviews}/{r.applications} int</div>
+                        <div className="text-sm font-semibold tabular-nums w-12 text-right text-accent">{r.match_score}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Highest interview probability roles */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Highest interview-probability roles</CardTitle></CardHeader>
+              <CardContent className="h-72">
+                {data.role_probability.length === 0 ? <Empty msg="No role data." /> : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.role_probability} layout="vertical" margin={{ left: 100 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                      <XAxis type="number" {...axisProps} />
+                      <YAxis type="category" dataKey="name" {...axisProps} width={140} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" fill="var(--color-chart-1)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Best-performing company categories */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Best-performing company categories</CardTitle></CardHeader>
+              <CardContent className="h-72">
+                {data.category_performance.length === 0 ? <Empty msg="No category data." /> : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.category_performance}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="name" {...axisProps} />
+                      <YAxis {...axisProps} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Best-performing ATS platforms */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Best-performing ATS platforms</CardTitle></CardHeader>
+              <CardContent className="h-72">
+                {data.ats_performance.length === 0 ? <Empty msg="No ATS data." /> : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.ats_performance}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="name" {...axisProps} />
+                      <YAxis {...axisProps} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {data.ats_performance.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Interview response trends */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Interview response trends (14 days)</CardTitle></CardHeader>
               <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyStats}>
+                  <LineChart data={data.response_trend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                    <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={11} />
-                    <YAxis stroke="var(--color-muted-foreground)" fontSize={11} allowDecimals={false} />
-                    <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="saved" fill="var(--color-chart-1)" radius={[4,4,0,0]} />
-                    <Bar dataKey="submitted" fill="var(--color-chart-2)" radius={[4,4,0,0]} />
+                    <XAxis dataKey="day" {...axisProps} />
+                    <YAxis {...axisProps} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="submitted" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="interviews" stroke="var(--color-chart-2)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Resume keyword performance */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Resume keyword performance</CardTitle></CardHeader>
+              <CardContent className="h-72">
+                {data.keyword_performance.length === 0 ? <Empty msg="No keywords yet." /> : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.keyword_performance} layout="vertical" margin={{ left: 80 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                      <XAxis type="number" {...axisProps} />
+                      <YAxis type="category" dataKey="name" {...axisProps} width={120} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" fill="var(--color-chart-3)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Application funnel */}
+            <Card className="lg:col-span-2">
+              <CardHeader><CardTitle className="text-base">Application funnel</CardTitle></CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.funnel}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="name" {...axisProps} />
+                    <YAxis {...axisProps} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {data.funnel.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader><CardTitle className="text-base">ATS distribution</CardTitle></CardHeader>
+            {/* Approval / rejection */}
+            <Card className="lg:col-span-2">
+              <CardHeader><CardTitle className="text-base">Approval vs rejection rates</CardTitle></CardHeader>
               <CardContent className="h-72">
-                {atsBreakdown.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center pt-12">No ATS data.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={atsBreakdown} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
-                        {atsBreakdown.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
-                      </Pie>
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "Approved", value: data.approval_rate },
+                        { name: "Rejected", value: data.rejection_rate },
+                        { name: "Pending", value: Math.max(0, 100 - data.approval_rate - data.rejection_rate) },
+                      ]}
+                      dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={2}
+                    >
+                      <Cell fill="var(--color-chart-2)" />
+                      <Cell fill="var(--color-chart-4)" />
+                      <Cell fill="var(--color-muted)" />
+                    </Pie>
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Resume versions</CardTitle></CardHeader>
-            <CardContent>
-              {resumes.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6">No resume versions yet. Tailor one in Resume Studio.</p>
-              ) : (
-                <div className="space-y-3">
-                  {resumes.map((r: any) => (
-                    <div key={r.id} className="flex items-center gap-4 p-3 rounded-md border border-border">
-                      <div className="font-mono text-sm w-48 truncate">{r.label || r.target_role || "Resume"}</div>
-                      <div className="flex-1">
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full bg-accent" style={{ width: `${r.match_score ?? 0}%` }} />
-                        </div>
-                      </div>
-                      <div className="text-sm font-semibold text-accent tabular-nums w-12 text-right">{r.match_score ?? 0}%</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </>
       )}
     </div>
   );
 }
 
-function KPI({ label, value }: any) {
+function KPI({ icon: Icon, label, value, sub, accent }: any) {
   return (
     <Card><CardContent className="p-5">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-2 text-3xl font-semibold tabular-nums">{value}</div>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="mt-2 text-3xl font-semibold tabular-nums">{value}</div>
+          {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+        </div>
+        {Icon && <Icon className={`h-5 w-5 ${accent ?? "text-muted-foreground"}`} />}
+      </div>
     </CardContent></Card>
   );
+}
+function Empty({ msg }: { msg: string }) {
+  return <p className="text-xs text-muted-foreground text-center pt-12">{msg}</p>;
 }
