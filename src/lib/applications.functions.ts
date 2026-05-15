@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const STATUSES = ["queued","manual_review","approved","submitted","submitted_manually","follow_up_due","interview_requested","interview","rejected","ghosted","offer","withdrawn","archived"] as const;
+const STATUSES = ["queued","manual_review","imported","reviewed","approved","submitted","submitted_manually","submitted_manual","follow_up_due","recruiter_screen","interview_requested","interview","technical_interview","final_interview","rejected","ghosted","offer","withdrawn","archived"] as const;
 const ACTIONS = ["save","tailor","approve","reject","submit","export","status_change","note"] as const;
 
 async function logActivity(
