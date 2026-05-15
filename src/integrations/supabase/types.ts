@@ -20,11 +20,20 @@ export type Database = {
           cover_letter_id: string | null
           created_at: string
           follow_up_due_at: string | null
+          freshness_bucket: string | null
+          ghosted_at: string | null
           id: string
+          interview_requested_at: string | null
           job_id: string
           notes: string | null
+          offer_at: string | null
           portfolio_project: string | null
           priority: Database["public"]["Enums"]["application_priority"] | null
+          qc_failures: string[]
+          qc_passed: boolean | null
+          rejected_at: string | null
+          response_received_at: string | null
+          resume_variant_key: string | null
           resume_version_id: string | null
           status: Database["public"]["Enums"]["application_status"]
           submission_notes: string | null
@@ -37,11 +46,20 @@ export type Database = {
           cover_letter_id?: string | null
           created_at?: string
           follow_up_due_at?: string | null
+          freshness_bucket?: string | null
+          ghosted_at?: string | null
           id?: string
+          interview_requested_at?: string | null
           job_id: string
           notes?: string | null
+          offer_at?: string | null
           portfolio_project?: string | null
           priority?: Database["public"]["Enums"]["application_priority"] | null
+          qc_failures?: string[]
+          qc_passed?: boolean | null
+          rejected_at?: string | null
+          response_received_at?: string | null
+          resume_variant_key?: string | null
           resume_version_id?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           submission_notes?: string | null
@@ -54,11 +72,20 @@ export type Database = {
           cover_letter_id?: string | null
           created_at?: string
           follow_up_due_at?: string | null
+          freshness_bucket?: string | null
+          ghosted_at?: string | null
           id?: string
+          interview_requested_at?: string | null
           job_id?: string
           notes?: string | null
+          offer_at?: string | null
           portfolio_project?: string | null
           priority?: Database["public"]["Enums"]["application_priority"] | null
+          qc_failures?: string[]
+          qc_passed?: boolean | null
+          rejected_at?: string | null
+          response_received_at?: string | null
+          resume_variant_key?: string | null
           resume_version_id?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           submission_notes?: string | null
@@ -436,6 +463,45 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_up_tasks: {
+        Row: {
+          application_id: string
+          completed_at: string | null
+          created_at: string
+          due_at: string
+          id: string
+          job_id: string | null
+          kind: string
+          notes: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_at: string
+          id?: string
+          job_id?: string | null
+          kind: string
+          notes?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string
+          id?: string
+          job_id?: string | null
+          kind?: string
+          notes?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       import_logs: {
         Row: {
           ats: string | null
@@ -586,6 +652,54 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_prep: {
+        Row: {
+          application_id: string
+          brief: Json
+          created_at: string
+          generated_at: string
+          id: string
+          job_id: string | null
+          pitch_60s: string | null
+          questions_to_ask: string[]
+          recruiter_questions: string[]
+          salary_talking_points: string | null
+          star_answers: Json
+          technical_questions: string[]
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          brief?: Json
+          created_at?: string
+          generated_at?: string
+          id?: string
+          job_id?: string | null
+          pitch_60s?: string | null
+          questions_to_ask?: string[]
+          recruiter_questions?: string[]
+          salary_talking_points?: string | null
+          star_answers?: Json
+          technical_questions?: string[]
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          brief?: Json
+          created_at?: string
+          generated_at?: string
+          id?: string
+          job_id?: string | null
+          pitch_60s?: string | null
+          questions_to_ask?: string[]
+          recruiter_questions?: string[]
+          salary_talking_points?: string | null
+          star_answers?: Json
+          technical_questions?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       job_listings: {
         Row: {
           ats: string | null
@@ -597,6 +711,7 @@ export type Database = {
           dedupe_hash: string | null
           description: string | null
           final_score: number | null
+          freshness_bucket: string | null
           id: string
           interview_probability: number | null
           legitimacy: number | null
@@ -631,6 +746,7 @@ export type Database = {
           dedupe_hash?: string | null
           description?: string | null
           final_score?: number | null
+          freshness_bucket?: string | null
           id?: string
           interview_probability?: number | null
           legitimacy?: number | null
@@ -665,6 +781,7 @@ export type Database = {
           dedupe_hash?: string | null
           description?: string | null
           final_score?: number | null
+          freshness_bucket?: string | null
           id?: string
           interview_probability?: number | null
           legitimacy?: number | null
@@ -704,11 +821,19 @@ export type Database = {
           ats: string | null
           careers_url: string
           created_at: string
+          high_prob_count: number
           id: string
+          interview_count: number
           last_import_count: number | null
           last_imported_at: string | null
+          last_quality_recalc_at: string | null
           name: string
           notes: string | null
+          priority_score: number
+          quality_score_avg: number
+          rejection_count: number
+          response_count: number
+          safety_block_count: number
           status: string
           updated_at: string
           user_id: string
@@ -717,11 +842,19 @@ export type Database = {
           ats?: string | null
           careers_url: string
           created_at?: string
+          high_prob_count?: number
           id?: string
+          interview_count?: number
           last_import_count?: number | null
           last_imported_at?: string | null
+          last_quality_recalc_at?: string | null
           name: string
           notes?: string | null
+          priority_score?: number
+          quality_score_avg?: number
+          rejection_count?: number
+          response_count?: number
+          safety_block_count?: number
           status?: string
           updated_at?: string
           user_id: string
@@ -730,11 +863,19 @@ export type Database = {
           ats?: string | null
           careers_url?: string
           created_at?: string
+          high_prob_count?: number
           id?: string
+          interview_count?: number
           last_import_count?: number | null
           last_imported_at?: string | null
+          last_quality_recalc_at?: string | null
           name?: string
           notes?: string | null
+          priority_score?: number
+          quality_score_avg?: number
+          rejection_count?: number
+          response_count?: number
+          safety_block_count?: number
           status?: string
           updated_at?: string
           user_id?: string
@@ -881,6 +1022,7 @@ export type Database = {
           created_at: string
           explanation: string | null
           id: string
+          is_template: boolean
           job_id: string | null
           keywords: string[] | null
           label: string | null
@@ -890,12 +1032,14 @@ export type Database = {
           target_role: string | null
           updated_at: string
           user_id: string
+          variant_key: string
         }
         Insert: {
           bullets?: string[] | null
           created_at?: string
           explanation?: string | null
           id?: string
+          is_template?: boolean
           job_id?: string | null
           keywords?: string[] | null
           label?: string | null
@@ -905,12 +1049,14 @@ export type Database = {
           target_role?: string | null
           updated_at?: string
           user_id: string
+          variant_key?: string
         }
         Update: {
           bullets?: string[] | null
           created_at?: string
           explanation?: string | null
           id?: string
+          is_template?: boolean
           job_id?: string | null
           keywords?: string[] | null
           label?: string | null
@@ -920,6 +1066,7 @@ export type Database = {
           target_role?: string | null
           updated_at?: string
           user_id?: string
+          variant_key?: string
         }
         Relationships: [
           {
@@ -1114,6 +1261,36 @@ export type Database = {
           scam_flags?: string[] | null
           score?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_learning_reports: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          recommendations: string[]
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          recommendations?: string[]
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          recommendations?: string[]
+          user_id?: string
+          week_end?: string
+          week_start?: string
         }
         Relationships: []
       }
