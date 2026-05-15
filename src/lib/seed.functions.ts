@@ -93,14 +93,15 @@ export const seedSampleData = createServerFn({ method: "POST" })
     if (aErr) throw new Error(aErr.message);
 
     // Activity logs
+    const logActions = ["scrape","tailor_resume","score","generate_cover","ats_check"] as const;
     const logs = jobs!.slice(0, 5).map((j, i) => ({
       user_id: userId, job_id: j.id,
-      action: (["save","tailor","approve","submit","status_change"] as const)[i],
+      action: logActions[i],
       status: "success",
-      details: { seeded: true },
+      details: { seeded: true } as any,
       created_at: new Date(Date.now() - i*3600000).toISOString(),
     }));
-    await supabase.from("automation_logs").insert(logs);
+    await supabase.from("automation_logs").insert(logs as any);
 
     return {
       companies: companies!.length, jobs: jobs!.length,
