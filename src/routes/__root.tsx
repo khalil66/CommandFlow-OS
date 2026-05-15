@@ -159,25 +159,25 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthGate>
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar />
-          <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
-              <SidebarTrigger />
-              <div className="flex-1" />
-              <div className="text-xs text-muted-foreground hidden sm:block">
-                khalilhickson.com · Remote-first
-              </div>
-            </header>
-            <main className="flex-1 min-w-0">
-              <Outlet />
-            </main>
+        <SidebarProvider>
+          <div className="min-h-screen flex w-full bg-background">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col min-w-0">
+              <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
+                <SidebarTrigger />
+                <div className="flex-1" />
+                <div className="text-xs text-muted-foreground hidden sm:block">
+                  khalilhickson.com · Remote-first
+                </div>
+              </header>
+              <main className="flex-1 min-w-0">
+                <Outlet />
+              </main>
+            </div>
           </div>
-        </div>
-        <Toaster />
+          <Toaster />
+        </SidebarProvider>
       </AuthGate>
-      </SidebarProvider>
     </QueryClientProvider>
   );
 }
