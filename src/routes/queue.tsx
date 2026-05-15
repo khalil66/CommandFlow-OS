@@ -177,10 +177,13 @@ function QueuePage() {
                     <TableCell><StatusBadge status={j.status} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => toast.success(`Prepared application for ${j.company}`)}>
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        <Button size="sm" variant="ghost" title="Save to Manual Review" onClick={() => handleSave(j)} disabled={!!savedIds[j.id]}>
+                          {savedIds[j.id] ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : <Save className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button size="sm" variant="ghost"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" title="Export Application Packet" onClick={() => handleExport(j)} disabled={!savedIds[j.id]}>
+                          <Package className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" title="Open"><ExternalLink className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
