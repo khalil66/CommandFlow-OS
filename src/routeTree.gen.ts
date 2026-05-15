@@ -125,11 +125,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SmartApplyRoute = SmartApplyRouteImport.update({
-  id: '/smart-apply',
-  path: '/smart-apply',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PacketJobIdRoute = PacketJobIdRouteImport.update({
   id: '/packet/$jobId',
   path: '/packet/$jobId',
