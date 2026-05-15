@@ -104,6 +104,19 @@ export const tailorResume = createServerFn({ method: "POST" })
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
+    // Per-user daily caps (resume + cover letter generated together count as 1 of each)
+    const { supabase, userId } = context;
+    const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+    const { data: usageToday } = await supabase
+      .from("openai_usage")
+      .select("kind, success")
+      .eq("user_id", userId)
+      .gte("created_at", since.toISOString());
+    const resumeUsed = (usageToday ?? []).filter((r: any) => r.kind === "resume" && r.success).length;
+    const coverUsed = (usageToday ?? []).filter((r: any) => r.kind === "cover_letter" && r.success).length;
+    if (resumeUsed >= 25) throw new Error("Daily resume generation limit reached (25/day). Resets at 00:00 UTC.");
+    if (coverUsed >= 25) throw new Error("Daily cover letter generation limit reached (25/day).");
+
     const bucket = bucketForCategory(data.category, data.title);
     const proofPoints = ROLE_PROOF_POINTS[bucket];
     const portfolio = projectsForRole(data.title)[0] ?? projectsForRole(data.category ?? "")[0] ?? null;
