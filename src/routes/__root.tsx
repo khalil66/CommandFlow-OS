@@ -115,12 +115,50 @@ function RootShell({ children }: { children: React.ReactNode }) {
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const nav = useNavigate();
+  const path = useRouterState({ select: (r) => r.location.pathname });
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      if (!data.session && path !== "/auth") {
+        nav({ to: "/auth" });
+      } else {
+        setReady(true);
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!session && path !== "/auth") nav({ to: "/auth" });
+    });
+    return () => { active = false; sub.subscription.unsubscribe(); };
+  }, [path, nav]);
+  if (path === "/auth") return <>{children}</>;
+  if (!ready) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
+  return <>{children}</>;
+}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const path = useRouterState({ select: (r) => r.location.pathname });
+
+  if (path === "/auth") {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AuthGate><Outlet /></AuthGate>
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthGate>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background">
           <AppSidebar />
