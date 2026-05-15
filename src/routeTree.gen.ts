@@ -16,6 +16,7 @@ import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
+import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -64,6 +65,11 @@ const ReviewRoute = ReviewRouteImport.update({
 const ResumeRoute = ResumeRouteImport.update({
   id: '/resume',
   path: '/resume',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruitersRoute = RecruitersRouteImport.update({
+  id: '/recruiters',
+  path: '/recruiters',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QueueRoute = QueueRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
+  '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
+  '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
+  '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pipeline'
     | '/queue'
+    | '/recruiters'
     | '/resume'
     | '/review'
     | '/settings'
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pipeline'
     | '/queue'
+    | '/recruiters'
     | '/resume'
     | '/review'
     | '/settings'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pipeline'
     | '/queue'
+    | '/recruiters'
     | '/resume'
     | '/review'
     | '/settings'
@@ -293,6 +305,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PipelineRoute: typeof PipelineRoute
   QueueRoute: typeof QueueRoute
+  RecruitersRoute: typeof RecruitersRoute
   ResumeRoute: typeof ResumeRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/resume'
       fullPath: '/resume'
       preLoaderRoute: typeof ResumeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiters': {
+      id: '/recruiters'
+      path: '/recruiters'
+      fullPath: '/recruiters'
+      preLoaderRoute: typeof RecruitersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/queue': {
@@ -469,6 +489,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PipelineRoute: PipelineRoute,
   QueueRoute: QueueRoute,
+  RecruitersRoute: RecruitersRoute,
   ResumeRoute: ResumeRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
