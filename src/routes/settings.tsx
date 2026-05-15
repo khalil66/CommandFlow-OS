@@ -13,8 +13,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
+import { sendTestSms } from "@/lib/sms.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Gauge, AlertCircle, ShieldCheck, Loader2 } from "lucide-react";
+import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
@@ -26,12 +27,14 @@ function Settings() {
   const analyticsFn = useServerFn(getUsageAnalytics);
   const getFn = useServerFn(getSettings);
   const saveFn = useServerFn(updateSettings);
+  const testSmsFn = useServerFn(sendTestSms);
 
   const [usage, setUsage] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [s, setS] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingSms, setTestingSms] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -68,9 +71,35 @@ function Settings() {
         daily_cap: typeof s.daily_cap === "number" ? s.daily_cap : undefined,
         trust_threshold: typeof s.trust_threshold === "number" ? s.trust_threshold : undefined,
         manual_review_only: true,
+        phone_number: s.phone_number ?? undefined,
+        sms_enabled: typeof s.sms_enabled === "boolean" ? s.sms_enabled : undefined,
+        sms_daily_cap: typeof s.sms_daily_cap === "number" ? s.sms_daily_cap : undefined,
+        sms_notify_batch_start: typeof s.sms_notify_batch_start === "boolean" ? s.sms_notify_batch_start : undefined,
+        sms_notify_batch_complete: typeof s.sms_notify_batch_complete === "boolean" ? s.sms_notify_batch_complete : undefined,
+        sms_notify_safety_block: typeof s.sms_notify_safety_block === "boolean" ? s.sms_notify_safety_block : undefined,
+        sms_notify_high_probability: typeof s.sms_notify_high_probability === "boolean" ? s.sms_notify_high_probability : undefined,
+        sms_notify_followups: typeof s.sms_notify_followups === "boolean" ? s.sms_notify_followups : undefined,
       } }), { label: "Save settings" });
       toast.success("Settings saved");
     } catch {} finally { setSaving(false); }
+  };
+
+  const handleTestSms = async () => {
+    setTestingSms(true);
+    try {
+      const r: any = await testSmsFn();
+      if (r.ok) {
+        toast.success("Test SMS sent successfully");
+      } else if (r.status === "skipped:not_configured") {
+        toast.error(`SMS not configured. Missing: ${(r.missing ?? []).join(", ")}`);
+      } else {
+        toast.error(`SMS failed: ${r.error ?? "unknown error"}`);
+      }
+    } catch (e: any) {
+      toast.error(`Test SMS error: ${e.message}`);
+    } finally {
+      setTestingSms(false);
+    }
   };
 
   if (loading || !s) {
@@ -185,6 +214,28 @@ function Settings() {
               onChange={(e) => set("excluded_companies", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))}
               placeholder="CompanyA, CompanyB"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4 text-accent" /> SMS notifications</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <Toggle label="Enable SMS notifications" desc="Send updates via Twilio. Requires TWILIO_* secrets configured." checked={!!s.sms_enabled} onChange={(v: boolean) => set("sms_enabled", v)} />
+          <Field label="Phone number (E.164, e.g. +15555550123)" value={s.phone_number ?? ""} onChange={(v: string) => set("phone_number", v)} placeholder="+15555550123" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Toggle label="Notify on batch start" desc="" checked={s.sms_notify_batch_start !== false} onChange={(v: boolean) => set("sms_notify_batch_start", v)} />
+            <Toggle label="Notify on batch complete" desc="" checked={s.sms_notify_batch_complete !== false} onChange={(v: boolean) => set("sms_notify_batch_complete", v)} />
+            <Toggle label="Notify on safety block" desc="" checked={s.sms_notify_safety_block !== false} onChange={(v: boolean) => set("sms_notify_safety_block", v)} />
+            <Toggle label="Notify on high-probability match" desc="" checked={s.sms_notify_high_probability !== false} onChange={(v: boolean) => set("sms_notify_high_probability", v)} />
+            <Toggle label="Notify on follow-ups due" desc="" checked={s.sms_notify_followups !== false} onChange={(v: boolean) => set("sms_notify_followups", v)} />
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground">Test that Twilio is configured and your phone receives a message.</p>
+            <Button variant="outline" size="sm" onClick={handleTestSms} disabled={testingSms}>
+              {testingSms ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
+              Send Test SMS
+            </Button>
           </div>
         </CardContent>
       </Card>
