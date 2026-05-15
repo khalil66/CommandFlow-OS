@@ -23,13 +23,18 @@ const axisProps = { stroke: "var(--color-muted-foreground)", fontSize: 11 };
 
 function Analytics() {
   const fn = useServerFn(getAnalyticsBreakdown);
+  const learnFn = useServerFn(getLearningInsights);
   const [data, setData] = useState<any>(null);
+  const [learn, setLearn] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    withRetry(() => fn(), { label: "Analytics", silent: true })
-      .then(setData)
+    Promise.all([
+      withRetry(() => fn(), { label: "Analytics", silent: true }),
+      withRetry(() => learnFn(), { label: "Learning insights", silent: true }),
+    ])
+      .then(([d, l]) => { setData(d); setLearn(l); })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
