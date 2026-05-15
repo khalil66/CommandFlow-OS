@@ -112,7 +112,7 @@ export const getSystemHealth = createServerFn({ method: "GET" })
 
     const counts: Record<string, number> = {};
     for (const t of ["job_listings","applications","companies","resume_versions","follow_up_messages","import_logs","automation_logs"]) {
-      const { count } = await supabase.from(t).select("*", { count: "exact", head: true }).eq("user_id", userId);
+      const { count } = await (supabase as any).from(t).select("*", { count: "exact", head: true }).eq("user_id", userId);
       counts[t] = count ?? 0;
     }
 
