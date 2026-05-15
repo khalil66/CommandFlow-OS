@@ -113,7 +113,7 @@ export const getSmartApplyMetrics = createServerFn({ method: "GET" })
     const isActiveDay = activeWeekdays.includes(dow);
     const isFridayPrepareOnly = dow === 5 && (settings?.friday_prepare_only ?? true);
 
-    const autoCap = settings?.auto_review_daily_cap ?? 10;
+    const autoCap = settings?.auto_review_daily_cap ?? 5;
     const packetCap = settings?.packet_daily_cap ?? 25;
 
     return {
@@ -165,7 +165,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
       return { ok: false, reason: "inactive_day", processed: 0, approved: 0, blocked: 0 };
     }
     const fridayPrepareOnly = dow === 5 && (s.friday_prepare_only ?? true);
-    const autoCap = s.auto_review_daily_cap ?? 10;
+    const autoCap = s.auto_review_daily_cap ?? 5;
     const packetCap = s.packet_daily_cap ?? 25;
     const perAtsCap = s.per_ats_daily_cap ?? 5;
     const cooldownDays = s.company_cooldown_days ?? 30;
