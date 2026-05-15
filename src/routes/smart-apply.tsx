@@ -102,7 +102,12 @@ function SmartApplyPage() {
     try {
       const r: any = await runFn();
       if (!r.ok) toast.warning(`Skipped: ${r.reason}`);
-      else toast.success(`Smart-Apply done: ${r.approved} auto-approved · ${r.blocked} safety-blocked · ${r.processed} packets prepared`);
+      else {
+        const sm = r.summary ?? {};
+        toast.success(`Smart Apply complete: ${sm.jobs_scanned ?? 0} scanned, ${sm.fresh_imported ?? 0} imported, ${sm.auto_reviewed ?? 0} auto, ${sm.manual_review ?? 0} manual, ${sm.safety_blocked ?? 0} blocked. Pass rate ${((sm.pass_rate ?? 0) * 100).toFixed(1)}%.`);
+        if (r.sms?.status === "skipped:not_configured") toast.info(`SMS skipped: missing ${(r.sms.missing ?? []).join(", ")}`);
+        else if (r.sms?.status === "sent") toast.info("Summary SMS sent");
+      }
       await refresh();
     } catch (e: any) { toast.error(e.message); }
     finally { setRunning(false); }
