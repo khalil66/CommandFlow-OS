@@ -4,14 +4,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generatePacket, confidenceLabel } from "./packet.functions";
 import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
 
-// Auto-Review safety constants. Tightened intentionally — see "Auto Review Safety Gates".
+// Auto-Review safety constants. Source of truth lives in auto-review-scoring.ts.
 export const AUTO_GATES = {
-  trust: 95,
-  interview: 88,
-  quality: 88,
-  salary: 55000,
-  freshDays: 14,
+  trust: AUTO_THRESHOLDS.trust,
+  interview: AUTO_THRESHOLDS.interview,
+  quality: AUTO_THRESHOLDS.quality,
+  salary: AUTO_THRESHOLDS.salary_min,
+  freshDays: AUTO_THRESHOLDS.fresh_days,
   atsAllowed: ["Greenhouse", "Lever", "Ashby", "Breezy"],
+  passRateCap: AUTO_THRESHOLDS.daily_pass_rate_cap,
 };
 
 export const DETECTION_FLAGS = [
@@ -19,84 +20,27 @@ export const DETECTION_FLAGS = [
   "bot_detected", "account_verification", "blocked", "unusual_traffic",
 ] as const;
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
-// ----- Gate evaluation ----- //
+// Backwards-compat shape for any caller still importing evaluateGates.
 export interface GateResult {
   pass: boolean;
   failed: string[];
   passed: string[];
-  scores: Record<string, number>;
-}
-
-function ageDays(iso?: string | null) {
-  if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  scores: Record<string, any>;
 }
 
 export function evaluateGates(args: {
-  job: any;
-  company: any;
-  quality: number;
-  ats_check?: any;
-  duplicate?: boolean;
-  recent_company_app?: boolean;
+  job: any; company: any; quality: number;
+  ats_check?: any; duplicate?: boolean; recent_company_app?: boolean;
 }): GateResult {
-  const failed: string[] = [];
-  const passed: string[] = [];
-  const j = args.job, c = args.company || {};
-  const trust = c.trust_score ?? 0;
-  const interview = j.interview_probability ?? 0;
-  const age = ageDays(j.posted_at ?? j.created_at);
-  const ats = j.ats ?? "";
-  const ac = args.ats_check ?? {};
-  const scamFlags = (c.red_flags ?? []).length;
-
-  // Salary gate now uses confidence-aware enrichment. The job row already
-  // carries salary_gate_status (set during ingest); fall back to live enrich
-  // if missing.
-  const gateStatus: SalaryGateStatus =
-    j.salary_gate_status ??
-    enrichSalary({
-      title: j.title ?? "",
-      description: j.description ?? "",
-      remote: j.remote ?? false,
-      companyCategory: c.category ?? null,
-      postedMin: j.salary_min ?? null,
-      postedMax: j.salary_max ?? null,
-    }).gate_status;
-  const salaryDisplay =
-    j.salary_min ?? j.salary_estimated_min ?? null;
-
-  const check = (cond: boolean, label: string) =>
-    cond ? passed.push(label) : failed.push(label);
-
-  check(trust >= AUTO_GATES.trust, `trust ≥ ${AUTO_GATES.trust} (got ${trust})`);
-  check(interview >= AUTO_GATES.interview, `interview ≥ ${AUTO_GATES.interview} (got ${interview})`);
-  check(args.quality >= AUTO_GATES.quality, `quality ≥ ${AUTO_GATES.quality} (got ${args.quality})`);
-  check(
-    gateStatus === "pass",
-    `salary gate (status ${gateStatus}${salaryDisplay ? `, $${salaryDisplay}` : ""})`,
-  );
-  check(j.remote === true, "remote-only");
-  check(AUTO_GATES.atsAllowed.includes(ats), `ATS in {${AUTO_GATES.atsAllowed.join(",")}} (got ${ats || "n/a"})`);
-  check(age != null && age <= AUTO_GATES.freshDays, `posted ≤ ${AUTO_GATES.freshDays}d (age ${age ?? "unknown"})`);
-  check(!ac.requires_login, "no login wall");
-  check(!ac.has_mfa, "no MFA");
-  check(!ac.has_captcha, "no CAPTCHA");
-  check(!scamFlags, "no scam flags");
-  check(!args.duplicate, "no duplicate application");
-  check(!args.recent_company_app, "no application to same company in last 30d");
-
+  const r = evaluateAutoReview(args);
   return {
-    pass: failed.length === 0,
-    failed, passed,
-    scores: {
-      trust, interview, quality: args.quality,
-      salary: salaryDisplay ?? 0, age: age ?? -1,
-    },
+    pass: r.decision === "auto",
+    failed: [...r.failed, ...r.rejected_for],
+    passed: r.passed,
+    scores: r.scores as any,
   };
 }
+
 
 // ----- Pause / resume automation ----- //
 export const setAutomationPaused = createServerFn({ method: "POST" })
