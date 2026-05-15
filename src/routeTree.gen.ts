@@ -15,6 +15,7 @@ import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
@@ -23,6 +24,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
+import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
 import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as CaseStudyRouteImport } from './routes/case-study'
 import { Route as BatchesRouteImport } from './routes/batches'
@@ -60,6 +62,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeDiffRoute = ResumeDiffRouteImport.update({
+  id: '/resume-diff',
+  path: '/resume-diff',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumeRoute = ResumeRouteImport.update({
@@ -100,6 +107,11 @@ const HighProbabilityRoute = HighProbabilityRouteImport.update({
 const FollowUpsRoute = FollowUpsRouteImport.update({
   id: '/follow-ups',
   path: '/follow-ups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompanyIntelligenceRoute = CompanyIntelligenceRouteImport.update({
+  id: '/company-intelligence',
+  path: '/company-intelligence',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompaniesRoute = CompaniesRouteImport.update({
@@ -151,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/batches': typeof BatchesRoute
   '/case-study': typeof CaseStudyRoute
   '/companies': typeof CompaniesRoute
+  '/company-intelligence': typeof CompanyIntelligenceRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -159,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
+  '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
@@ -175,6 +189,7 @@ export interface FileRoutesByTo {
   '/batches': typeof BatchesRoute
   '/case-study': typeof CaseStudyRoute
   '/companies': typeof CompaniesRoute
+  '/company-intelligence': typeof CompanyIntelligenceRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -183,6 +198,7 @@ export interface FileRoutesByTo {
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
+  '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
@@ -200,6 +216,7 @@ export interface FileRoutesById {
   '/batches': typeof BatchesRoute
   '/case-study': typeof CaseStudyRoute
   '/companies': typeof CompaniesRoute
+  '/company-intelligence': typeof CompanyIntelligenceRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -208,6 +225,7 @@ export interface FileRoutesById {
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
+  '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
@@ -226,6 +244,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/case-study'
     | '/companies'
+    | '/company-intelligence'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -234,6 +253,7 @@ export interface FileRouteTypes {
     | '/queue'
     | '/recruiters'
     | '/resume'
+    | '/resume-diff'
     | '/review'
     | '/settings'
     | '/smart-apply'
@@ -250,6 +270,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/case-study'
     | '/companies'
+    | '/company-intelligence'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -258,6 +279,7 @@ export interface FileRouteTypes {
     | '/queue'
     | '/recruiters'
     | '/resume'
+    | '/resume-diff'
     | '/review'
     | '/settings'
     | '/smart-apply'
@@ -274,6 +296,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/case-study'
     | '/companies'
+    | '/company-intelligence'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -282,6 +305,7 @@ export interface FileRouteTypes {
     | '/queue'
     | '/recruiters'
     | '/resume'
+    | '/resume-diff'
     | '/review'
     | '/settings'
     | '/smart-apply'
@@ -299,6 +323,7 @@ export interface RootRouteChildren {
   BatchesRoute: typeof BatchesRoute
   CaseStudyRoute: typeof CaseStudyRoute
   CompaniesRoute: typeof CompaniesRoute
+  CompanyIntelligenceRoute: typeof CompanyIntelligenceRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
@@ -307,6 +332,7 @@ export interface RootRouteChildren {
   QueueRoute: typeof QueueRoute
   RecruitersRoute: typeof RecruitersRoute
   ResumeRoute: typeof ResumeRoute
+  ResumeDiffRoute: typeof ResumeDiffRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SmartApplyRoute: typeof SmartApplyRoute
@@ -358,6 +384,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume-diff': {
+      id: '/resume-diff'
+      path: '/resume-diff'
+      fullPath: '/resume-diff'
+      preLoaderRoute: typeof ResumeDiffRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resume': {
@@ -414,6 +447,13 @@ declare module '@tanstack/react-router' {
       path: '/follow-ups'
       fullPath: '/follow-ups'
       preLoaderRoute: typeof FollowUpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/company-intelligence': {
+      id: '/company-intelligence'
+      path: '/company-intelligence'
+      fullPath: '/company-intelligence'
+      preLoaderRoute: typeof CompanyIntelligenceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/companies': {
@@ -483,6 +523,7 @@ const rootRouteChildren: RootRouteChildren = {
   BatchesRoute: BatchesRoute,
   CaseStudyRoute: CaseStudyRoute,
   CompaniesRoute: CompaniesRoute,
+  CompanyIntelligenceRoute: CompanyIntelligenceRoute,
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
@@ -491,6 +532,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueueRoute: QueueRoute,
   RecruitersRoute: RecruitersRoute,
   ResumeRoute: ResumeRoute,
+  ResumeDiffRoute: ResumeDiffRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SmartApplyRoute: SmartApplyRoute,

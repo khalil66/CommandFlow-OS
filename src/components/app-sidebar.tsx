@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Search, ShieldCheck, Filter, FileText,
   ListChecks, AlertTriangle, BarChart3, Settings, Briefcase,
   Building2, CalendarDays, Sparkles, BellRing, Download, Activity, Compass, BookOpen, Zap,
-  KanbanSquare, Users,
+  KanbanSquare, Users, FileDiff, Brain,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -22,6 +22,8 @@ const nav = [
   { title: "Legitimacy Checker", url: "/legitimacy", icon: ShieldCheck },
   { title: "ATS Filter", url: "/ats", icon: Filter },
   { title: "Resume Studio", url: "/resume", icon: FileText },
+  { title: "Resume Diff", url: "/resume-diff", icon: FileDiff },
+  { title: "Company Intelligence", url: "/company-intelligence", icon: Brain },
   { title: "Application Tracker", url: "/tracker", icon: ListChecks },
   { title: "CRM Pipeline", url: "/pipeline", icon: KanbanSquare },
   { title: "Recruiters", url: "/recruiters", icon: Users },

@@ -9,7 +9,9 @@ import {
 import { getAnalyticsBreakdown } from "@/lib/engine.functions";
 import { getLearningInsights } from "@/lib/outcomes.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock } from "lucide-react";
+import { ResponseHeatmap } from "@/components/response-heatmap";
+import { Link } from "@tanstack/react-router";
+import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock, FileDiff } from "lucide-react";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
@@ -70,12 +72,20 @@ function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Best-performing resume version */}
             <Card>
-              <CardHeader><CardTitle className="text-base">Best-performing resume versions</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Best-performing resume versions</CardTitle>
+                <Link to="/resume-diff" className="text-xs text-accent inline-flex items-center gap-1 hover:underline"><FileDiff className="h-3 w-3" /> View diff</Link>
+              </CardHeader>
               <CardContent>
                 {data.resume_performance.length === 0 ? <Empty msg="No resume versions yet." /> : (
                   <div className="space-y-3">
                     {data.resume_performance.slice(0, 6).map((r: any) => (
-                      <div key={r.name} className="flex items-center gap-3 p-3 rounded-md border border-border">
+                      <Link
+                        key={r.name}
+                        to="/resume-diff"
+                        search={{ variant_key: r.name }}
+                        className="flex items-center gap-3 p-3 rounded-md border border-border hover:border-accent/40 hover:bg-muted/40 transition-colors"
+                      >
                         <div className="font-mono text-xs w-48 truncate">{r.name}</div>
                         <div className="flex-1">
                           <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -84,7 +94,7 @@ function Analytics() {
                         </div>
                         <div className="text-xs tabular-nums w-24 text-right text-muted-foreground">{r.interviews}/{r.applications} int</div>
                         <div className="text-sm font-semibold tabular-nums w-12 text-right text-accent">{r.match_score}</div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -226,6 +236,8 @@ function Analytics() {
               </CardContent>
             </Card>
           </div>
+
+          <ResponseHeatmap />
 
           {/* Learning loop */}
           {learn && (
