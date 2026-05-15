@@ -107,6 +107,21 @@ function Dashboard() {
             <Stat icon={TrendingUp} label="Interview Rate" value={`${stats.responseRate}%`} sub="of submissions" accent="bg-warning/15 text-warning-foreground" />
           </div>
 
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Backend status</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <StatusPill ok={!!status?.supabase_connected} icon={Database} label="Supabase connected" />
+                <StatusPill ok={!!status?.auth_active} icon={Lock} label="Auth active" />
+                <StatusPill ok={!!status?.rls_enabled} icon={Shield} label="RLS enabled" />
+                <StatusPill ok={!!status?.openai_connected} icon={Sparkles} label="OpenAI connected" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Browser automation: <span className="font-medium text-foreground">disabled</span> · Mode: <span className="font-medium text-foreground">Manual Review only</span>
+              </p>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between">
