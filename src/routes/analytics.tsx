@@ -9,7 +9,9 @@ import {
 import { getAnalyticsBreakdown } from "@/lib/engine.functions";
 import { getLearningInsights } from "@/lib/outcomes.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock } from "lucide-react";
+import { ResponseHeatmap } from "@/components/response-heatmap";
+import { Link } from "@tanstack/react-router";
+import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock, FileDiff } from "lucide-react";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
