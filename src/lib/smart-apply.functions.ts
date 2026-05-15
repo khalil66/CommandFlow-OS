@@ -113,7 +113,7 @@ export const getSmartApplyMetrics = createServerFn({ method: "GET" })
     const isActiveDay = activeWeekdays.includes(dow);
     const isFridayPrepareOnly = dow === 5 && (settings?.friday_prepare_only ?? true);
 
-    const autoCap = settings?.auto_review_daily_cap ?? 10;
+    const autoCap = settings?.auto_review_daily_cap ?? 5;
     const packetCap = settings?.packet_daily_cap ?? 25;
 
     return {
