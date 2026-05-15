@@ -4,6 +4,18 @@ export interface ResumePacket {
   job: { title: string; company_name: string; location?: string | null; ats?: string | null; salary_min?: number | null; salary_max?: number | null; source_url?: string | null };
   resume?: { summary?: string | null; skills?: string[] | null; bullets?: string[] | null; keywords?: string[] | null; match_score?: number | null } | null;
   cover?: { body?: string | null } | null;
+  prep?: {
+    quality_score?: number;
+    confidence?: string;
+    why_company?: string;
+    portfolio_project?: string | null;
+    talking_points?: string[];
+    recruiter_questions?: string[];
+    technical_questions?: string[];
+    star_examples?: Array<{ question: string; situation: string; task: string; action: string; result: string }>;
+    linkedin_tips?: string[];
+    ats_summary?: string;
+  } | null;
 }
 
 const CANDIDATE = {
