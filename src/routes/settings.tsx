@@ -124,7 +124,7 @@ function Settings() {
             label="Remote-only roles"
             desc="Reject onsite/hybrid postings during ingestion."
             checked={s.remote_only !== false}
-            onChange={(v: string) => set("remote_only", v)}
+            onChange={(v: boolean) => set("remote_only", v)}
           />
 
           <div className="space-y-2">
