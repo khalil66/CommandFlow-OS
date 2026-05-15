@@ -18,9 +18,12 @@ export type Database = {
         Row: {
           cover_letter_id: string | null
           created_at: string
+          follow_up_due_at: string | null
           id: string
           job_id: string
           notes: string | null
+          portfolio_project: string | null
+          priority: Database["public"]["Enums"]["application_priority"] | null
           resume_version_id: string | null
           status: Database["public"]["Enums"]["application_status"]
           submitted_at: string | null
@@ -30,9 +33,12 @@ export type Database = {
         Insert: {
           cover_letter_id?: string | null
           created_at?: string
+          follow_up_due_at?: string | null
           id?: string
           job_id: string
           notes?: string | null
+          portfolio_project?: string | null
+          priority?: Database["public"]["Enums"]["application_priority"] | null
           resume_version_id?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           submitted_at?: string | null
@@ -42,9 +48,12 @@ export type Database = {
         Update: {
           cover_letter_id?: string | null
           created_at?: string
+          follow_up_due_at?: string | null
           id?: string
           job_id?: string
           notes?: string | null
+          portfolio_project?: string | null
+          priority?: Database["public"]["Enums"]["application_priority"] | null
           resume_version_id?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           submitted_at?: string | null
@@ -172,43 +181,82 @@ export type Database = {
       }
       companies: {
         Row: {
+          careers_url: string | null
+          category: Database["public"]["Enums"]["company_category"] | null
           created_at: string
           domain: string | null
           domain_age_days: number | null
+          funding_stage: string | null
           glassdoor_rating: number | null
           has_linkedin: boolean | null
+          hiring_activity: number | null
           id: string
+          is_remote_first: boolean | null
+          last_applied_at: string | null
           legitimacy_score: number | null
+          linkedin_url: string | null
+          mba_friendly: boolean | null
           name: string
           notes: string | null
+          red_flags: string[] | null
+          trust_score: number | null
           updated_at: string
           user_id: string
+          verification_status:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
         }
         Insert: {
+          careers_url?: string | null
+          category?: Database["public"]["Enums"]["company_category"] | null
           created_at?: string
           domain?: string | null
           domain_age_days?: number | null
+          funding_stage?: string | null
           glassdoor_rating?: number | null
           has_linkedin?: boolean | null
+          hiring_activity?: number | null
           id?: string
+          is_remote_first?: boolean | null
+          last_applied_at?: string | null
           legitimacy_score?: number | null
+          linkedin_url?: string | null
+          mba_friendly?: boolean | null
           name: string
           notes?: string | null
+          red_flags?: string[] | null
+          trust_score?: number | null
           updated_at?: string
           user_id: string
+          verification_status?:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
         }
         Update: {
+          careers_url?: string | null
+          category?: Database["public"]["Enums"]["company_category"] | null
           created_at?: string
           domain?: string | null
           domain_age_days?: number | null
+          funding_stage?: string | null
           glassdoor_rating?: number | null
           has_linkedin?: boolean | null
+          hiring_activity?: number | null
           id?: string
+          is_remote_first?: boolean | null
+          last_applied_at?: string | null
           legitimacy_score?: number | null
+          linkedin_url?: string | null
+          mba_friendly?: boolean | null
           name?: string
           notes?: string | null
+          red_flags?: string[] | null
+          trust_score?: number | null
           updated_at?: string
           user_id?: string
+          verification_status?:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
         }
         Relationships: []
       }
@@ -250,20 +298,81 @@ export type Database = {
           },
         ]
       }
+      daily_batches: {
+        Row: {
+          applications_approved: number | null
+          applications_prepared: number | null
+          applications_submitted: number | null
+          batch_date: string
+          category: Database["public"]["Enums"]["company_category"]
+          companies_reviewed: number | null
+          created_at: string | null
+          day_of_week: string
+          id: string
+          interview_responses: number | null
+          jobs_found: number | null
+          jobs_rejected: number | null
+          status: string | null
+          summary: Json | null
+          user_id: string
+        }
+        Insert: {
+          applications_approved?: number | null
+          applications_prepared?: number | null
+          applications_submitted?: number | null
+          batch_date: string
+          category: Database["public"]["Enums"]["company_category"]
+          companies_reviewed?: number | null
+          created_at?: string | null
+          day_of_week: string
+          id?: string
+          interview_responses?: number | null
+          jobs_found?: number | null
+          jobs_rejected?: number | null
+          status?: string | null
+          summary?: Json | null
+          user_id: string
+        }
+        Update: {
+          applications_approved?: number | null
+          applications_prepared?: number | null
+          applications_submitted?: number | null
+          batch_date?: string
+          category?: Database["public"]["Enums"]["company_category"]
+          companies_reviewed?: number | null
+          created_at?: string | null
+          day_of_week?: string
+          id?: string
+          interview_responses?: number | null
+          jobs_found?: number | null
+          jobs_rejected?: number | null
+          status?: string | null
+          summary?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       job_listings: {
         Row: {
           ats: string | null
           blockers: string[] | null
+          category: Database["public"]["Enums"]["company_category"] | null
           company_id: string | null
           company_name: string
           created_at: string
+          dedupe_hash: string | null
           description: string | null
           final_score: number | null
           id: string
+          interview_probability: number | null
           legitimacy: number | null
           location: string | null
+          posted_at: string | null
+          ready_to_apply: boolean | null
           remote: boolean | null
           resume_match: number | null
+          role_category: string | null
+          salary_estimated: boolean | null
           salary_max: number | null
           salary_min: number | null
           source_url: string | null
@@ -275,16 +384,23 @@ export type Database = {
         Insert: {
           ats?: string | null
           blockers?: string[] | null
+          category?: Database["public"]["Enums"]["company_category"] | null
           company_id?: string | null
           company_name: string
           created_at?: string
+          dedupe_hash?: string | null
           description?: string | null
           final_score?: number | null
           id?: string
+          interview_probability?: number | null
           legitimacy?: number | null
           location?: string | null
+          posted_at?: string | null
+          ready_to_apply?: boolean | null
           remote?: boolean | null
           resume_match?: number | null
+          role_category?: string | null
+          salary_estimated?: boolean | null
           salary_max?: number | null
           salary_min?: number | null
           source_url?: string | null
@@ -296,16 +412,23 @@ export type Database = {
         Update: {
           ats?: string | null
           blockers?: string[] | null
+          category?: Database["public"]["Enums"]["company_category"] | null
           company_id?: string | null
           company_name?: string
           created_at?: string
+          dedupe_hash?: string | null
           description?: string | null
           final_score?: number | null
           id?: string
+          interview_probability?: number | null
           legitimacy?: number | null
           location?: string | null
+          posted_at?: string | null
+          ready_to_apply?: boolean | null
           remote?: boolean | null
           resume_match?: number | null
+          role_category?: string | null
+          salary_estimated?: boolean | null
           salary_max?: number | null
           salary_min?: number | null
           source_url?: string | null
@@ -472,6 +595,63 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_checks: {
+        Row: {
+          ats_domain_match: boolean | null
+          business_footprint_score: number | null
+          company_id: string | null
+          created_at: string | null
+          decision: string | null
+          has_careers_page: boolean | null
+          has_linkedin: boolean | null
+          has_official_site: boolean | null
+          id: string
+          news_signals_count: number | null
+          payment_request: boolean | null
+          personal_email_domain: boolean | null
+          raw: Json | null
+          scam_flags: string[] | null
+          score: number | null
+          user_id: string
+        }
+        Insert: {
+          ats_domain_match?: boolean | null
+          business_footprint_score?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          decision?: string | null
+          has_careers_page?: boolean | null
+          has_linkedin?: boolean | null
+          has_official_site?: boolean | null
+          id?: string
+          news_signals_count?: number | null
+          payment_request?: boolean | null
+          personal_email_domain?: boolean | null
+          raw?: Json | null
+          scam_flags?: string[] | null
+          score?: number | null
+          user_id: string
+        }
+        Update: {
+          ats_domain_match?: boolean | null
+          business_footprint_score?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          decision?: string | null
+          has_careers_page?: boolean | null
+          has_linkedin?: boolean | null
+          has_official_site?: boolean | null
+          id?: string
+          news_signals_count?: number | null
+          payment_request?: boolean | null
+          personal_email_domain?: boolean | null
+          raw?: Json | null
+          scam_flags?: string[] | null
+          score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -480,6 +660,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      application_priority: "high" | "good" | "manual" | "skip"
       application_status:
         | "queued"
         | "manual_review"
@@ -498,6 +679,15 @@ export type Database = {
         | "export_packet"
         | "legitimacy_check"
         | "ats_check"
+      company_category:
+        | "saas"
+        | "data"
+        | "cs_ops"
+        | "product_pm"
+        | "remote_first"
+        | "mba_friendly"
+        | "other"
+      verification_status: "verified" | "manual_review" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -625,6 +815,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      application_priority: ["high", "good", "manual", "skip"],
       application_status: [
         "queued",
         "manual_review",
@@ -645,6 +836,16 @@ export const Constants = {
         "legitimacy_check",
         "ats_check",
       ],
+      company_category: [
+        "saas",
+        "data",
+        "cs_ops",
+        "product_pm",
+        "remote_first",
+        "mba_friendly",
+        "other",
+      ],
+      verification_status: ["verified", "manual_review", "rejected"],
     },
   },
 } as const
