@@ -80,7 +80,12 @@ function Analytics() {
                 {data.resume_performance.length === 0 ? <Empty msg="No resume versions yet." /> : (
                   <div className="space-y-3">
                     {data.resume_performance.slice(0, 6).map((r: any) => (
-                      <div key={r.name} className="flex items-center gap-3 p-3 rounded-md border border-border">
+                      <Link
+                        key={r.name}
+                        to="/resume-diff"
+                        search={{ variant_key: r.name }}
+                        className="flex items-center gap-3 p-3 rounded-md border border-border hover:border-accent/40 hover:bg-muted/40 transition-colors"
+                      >
                         <div className="font-mono text-xs w-48 truncate">{r.name}</div>
                         <div className="flex-1">
                           <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -89,7 +94,7 @@ function Analytics() {
                         </div>
                         <div className="text-xs tabular-nums w-24 text-right text-muted-foreground">{r.interviews}/{r.applications} int</div>
                         <div className="text-sm font-semibold tabular-nums w-12 text-right text-accent">{r.match_score}</div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
