@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generatePacket, computeQuality, confidenceLabel } from "./packet.functions";
 import { SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
+import { enrichSalary, type SalaryGateStatus } from "./salary-estimator";
 
 // Auto-Review safety constants. Tightened intentionally — see "Auto Review Safety Gates".
 export const AUTO_GATES = {
@@ -47,11 +48,26 @@ export function evaluateGates(args: {
   const j = args.job, c = args.company || {};
   const trust = c.trust_score ?? 0;
   const interview = j.interview_probability ?? 0;
-  const salary = j.salary_min ?? 0;
   const age = ageDays(j.posted_at ?? j.created_at);
   const ats = j.ats ?? "";
   const ac = args.ats_check ?? {};
   const scamFlags = (c.red_flags ?? []).length;
+
+  // Salary gate now uses confidence-aware enrichment. The job row already
+  // carries salary_gate_status (set during ingest); fall back to live enrich
+  // if missing.
+  const gateStatus: SalaryGateStatus =
+    j.salary_gate_status ??
+    enrichSalary({
+      title: j.title ?? "",
+      description: j.description ?? "",
+      remote: j.remote ?? false,
+      companyCategory: c.category ?? null,
+      postedMin: j.salary_min ?? null,
+      postedMax: j.salary_max ?? null,
+    }).gate_status;
+  const salaryDisplay =
+    j.salary_min ?? j.salary_estimated_min ?? null;
 
   const check = (cond: boolean, label: string) =>
     cond ? passed.push(label) : failed.push(label);
@@ -59,7 +75,10 @@ export function evaluateGates(args: {
   check(trust >= AUTO_GATES.trust, `trust ≥ ${AUTO_GATES.trust} (got ${trust})`);
   check(interview >= AUTO_GATES.interview, `interview ≥ ${AUTO_GATES.interview} (got ${interview})`);
   check(args.quality >= AUTO_GATES.quality, `quality ≥ ${AUTO_GATES.quality} (got ${args.quality})`);
-  check(salary >= AUTO_GATES.salary, `salary ≥ $${AUTO_GATES.salary} (got $${salary})`);
+  check(
+    gateStatus === "pass",
+    `salary gate (status ${gateStatus}${salaryDisplay ? `, $${salaryDisplay}` : ""})`,
+  );
   check(j.remote === true, "remote-only");
   check(AUTO_GATES.atsAllowed.includes(ats), `ATS in {${AUTO_GATES.atsAllowed.join(",")}} (got ${ats || "n/a"})`);
   check(age != null && age <= AUTO_GATES.freshDays, `posted ≤ ${AUTO_GATES.freshDays}d (age ${age ?? "unknown"})`);
@@ -73,7 +92,10 @@ export function evaluateGates(args: {
   return {
     pass: failed.length === 0,
     failed, passed,
-    scores: { trust, interview, quality: args.quality, salary, age: age ?? -1 },
+    scores: {
+      trust, interview, quality: args.quality,
+      salary: salaryDisplay ?? 0, age: age ?? -1,
+    },
   };
 }
 

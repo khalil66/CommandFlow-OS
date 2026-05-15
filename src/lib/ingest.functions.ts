@@ -265,13 +265,21 @@ export const importJobsNow = createServerFn({ method: "POST" })
             const remote = isRemote(j.description_text, j.location);
             if (!remote) { counts.skipped++; reasons.push(`skip:${j.title} (not remote)`); continue; }
 
-            // Salary gate
-            let toManualReview = false;
-            if (j.salary_min == null) {
-              toManualReview = true; // missing salary → manual review with salary_estimated
-            } else if (j.salary_min < SALARY_FLOOR) {
-              counts.skipped++; reasons.push(`skip:${j.title} (<${SALARY_FLOOR})`); continue;
+            // Salary enrichment + confidence-aware gate
+            const enrichment = (await import("./salary-estimator")).enrichSalary({
+              title: j.title,
+              description: j.description_text,
+              remote: true,
+              companyCategory: null,
+              postedMin: j.salary_min,
+              postedMax: j.salary_max,
+            });
+            if (enrichment.gate_status === "reject") {
+              counts.skipped++;
+              reasons.push(`skip:${j.title} (${enrichment.gate_reason})`);
+              continue;
             }
+            const toManualReview = enrichment.gate_status === "manual";
 
             // Dedupe
             const dedupe = dedupeHash(src.name, j.title, j.location, j.url);
@@ -281,10 +289,12 @@ export const importJobsNow = createServerFn({ method: "POST" })
 
             const role = inferRoleCategory(j.title);
             const portfolio = projectsForRole(role).length > 0;
+            const effectiveSalaryMin =
+              enrichment.posted_min ?? enrichment.estimated_min ?? null;
             const interview = computeInterviewProbability({
               resume_match: 75,
               skills_match: 75,
-              salary_min: j.salary_min,
+              salary_min: effectiveSalaryMin,
               experience_fit: 80,
               remote: true,
               ats: det.platform,
@@ -295,9 +305,9 @@ export const importJobsNow = createServerFn({ method: "POST" })
               hiring_activity: 60,
             });
             const ready = !toManualReview && isReadyToApply({
-              trust_score: 90, // verified company default
+              trust_score: 90,
               interview_probability: interview.score,
-              salary_min: j.salary_min,
+              salary_min: effectiveSalaryMin,
               remote: true,
               ats: det.platform,
             });
@@ -312,6 +322,12 @@ export const importJobsNow = createServerFn({ method: "POST" })
               salary_min: j.salary_min,
               salary_max: j.salary_max,
               salary_estimated: j.salary_estimated,
+              salary_source: enrichment.source,
+              salary_confidence: enrichment.confidence,
+              salary_estimated_min: enrichment.estimated_min,
+              salary_estimated_max: enrichment.estimated_max,
+              salary_gate_status: enrichment.gate_status,
+              salary_gate_reason: enrichment.gate_reason,
               ats: det.platform,
               source_url: j.url,
               description: j.description_text,
@@ -325,7 +341,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
               final_score: interview.score,
               ready_to_apply: ready,
               status: toManualReview ? "manual_review" : "new",
-              blockers: toManualReview ? ["salary_missing"] : [],
+              blockers: toManualReview ? ["salary_needs_review"] : [],
             } as any);
 
             if (insErr) {

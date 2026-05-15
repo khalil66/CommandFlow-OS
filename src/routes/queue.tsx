@@ -25,6 +25,7 @@ import { seedSampleData } from "@/lib/seed.functions";
 import { withRetry } from "@/lib/api-utils";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 import { projectsForRole } from "@/lib/portfolio";
+import { SalaryBadge } from "@/components/salary-badge";
 
 export const Route = createFileRoute("/queue")({ component: QueuePage });
 
@@ -283,7 +284,7 @@ function RichJobTable({
                     <div className="text-base font-semibold tabular-nums text-accent">{j.interview_probability ?? j.final_score ?? 0}</div>
                     <ScoreBar value={j.interview_probability ?? j.final_score ?? 0} />
                   </TableCell>
-                  <TableCell className="text-xs tabular-nums whitespace-nowrap">${((j.salary_min ?? 0) / 1000).toFixed(0)}–{((j.salary_max ?? 0) / 1000).toFixed(0)}k</TableCell>
+                  <TableCell><SalaryBadge job={j as any} /></TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1 max-w-[180px]">
                       {co.mba_friendly && <Badge variant="secondary" className="text-[10px]">MBA-friendly</Badge>}
