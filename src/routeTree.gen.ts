@@ -16,6 +16,7 @@ import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
+import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -56,6 +57,11 @@ const HighProbabilityRoute = HighProbabilityRouteImport.update({
   path: '/high-probability',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompaniesRoute = CompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/companies': typeof CompaniesRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/companies': typeof CompaniesRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/companies': typeof CompaniesRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/companies'
     | '/high-probability'
     | '/legitimacy'
     | '/queue'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/companies'
     | '/high-probability'
     | '/legitimacy'
     | '/queue'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/companies'
     | '/high-probability'
     | '/legitimacy'
     | '/queue'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AtsRoute: typeof AtsRoute
   AuthRoute: typeof AuthRoute
+  CompaniesRoute: typeof CompaniesRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
   QueueRoute: typeof QueueRoute
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HighProbabilityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/companies': {
+      id: '/companies'
+      path: '/companies'
+      fullPath: '/companies'
+      preLoaderRoute: typeof CompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -260,6 +280,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AtsRoute: AtsRoute,
   AuthRoute: AuthRoute,
+  CompaniesRoute: CompaniesRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
   QueueRoute: QueueRoute,
