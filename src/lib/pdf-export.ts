@@ -104,5 +104,25 @@ export function exportApplicationPdf(packet: ResumePacket, filename: string) {
     para(packet.cover.body);
   }
 
+  if (packet.prep) {
+    doc.addPage(); y = margin;
+    heading("Application Readiness");
+    if (packet.prep.quality_score != null) para(`Quality: ${packet.prep.quality_score}/100  ·  ${packet.prep.confidence ?? ""}`);
+    if (packet.prep.portfolio_project) para(`Recommended portfolio project: ${packet.prep.portfolio_project}`);
+    if (packet.prep.ats_summary) para(packet.prep.ats_summary);
+    if (packet.prep.why_company) { heading("Why This Company"); para(packet.prep.why_company); }
+    if (packet.prep.talking_points?.length) { heading("Talking Points"); bullets(packet.prep.talking_points); }
+    if (packet.prep.recruiter_questions?.length) { heading("Likely Recruiter Questions"); bullets(packet.prep.recruiter_questions); }
+    if (packet.prep.technical_questions?.length) { heading("Likely Technical Questions"); bullets(packet.prep.technical_questions); }
+    if (packet.prep.star_examples?.length) {
+      heading("STAR Examples");
+      for (const s of packet.prep.star_examples) {
+        para(`Q: ${s.question}`);
+        bullets([`S: ${s.situation}`, `T: ${s.task}`, `A: ${s.action}`, `R: ${s.result}`]);
+      }
+    }
+    if (packet.prep.linkedin_tips?.length) { heading("LinkedIn Optimization"); bullets(packet.prep.linkedin_tips); }
+  }
+
   doc.save(filename);
 }
