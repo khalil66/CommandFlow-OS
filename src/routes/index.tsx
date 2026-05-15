@@ -4,10 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, ScoreBar } from "@/components/score-bar";
-import { TrendingUp, Target, CheckCircle2, Clock, ArrowUpRight, Zap, Activity, Loader2 } from "lucide-react";
+import { TrendingUp, Target, CheckCircle2, Clock, ArrowUpRight, Zap, Activity, Loader2, Database, Shield, Lock, Sparkles, XCircle } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { listApplications, listActivityLogs } from "@/lib/applications.functions";
 import { listJobs } from "@/lib/jobs.functions";
+import { checkBackendStatus } from "@/lib/seed.functions";
 import { withRetry } from "@/lib/api-utils";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
