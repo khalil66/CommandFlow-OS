@@ -219,6 +219,28 @@ function Settings() {
       </Card>
 
       <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4 text-accent" /> SMS notifications</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <Toggle label="Enable SMS notifications" desc="Send updates via Twilio. Requires TWILIO_* secrets configured." checked={!!s.sms_enabled} onChange={(v: boolean) => set("sms_enabled", v)} />
+          <Field label="Phone number (E.164, e.g. +15555550123)" value={s.phone_number ?? ""} onChange={(v: string) => set("phone_number", v)} placeholder="+15555550123" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Toggle label="Notify on batch start" desc="" checked={s.sms_notify_batch_start !== false} onChange={(v: boolean) => set("sms_notify_batch_start", v)} />
+            <Toggle label="Notify on batch complete" desc="" checked={s.sms_notify_batch_complete !== false} onChange={(v: boolean) => set("sms_notify_batch_complete", v)} />
+            <Toggle label="Notify on safety block" desc="" checked={s.sms_notify_safety_block !== false} onChange={(v: boolean) => set("sms_notify_safety_block", v)} />
+            <Toggle label="Notify on high-probability match" desc="" checked={s.sms_notify_high_probability !== false} onChange={(v: boolean) => set("sms_notify_high_probability", v)} />
+            <Toggle label="Notify on follow-ups due" desc="" checked={s.sms_notify_followups !== false} onChange={(v: boolean) => set("sms_notify_followups", v)} />
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground">Test that Twilio is configured and your phone receives a message.</p>
+            <Button variant="outline" size="sm" onClick={handleTestSms} disabled={testingSms}>
+              {testingSms ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
+              Send Test SMS
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-success" />Safety</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="flex items-center justify-between">
