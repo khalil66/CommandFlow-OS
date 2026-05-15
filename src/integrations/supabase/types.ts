@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       applications: {
         Row: {
+          application_url: string | null
           cover_letter_id: string | null
           created_at: string
           follow_up_due_at: string | null
@@ -26,11 +27,13 @@ export type Database = {
           priority: Database["public"]["Enums"]["application_priority"] | null
           resume_version_id: string | null
           status: Database["public"]["Enums"]["application_status"]
+          submission_notes: string | null
           submitted_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          application_url?: string | null
           cover_letter_id?: string | null
           created_at?: string
           follow_up_due_at?: string | null
@@ -41,11 +44,13 @@ export type Database = {
           priority?: Database["public"]["Enums"]["application_priority"] | null
           resume_version_id?: string | null
           status?: Database["public"]["Enums"]["application_status"]
+          submission_notes?: string | null
           submitted_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          application_url?: string | null
           cover_letter_id?: string | null
           created_at?: string
           follow_up_due_at?: string | null
@@ -56,6 +61,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["application_priority"] | null
           resume_version_id?: string | null
           status?: Database["public"]["Enums"]["application_status"]
+          submission_notes?: string | null
           submitted_at?: string | null
           updated_at?: string
           user_id?: string
@@ -348,6 +354,36 @@ export type Database = {
           jobs_rejected?: number | null
           status?: string | null
           summary?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      follow_up_messages: {
+        Row: {
+          application_id: string
+          body: string
+          created_at: string
+          id: string
+          job_id: string | null
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          body: string
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          kind: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          kind?: string
           user_id?: string
         }
         Relationships: []
@@ -817,6 +853,11 @@ export type Database = {
         | "rejected"
         | "offer"
         | "withdrawn"
+        | "submitted_manually"
+        | "follow_up_due"
+        | "interview_requested"
+        | "ghosted"
+        | "archived"
       automation_action:
         | "scrape"
         | "score"
@@ -826,6 +867,7 @@ export type Database = {
         | "export_packet"
         | "legitimacy_check"
         | "ats_check"
+        | "follow_up"
       company_category:
         | "saas"
         | "data"
@@ -972,6 +1014,11 @@ export const Constants = {
         "rejected",
         "offer",
         "withdrawn",
+        "submitted_manually",
+        "follow_up_due",
+        "interview_requested",
+        "ghosted",
+        "archived",
       ],
       automation_action: [
         "scrape",
@@ -982,6 +1029,7 @@ export const Constants = {
         "export_packet",
         "legitimacy_check",
         "ats_check",
+        "follow_up",
       ],
       company_category: [
         "saas",
