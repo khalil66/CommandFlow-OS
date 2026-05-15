@@ -17,6 +17,7 @@ import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as CompaniesRouteImport } from './routes/companies'
+import { Route as BatchesRouteImport } from './routes/batches'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -62,6 +63,11 @@ const CompaniesRoute = CompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BatchesRoute = BatchesRouteImport.update({
+  id: '/batches',
+  path: '/batches',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/batches': typeof BatchesRoute
   '/companies': typeof CompaniesRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/batches': typeof BatchesRoute
   '/companies': typeof CompaniesRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/batches': typeof BatchesRoute
   '/companies': typeof CompaniesRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/batches'
     | '/companies'
     | '/high-probability'
     | '/legitimacy'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/batches'
     | '/companies'
     | '/high-probability'
     | '/legitimacy'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/batches'
     | '/companies'
     | '/high-probability'
     | '/legitimacy'
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AtsRoute: typeof AtsRoute
   AuthRoute: typeof AuthRoute
+  BatchesRoute: typeof BatchesRoute
   CompaniesRoute: typeof CompaniesRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompaniesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/batches': {
+      id: '/batches'
+      path: '/batches'
+      fullPath: '/batches'
+      preLoaderRoute: typeof BatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -280,6 +300,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AtsRoute: AtsRoute,
   AuthRoute: AuthRoute,
+  BatchesRoute: BatchesRoute,
   CompaniesRoute: CompaniesRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
