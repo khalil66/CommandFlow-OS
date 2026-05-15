@@ -181,7 +181,7 @@ export const runDailyBatch = createServerFn({ method: "POST" })
         salary_min, remote: true, ats,
       });
 
-      const { data: jobRow } = await supabase.from("job_listings").insert({
+      const { data: jobRow, error: jobInsertErr } = await supabase.from("job_listings").insert({
         user_id: userId, company_id: co.id, company_name: co.name,
         title: role, role_category: role, category: cat,
         location: "Remote (US)", remote: true,
@@ -195,6 +195,12 @@ export const runDailyBatch = createServerFn({ method: "POST" })
         dedupe_hash: dedupe, posted_at: new Date().toISOString(),
         blockers: [],
       } as any).select().single();
+
+      if (jobInsertErr) {
+        // 23505 = unique_violation from (user_id, dedupe_hash) race
+        if ((jobInsertErr as any).code === "23505") continue;
+        throw new Error(jobInsertErr.message);
+      }
 
       jobs_found++;
 
@@ -471,4 +477,30 @@ export const setFollowUp = createServerFn({ method: "POST" })
       .update({ follow_up_due_at: due }).eq("id", data.application_id);
     if (error) throw new Error(error.message);
     return { follow_up_due_at: due };
+  });
+
+export const listFollowUps = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("applications")
+      .select("*, job_listings(title, company_name, ats, source_url)")
+      .eq("user_id", context.userId)
+      .not("follow_up_due_at", "is", null)
+      .order("follow_up_due_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return { applications: data ?? [] };
+  });
+
+export const completeFollowUp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ application_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("applications")
+      .update({ follow_up_due_at: null })
+      .eq("id", data.application_id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

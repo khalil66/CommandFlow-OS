@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Search, ShieldCheck, Filter, FileText,
   ListChecks, AlertTriangle, BarChart3, Settings, Briefcase,
-  Building2, CalendarDays, Sparkles,
+  Building2, CalendarDays, Sparkles, BellRing,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -15,6 +15,7 @@ const nav = [
   { title: "Job Queue", url: "/queue", icon: Search },
   { title: "Companies", url: "/companies", icon: Building2 },
   { title: "Daily Batches", url: "/batches", icon: CalendarDays },
+  { title: "Follow-Ups", url: "/follow-ups", icon: BellRing },
   { title: "Legitimacy Checker", url: "/legitimacy", icon: ShieldCheck },
   { title: "ATS Filter", url: "/ats", icon: Filter },
   { title: "Resume Studio", url: "/resume", icon: FileText },

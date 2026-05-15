@@ -491,6 +491,57 @@ export type Database = {
           },
         ]
       }
+      openai_usage: {
+        Row: {
+          completion_tokens: number | null
+          cover_letter_id: string | null
+          created_at: string
+          error: string | null
+          estimated_cost_cents: number | null
+          id: string
+          job_id: string | null
+          kind: string
+          match_score: number | null
+          model: string | null
+          prompt_tokens: number | null
+          resume_version_id: string | null
+          success: boolean
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          cover_letter_id?: string | null
+          created_at?: string
+          error?: string | null
+          estimated_cost_cents?: number | null
+          id?: string
+          job_id?: string | null
+          kind: string
+          match_score?: number | null
+          model?: string | null
+          prompt_tokens?: number | null
+          resume_version_id?: string | null
+          success?: boolean
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          cover_letter_id?: string | null
+          created_at?: string
+          error?: string | null
+          estimated_cost_cents?: number | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+          match_score?: number | null
+          model?: string | null
+          prompt_tokens?: number | null
+          resume_version_id?: string | null
+          success?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       resume_versions: {
         Row: {
           bullets: string[] | null

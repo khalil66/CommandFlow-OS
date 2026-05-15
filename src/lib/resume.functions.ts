@@ -104,6 +104,19 @@ export const tailorResume = createServerFn({ method: "POST" })
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
+    // Per-user daily caps (resume + cover letter generated together count as 1 of each)
+    const { supabase, userId } = context;
+    const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+    const { data: usageToday } = await supabase
+      .from("openai_usage")
+      .select("kind, success")
+      .eq("user_id", userId)
+      .gte("created_at", since.toISOString());
+    const resumeUsed = (usageToday ?? []).filter((r: any) => r.kind === "resume" && r.success).length;
+    const coverUsed = (usageToday ?? []).filter((r: any) => r.kind === "cover_letter" && r.success).length;
+    if (resumeUsed >= 25) throw new Error("Daily resume generation limit reached (25/day). Resets at 00:00 UTC.");
+    if (coverUsed >= 25) throw new Error("Daily cover letter generation limit reached (25/day).");
+
     const bucket = bucketForCategory(data.category, data.title);
     const proofPoints = ROLE_PROOF_POINTS[bucket];
     const portfolio = projectsForRole(data.title)[0] ?? projectsForRole(data.category ?? "")[0] ?? null;
@@ -133,11 +146,12 @@ Return JSON with:
 - explanation (why this scored what it did, 2-3 sentences)
 - ats_readability (0-100, your assessment of ATS-friendliness)`;
 
+    const model = "gpt-4o-mini";
     const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model,
         messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.4,
@@ -145,10 +159,20 @@ Return JSON with:
     });
     if (!resp.ok) {
       const txt = await resp.text();
+      // Log failure
+      await supabase.from("openai_usage").insert({
+        user_id: userId, kind: "resume", model, success: false,
+        error: `OpenAI ${resp.status}: ${txt.slice(0, 200)}`, job_id: data.job_id ?? null,
+      } as any);
       throw new Error(`OpenAI error ${resp.status}: ${txt.slice(0, 200)}`);
     }
     const json = await resp.json();
     const content = json.choices?.[0]?.message?.content ?? "{}";
+    const usage = json.usage ?? {};
+    // gpt-4o-mini: $0.15/1M input, $0.60/1M output → cents
+    const costCents =
+      ((usage.prompt_tokens ?? 0) * 0.000015) +
+      ((usage.completion_tokens ?? 0) * 0.000060);
     const parsed = JSON.parse(content);
 
     const out = {
@@ -167,7 +191,6 @@ Return JSON with:
     let resume_id: string | null = null;
     let cover_id: string | null = null;
     if (data.save) {
-      const { supabase, userId } = context;
       const { data: r } = await supabase.from("resume_versions").insert({
         user_id: userId, job_id: data.job_id ?? null,
         label: `${data.company} — ${data.title}`,
@@ -182,6 +205,25 @@ Return JSON with:
       }).select("id").maybeSingle();
       cover_id = c?.id ?? null;
     }
+
+    // Log success — one row per kind so analytics can split them
+    await supabase.from("openai_usage").insert([
+      {
+        user_id: userId, kind: "resume", model, success: true,
+        job_id: data.job_id ?? null, resume_version_id: resume_id,
+        match_score: out.matchScore,
+        prompt_tokens: usage.prompt_tokens ?? 0,
+        completion_tokens: usage.completion_tokens ?? 0,
+        estimated_cost_cents: costCents / 2,
+      },
+      {
+        user_id: userId, kind: "cover_letter", model, success: true,
+        job_id: data.job_id ?? null, cover_letter_id: cover_id,
+        match_score: out.matchScore,
+        prompt_tokens: 0, completion_tokens: 0,
+        estimated_cost_cents: costCents / 2,
+      },
+    ] as any);
 
     return { ...out, resume_id, cover_id };
   });

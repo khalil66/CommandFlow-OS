@@ -48,16 +48,22 @@ export const getJobPacket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ jobId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const [job, resume, cover, ats, app] = await Promise.all([
-      supabase.from("job_listings").select("*").eq("id", data.jobId).maybeSingle(),
-      supabase.from("resume_versions").select("*").eq("job_id", data.jobId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("cover_letters").select("*").eq("job_id", data.jobId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("ats_checks").select("*").eq("job_id", data.jobId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("applications").select("*").eq("job_id", data.jobId).maybeSingle(),
+    const { supabase, userId } = context;
+    // Explicit ownership assertion (defense-in-depth on top of RLS)
+    const { data: jobRow, error: jobErr } = await supabase
+      .from("job_listings").select("*")
+      .eq("id", data.jobId).eq("user_id", userId).maybeSingle();
+    if (jobErr) throw new Error(jobErr.message);
+    if (!jobRow) throw new Error("Not authorized: job not found for this user");
+
+    const [resume, cover, ats, app] = await Promise.all([
+      supabase.from("resume_versions").select("*").eq("job_id", data.jobId).eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("cover_letters").select("*").eq("job_id", data.jobId).eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("ats_checks").select("*").eq("job_id", data.jobId).eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("applications").select("*").eq("job_id", data.jobId).eq("user_id", userId).maybeSingle(),
     ]);
     return {
-      job: job.data, resume: resume.data, cover: cover.data,
+      job: jobRow, resume: resume.data, cover: cover.data,
       ats: ats.data, application: app.data,
       exported_at: new Date().toISOString(),
     };
