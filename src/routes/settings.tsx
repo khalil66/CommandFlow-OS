@@ -115,6 +115,20 @@ function Settings() {
       </div>
 
       <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Rocket className="h-4 w-4 text-accent" /> Optimization
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            One-click sweep: Smart Apply cycle, recompute source priority, backfill freshness, weekly learning report, refresh dashboard. Respects Auto Review cap (5/day), Manual Review fallback, no auto-submit, no browser automation.
+          </p>
+          <OptimizationSweepButton variant="default" />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle className="text-base">Profile</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Full name" value={s.full_name ?? ""} onChange={(v: string) => set("full_name", v)} />
