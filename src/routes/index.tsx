@@ -22,6 +22,7 @@ import { withRetry } from "@/lib/api-utils";
 import { toast } from "sonner";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 import { supabase } from "@/integrations/supabase/client";
+import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
