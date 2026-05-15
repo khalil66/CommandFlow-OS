@@ -22,17 +22,22 @@ function AdminRecoveryPage() {
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(false);
   const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
+  const [debug, setDebug] = useState<any>(null);
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     checkStatus({})
       .then((r) => {
         setEnabled(r.enabled);
         setEmail(r.email);
+        setUserId(r.userId);
+        setDebug(r.debug);
       })
-      .catch(() => setEnabled(false))
+      .catch((e) => setLastError(e?.message ?? "status failed"))
       .finally(() => setLoading(false));
   }, [checkStatus]);
 
@@ -40,12 +45,15 @@ function AdminRecoveryPage() {
     if (pw !== confirm) return toast.error("Passwords do not match.");
     if (pw.length < 8) return toast.error("Password must be at least 8 characters.");
     setSubmitting(true);
+    setLastError(null);
     try {
       await submitReset({ data: { email, newPassword: pw } });
       toast.success("Password updated. Recovery mode is now disabled.");
       nav({ to: "/auth", replace: true });
     } catch (e: any) {
-      toast.error(e?.message ?? "Recovery failed.");
+      const msg = e?.message ?? "Recovery failed.";
+      setLastError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -116,6 +124,19 @@ function AdminRecoveryPage() {
               <p className="text-[11px] text-muted-foreground">
                 On success, recovery mode is automatically disabled. Re-enabling requires server access.
               </p>
+
+              {/* Debug panel — only visible while bootstrap is enabled */}
+              <div className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground space-y-1">
+                <div className="font-semibold text-foreground">Debug</div>
+                <div><span className="font-mono">project:</span> {debug?.projectUrl}</div>
+                <div><span className="font-mono">bootstrap.email:</span> {email}</div>
+                <div><span className="font-mono">bootstrap.user_id:</span> {userId}</div>
+                <div><span className="font-mono">lookup.method:</span> {debug?.lookup?.method}</div>
+                <div><span className="font-mono">lookup.foundUserId:</span> {debug?.lookup?.foundUserId ?? "—"}</div>
+                <div><span className="font-mono">lookup.foundEmail:</span> {debug?.lookup?.foundEmail ?? "—"}</div>
+                <div><span className="font-mono">lookup.error:</span> {debug?.lookup?.error ?? "—"}</div>
+                {lastError && <div className="text-destructive"><span className="font-mono">lastError:</span> {lastError}</div>}
+              </div>
             </>
           )}
         </CardContent>
