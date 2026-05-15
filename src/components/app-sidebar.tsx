@@ -23,6 +23,8 @@ const nav = [
   { title: "ATS Filter", url: "/ats", icon: Filter },
   { title: "Resume Studio", url: "/resume", icon: FileText },
   { title: "Application Tracker", url: "/tracker", icon: ListChecks },
+  { title: "CRM Pipeline", url: "/pipeline", icon: KanbanSquare },
+  { title: "Recruiters", url: "/recruiters", icon: Users },
   { title: "Manual Review", url: "/review", icon: AlertTriangle },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "System Health", url: "/system", icon: Activity },
