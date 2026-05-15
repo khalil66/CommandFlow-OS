@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy } from "lucide-react";
+import { Sparkles, Copy, Gauge } from "lucide-react";
 import { toast } from "sonner";
 import { ScoreBar } from "@/components/score-bar";
 import { tailorResume } from "@/lib/resume.functions";
+import { getUsageToday } from "@/lib/usage.functions";
 
 export const Route = createFileRoute("/resume")({ component: ResumeStudio });
 
@@ -22,7 +23,12 @@ function ResumeStudio() {
   const [category, setCategory] = useState("data-analyst");
   const [out, setOut] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [usage, setUsage] = useState<any>(null);
   const tailor = useServerFn(tailorResume);
+  const usageFn = useServerFn(getUsageToday);
+
+  const refreshUsage = () => usageFn().then(setUsage).catch(() => {});
+  useEffect(() => { refreshUsage(); }, []);
 
   const generate = async () => {
     if (jd.trim().length < 20) return toast.error("Paste the job description first");
@@ -31,8 +37,10 @@ function ResumeStudio() {
       const result = await tailor({ data: { title, company, category, job_description: jd, save: true } });
       setOut(result);
       toast.success("Tailored resume generated and saved");
+      refreshUsage();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to generate");
+      refreshUsage();
     } finally {
       setLoading(false);
     }

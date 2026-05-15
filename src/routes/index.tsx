@@ -206,7 +206,9 @@ function Dashboard() {
             <MetricCard icon={Gauge} label="Avg Interview Prob" value={`${metrics?.avg_interview_probability ?? 0}`} sub="across all jobs" accent="bg-chart-2/15 text-chart-2" />
             <MetricCard icon={Shield} label="Avg Trust Score" value={`${metrics?.avg_company_trust ?? 0}`} sub="company verification" accent="bg-chart-1/15 text-chart-1" />
             <MetricCard icon={FileCheck} label="Resume Match" value={`${metrics?.avg_resume_match ?? 0}`} sub="avg tailored score" accent="bg-chart-3/15 text-chart-3" />
-            <MetricCard icon={BellRing} label="Follow-ups Due" value={metrics?.follow_ups_due ?? 0} sub="action required" accent={metrics?.follow_ups_due > 0 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground"} />
+            <Link to="/follow-ups" className="contents">
+              <MetricCard icon={BellRing} label="Follow-ups Due" value={metrics?.follow_ups_due ?? 0} sub="action required" accent={metrics?.follow_ups_due > 0 ? "bg-warning/15 text-warning-foreground" : "bg-muted text-muted-foreground"} />
+            </Link>
           </div>
 
           {/* Backend status */}
