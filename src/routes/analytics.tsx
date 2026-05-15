@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell,
-  PieChart, Pie, Legend, LineChart, Line, FunnelChart, Funnel, LabelList,
+  PieChart, Pie, Legend, LineChart, Line,
 } from "recharts";
 import { getAnalyticsBreakdown } from "@/lib/engine.functions";
 import { withRetry } from "@/lib/api-utils";
