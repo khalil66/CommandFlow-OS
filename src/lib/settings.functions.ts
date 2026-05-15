@@ -57,6 +57,16 @@ export const updateSettings = createServerFn({ method: "POST" })
     schedule_hour: z.number().int().min(0).max(23).optional(),
     schedule_minute: z.number().int().min(0).max(59).optional(),
     active_weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+    phone_number: z.string().max(40).optional(),
+    sms_enabled: z.boolean().optional(),
+    sms_daily_cap: z.number().int().min(0).max(100).optional(),
+    sms_notify_batch_start: z.boolean().optional(),
+    sms_notify_batch_complete: z.boolean().optional(),
+    sms_notify_manual_mode: z.boolean().optional(),
+    sms_notify_auto_mode: z.boolean().optional(),
+    sms_notify_safety_block: z.boolean().optional(),
+    sms_notify_high_probability: z.boolean().optional(),
+    sms_notify_followups: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
