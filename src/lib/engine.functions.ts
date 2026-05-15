@@ -181,7 +181,7 @@ export const runDailyBatch = createServerFn({ method: "POST" })
         salary_min, remote: true, ats,
       });
 
-      const { data: jobRow } = await supabase.from("job_listings").insert({
+      const { data: jobRow, error: jobInsertErr } = await supabase.from("job_listings").insert({
         user_id: userId, company_id: co.id, company_name: co.name,
         title: role, role_category: role, category: cat,
         location: "Remote (US)", remote: true,
@@ -195,6 +195,12 @@ export const runDailyBatch = createServerFn({ method: "POST" })
         dedupe_hash: dedupe, posted_at: new Date().toISOString(),
         blockers: [],
       } as any).select().single();
+
+      if (jobInsertErr) {
+        // 23505 = unique_violation from (user_id, dedupe_hash) race
+        if ((jobInsertErr as any).code === "23505") continue;
+        throw new Error(jobInsertErr.message);
+      }
 
       jobs_found++;
 
