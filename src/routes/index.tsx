@@ -22,6 +22,7 @@ import { withRetry } from "@/lib/api-utils";
 import { toast } from "sonner";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 import { supabase } from "@/integrations/supabase/client";
+import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
@@ -199,12 +200,13 @@ function Dashboard() {
           <Button asChild variant="outline">
             <Link to="/high-probability"><Sparkles className="h-4 w-4 mr-1.5" /> Review High-Probability Jobs</Link>
           </Button>
-          <Button variant="outline" onClick={handleExportWeekly} disabled={exporting}>
-            {exporting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
-            Export Weekly Analytics
-          </Button>
+            <Button variant="outline" onClick={handleExportWeekly} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
+              Export Weekly Analytics
+            </Button>
+            <OptimizationSweepButton variant="default" onComplete={refresh} className="bg-primary text-primary-foreground hover:bg-primary/90" />
+          </div>
         </div>
-      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…</div>

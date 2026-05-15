@@ -15,7 +15,8 @@ import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
 import { sendTestSms } from "@/lib/sms.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send } from "lucide-react";
+import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket } from "lucide-react";
+import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
@@ -112,6 +113,20 @@ function Settings() {
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Profile, application preferences, AI usage, and integrations.</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Rocket className="h-4 w-4 text-accent" /> Optimization
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            One-click sweep: Smart Apply cycle, recompute source priority, backfill freshness, weekly learning report, refresh dashboard. Respects Auto Review cap (5/day), Manual Review fallback, no auto-submit, no browser automation.
+          </p>
+          <OptimizationSweepButton variant="default" />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Profile</CardTitle></CardHeader>
