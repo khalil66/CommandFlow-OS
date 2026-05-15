@@ -168,3 +168,11 @@ function Integration({ name, desc, status }: any) {
     </div>
   );
 }
+function Stat({ label, value, accent }: { label: string; value: any; accent?: string }) {
+  return (
+    <div className="text-center p-2 rounded bg-muted">
+      <div className={`text-lg font-semibold tabular-nums ${accent ?? ""}`}>{value}</div>
+      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</div>
+    </div>
+  );
+}
