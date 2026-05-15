@@ -10,11 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
+import { Route as SystemRouteImport } from './routes/system'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
@@ -29,6 +31,11 @@ import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SourcesRoute = SourcesRouteImport.update({
@@ -54,6 +61,11 @@ const ResumeRoute = ResumeRouteImport.update({
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LegitimacyRoute = LegitimacyRouteImport.update({
@@ -117,11 +129,13 @@ export interface FileRoutesByFullPath {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/onboarding': typeof OnboardingRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
 }
@@ -135,11 +149,13 @@ export interface FileRoutesByTo {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/onboarding': typeof OnboardingRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
 }
@@ -154,11 +170,13 @@ export interface FileRoutesById {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/onboarding': typeof OnboardingRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
 }
@@ -174,11 +192,13 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/onboarding'
     | '/queue'
     | '/resume'
     | '/review'
     | '/settings'
     | '/sources'
+    | '/system'
     | '/tracker'
     | '/packet/$jobId'
   fileRoutesByTo: FileRoutesByTo
@@ -192,11 +212,13 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/onboarding'
     | '/queue'
     | '/resume'
     | '/review'
     | '/settings'
     | '/sources'
+    | '/system'
     | '/tracker'
     | '/packet/$jobId'
   id:
@@ -210,11 +232,13 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/onboarding'
     | '/queue'
     | '/resume'
     | '/review'
     | '/settings'
     | '/sources'
+    | '/system'
     | '/tracker'
     | '/packet/$jobId'
   fileRoutesById: FileRoutesById
@@ -229,11 +253,13 @@ export interface RootRouteChildren {
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
+  OnboardingRoute: typeof OnboardingRoute
   QueueRoute: typeof QueueRoute
   ResumeRoute: typeof ResumeRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SourcesRoute: typeof SourcesRoute
+  SystemRoute: typeof SystemRoute
   TrackerRoute: typeof TrackerRoute
   PacketJobIdRoute: typeof PacketJobIdRoute
 }
@@ -245,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/tracker'
       fullPath: '/tracker'
       preLoaderRoute: typeof TrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sources': {
@@ -280,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/queue'
       fullPath: '/queue'
       preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/legitimacy': {
@@ -365,11 +405,13 @@ const rootRouteChildren: RootRouteChildren = {
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
+  OnboardingRoute: OnboardingRoute,
   QueueRoute: QueueRoute,
   ResumeRoute: ResumeRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SourcesRoute: SourcesRoute,
+  SystemRoute: SystemRoute,
   TrackerRoute: TrackerRoute,
   PacketJobIdRoute: PacketJobIdRoute,
 }

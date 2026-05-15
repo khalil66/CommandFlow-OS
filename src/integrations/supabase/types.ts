@@ -736,10 +736,17 @@ export type Database = {
           created_at: string
           daily_cap: number | null
           email: string | null
+          excluded_ats: string[]
+          excluded_companies: string[]
           full_name: string | null
           id: string
+          linkedin_url: string | null
           location: string | null
           manual_review_only: boolean | null
+          onboarded_at: string | null
+          remote_only: boolean
+          role_categories: string[]
+          salary_min: number
           target_roles: string[] | null
           trust_threshold: number | null
           updated_at: string
@@ -751,10 +758,17 @@ export type Database = {
           created_at?: string
           daily_cap?: number | null
           email?: string | null
+          excluded_ats?: string[]
+          excluded_companies?: string[]
           full_name?: string | null
           id?: string
+          linkedin_url?: string | null
           location?: string | null
           manual_review_only?: boolean | null
+          onboarded_at?: string | null
+          remote_only?: boolean
+          role_categories?: string[]
+          salary_min?: number
           target_roles?: string[] | null
           trust_threshold?: number | null
           updated_at?: string
@@ -766,10 +780,17 @@ export type Database = {
           created_at?: string
           daily_cap?: number | null
           email?: string | null
+          excluded_ats?: string[]
+          excluded_companies?: string[]
           full_name?: string | null
           id?: string
+          linkedin_url?: string | null
           location?: string | null
           manual_review_only?: boolean | null
+          onboarded_at?: string | null
+          remote_only?: boolean
+          role_categories?: string[]
+          salary_min?: number
           target_roles?: string[] | null
           trust_threshold?: number | null
           updated_at?: string
