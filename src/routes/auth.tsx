@@ -19,6 +19,8 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{ email: string; redirectTo: string; error?: any; data?: any } | null>(null);
+  const isDev = import.meta.env.DEV;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -38,12 +40,39 @@ function AuthPage() {
   const sendReset = async () => {
     if (!email) return toast.error("Enter your email address.");
     setResetSending(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const redirectTo = `${window.location.origin}/reset-password`;
+    const response = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    const { data, error } = response;
     setResetSending(false);
-    if (error) return toast.error(error.message);
-    toast.success("Check your email for a reset link.");
+
+    // Always log full response for debugging
+    console.log("[resetPasswordForEmail]", { email, redirectTo, data, error });
+    setDebugInfo({ email, redirectTo, error, data });
+
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      const status = (error as any).status;
+      let friendly = error.message;
+      if (status === 429 || msg.includes("rate limit")) {
+        friendly = "Reset email rate limit reached. Try again later.";
+      } else if (msg.includes("redirect") && (msg.includes("not allowed") || msg.includes("invalid"))) {
+        friendly = "Redirect URL is not allowed in Auth settings.";
+      } else if (msg.includes("smtp") || msg.includes("email") && msg.includes("send")) {
+        friendly = "Email delivery error. Try again later.";
+      } else if (msg.includes("not found") || msg.includes("user")) {
+        friendly = "Email address not found or not registered.";
+      }
+      // In production, avoid user enumeration: show generic success regardless
+      if (!isDev) {
+        toast.success("If that email exists, a reset link has been sent. Check spam/promotions.");
+        setShowForgot(false);
+      } else {
+        toast.error(friendly);
+      }
+      return;
+    }
+
+    toast.success("Reset link sent. Check spam/promotions — it may take a few minutes.");
     setShowForgot(false);
   };
 
@@ -76,6 +105,22 @@ function AuthPage() {
               <Button onClick={sendReset} disabled={resetSending} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                 {resetSending ? "Sending…" : "Send reset link"}
               </Button>
+              <p className="text-xs text-muted-foreground">
+                Check spam/promotions. Reset links may take a few minutes to arrive.
+              </p>
+              {isDev && debugInfo && (
+                <div className="rounded-md border border-border bg-muted/40 p-2 text-[10px] font-mono space-y-1 break-all">
+                  <div><span className="text-muted-foreground">email:</span> {debugInfo.email}</div>
+                  <div><span className="text-muted-foreground">redirectTo:</span> {debugInfo.redirectTo}</div>
+                  {debugInfo.error ? (
+                    <div className="text-destructive">
+                      error: {debugInfo.error.name} · status {(debugInfo.error as any).status ?? "?"} · {debugInfo.error.message}
+                    </div>
+                  ) : (
+                    <div className="text-primary">no error returned</div>
+                  )}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowForgot(false)}
