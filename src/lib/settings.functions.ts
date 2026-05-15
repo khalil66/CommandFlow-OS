@@ -94,7 +94,7 @@ export const exportAllData = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const out: Record<string, any[]> = {};
     for (const table of EXPORT_TABLES) {
-      const { data } = await supabase.from(table).select("*").eq("user_id", userId);
+      const { data } = await (supabase as any).from(table).select("*").eq("user_id", userId);
       out[table] = data ?? [];
     }
     return {
