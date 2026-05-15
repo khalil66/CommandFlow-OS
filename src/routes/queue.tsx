@@ -32,6 +32,40 @@ function QueuePage() {
   const [matchMin, setMatch] = useState([60]);
   const [legitMin, setLegit] = useState([70]);
   const [ats, setAts] = useState("all");
+  const [savedIds, setSavedIds] = useState<Record<string, string>>({});
+  const saveJobFn = useServerFn(saveJob);
+  const upsertAppFn = useServerFn(upsertApplication);
+  const getPacketFn = useServerFn(getJobPacket);
+
+  const handleSave = async (j: any) => {
+    try {
+      const { job } = await saveJobFn({ data: {
+        title: j.title, company_name: j.company, location: j.location,
+        remote: j.remote, salary_min: j.salaryMin, salary_max: j.salaryMax,
+        ats: j.ats, source_url: j.url ?? null,
+        resume_match: j.resumeMatch, legitimacy: j.legitimacy,
+        final_score: j.finalScore, blockers: j.blockers ?? [],
+      }});
+      await upsertAppFn({ data: { job_id: job.id, status: "manual_review" } });
+      setSavedIds(prev => ({ ...prev, [j.id]: job.id }));
+      toast.success(`Saved ${j.company} to Manual Review`);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleExport = async (j: any) => {
+    const dbId = savedIds[j.id];
+    if (!dbId) return toast.error("Save the job first");
+    try {
+      const packet = await getPacketFn({ data: { jobId: dbId } });
+      const blob = new Blob([JSON.stringify(packet, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `packet-${j.company.replace(/\W+/g,"-")}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      toast.success("Application packet exported");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
 
   const filtered = useMemo(() => {
     return MOCK_JOBS.filter(j => {
