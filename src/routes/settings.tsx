@@ -15,7 +15,8 @@ import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
 import { sendTestSms } from "@/lib/sms.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send } from "lucide-react";
+import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket } from "lucide-react";
+import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
