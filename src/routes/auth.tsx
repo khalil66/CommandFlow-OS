@@ -105,6 +105,22 @@ function AuthPage() {
               <Button onClick={sendReset} disabled={resetSending} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                 {resetSending ? "Sending…" : "Send reset link"}
               </Button>
+              <p className="text-xs text-muted-foreground">
+                Check spam/promotions. Reset links may take a few minutes to arrive.
+              </p>
+              {isDev && debugInfo && (
+                <div className="rounded-md border border-border bg-muted/40 p-2 text-[10px] font-mono space-y-1 break-all">
+                  <div><span className="text-muted-foreground">email:</span> {debugInfo.email}</div>
+                  <div><span className="text-muted-foreground">redirectTo:</span> {debugInfo.redirectTo}</div>
+                  {debugInfo.error ? (
+                    <div className="text-destructive">
+                      error: {debugInfo.error.name} · status {(debugInfo.error as any).status ?? "?"} · {debugInfo.error.message}
+                    </div>
+                  ) : (
+                    <div className="text-primary">no error returned</div>
+                  )}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowForgot(false)}
