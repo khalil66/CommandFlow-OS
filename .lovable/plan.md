@@ -1,136 +1,80 @@
-# Smart Apply — Final Optimization Upgrades
+# Productivity + Recruiting Intelligence Upgrades
 
-A focused, non-destructive expansion of the existing Smart Apply pipeline. No
-auto-submit, no browser automation, no CAPTCHA/MFA bypass. Auto Review cap stays
-at 5/day. Manual override stays available everywhere.
+Large scope — phased delivery. All safety rules preserved (no CAPTCHA/MFA/login bypass, no auto-submit, no browser automation, Safety Block + Manual Review fallback, Auto Review cap 5/day).
 
-## 1. Schema additions (one migration)
+## Phase 1 — Core CRM + Intelligence (ship first)
+1. **Interview CRM Pipeline** (`/pipeline`)
+   - Extend `application_status` enum: `imported, reviewed, approved, submitted_manual, recruiter_screen, technical_interview, final_interview, offer, rejected, archived`
+   - New columns on `applications`: `recruiter_notes`, `interview_notes`, `salary_expectation`, `next_action_at`, `next_action_label`, plus stage timestamps (`reviewed_at`, `approved_at`, `submitted_manual_at`, `recruiter_screen_at`, `technical_interview_at`, `final_interview_at`, `archived_at` — reuse existing `offer_at`, `rejected_at`)
+   - Kanban board with drag-and-drop (dnd-kit) → updates status + writes timestamp
+   - Side panel: notes, salary expectation, next action reminder
 
-New columns / tables to support ranking, A/B testing, follow-ups, QC, and
-learning reports:
+2. **Recruiter Intelligence**
+   - New table `recruiter_contacts` (name, title, company_id, email, response_count, avg_response_hours, last_contact_at)
+   - Link from applications via `recruiter_contact_id`
+   - Aggregate functions: `getRecruiterStats`, `getCompanyResponseStats`
+   - Page `/recruiters` with response-rate / time-to-response leaderboard
 
-- `job_sources`: add `response_count`, `interview_count`, `rejection_count`,
-  `safety_block_count`, `high_prob_count`, `quality_score_avg`,
-  `priority_score` (computed at run-time), `last_quality_recalc_at`.
-- `resume_versions`: add `variant_key` (text: `data_analyst | operations |
-  customer_success | product_ops | generic`), `is_template` (bool).
-- `applications`: add `resume_variant_key`, `response_received_at`,
-  `interview_requested_at`, `rejected_at`, `ghosted_at`, `offer_at`,
-  `qc_passed` (bool), `qc_failures` (text[]), `freshness_bucket` (text).
-- `job_listings`: add `freshness_bucket` (text: `0-3 | 4-7 | 8-14 | stale`)
-  populated at ingest + on read.
-- New table `follow_up_tasks`:
-  `id, user_id, application_id, job_id, kind (followup_5d | followup_10d |
-  linkedin_connect), due_at, status (pending | done | dismissed),
-  completed_at, created_at`. RLS owner-only.
-- New table `interview_prep`:
-  `id, user_id, application_id, job_id, brief jsonb, generated_at`.
-  RLS owner-only. (Reuses existing `interview_briefs` if compatible — check.)
-- New table `weekly_learning_reports`:
-  `id, user_id, week_start, week_end, payload jsonb, recommendations text[],
-  created_at`. RLS owner-only.
+3. **Optimization Dashboard cards** (extend dashboard)
+   - Avg Time To Response, Best Recruiter Category, Best Application Window, Resume Variant Leader, Interview Conversion Rate, Offer Conversion Rate
 
-## 2. Source ranking (`src/lib/source-ranking.ts` + serverFn)
+4. **Recruiter Response Heatmap**
+   - Day-of-week × hour-of-day heatmap of `response_received_at` and `interview_requested_at`
+   - Component on `/analytics`
 
-- Aggregate per-source metrics from `applications`, `automation_safety_logs`,
-  `job_listings`.
-- `priority_score = response_rate*40 + interview_rate*30 + quality_avg*0.2 -
-  safety_block_rate*30 - rejection_rate*10`.
-- `recomputeSourcePriority` serverFn — called nightly + at start of each
-  Smart Apply run. Persists `priority_score` on `job_sources`.
-- Smart Apply ingest loop already iterates sources; sort by `priority_score
-  desc` before iterating, and skip sources whose `safety_block_rate > 0.2`.
+## Phase 2 — Resume + Company Intelligence
+5. **Resume Diff Viewer** (`/resume/compare/$variantKey`)
+   - Side-by-side master vs tailored using `diff` library
+   - Highlight added ATS keywords + role-specific bullets
 
-## 3. Resume A/B testing
+6. **Company Intelligence Enrichment**
+   - Add columns to `companies`: `funding_stage` (already exists), `hiring_signals jsonb`, `remote_culture_score`, `growth_indicators jsonb`, `role_competitiveness` (1–100)
+   - Enrichment serverFn using OpenAI with public-info placeholders only
+   - Card on company detail page
 
-- Seed 4 variant templates in `resume_versions` with `is_template=true` and
-  `variant_key` set per category (one-time seed serverFn).
-- `assignResumeVariant(role_category)` helper picks the right template.
-- `tailorResume` accepts `variant_key`, persists it on the new resume row.
-- `applications.resume_variant_key` populated when packet generated.
-- Analytics route gets a "Response rate by resume variant" card driven by a
-  `getResumeVariantStats` serverFn.
+## Phase 3 — Demo Mode + Reporting
+7. **Demo Mode**
+   - Toggle in settings → `user_settings.demo_mode boolean`
+   - When on, all serverFns return curated mock data from `src/lib/demo-fixtures.ts`
+   - Banner across app: "Demo Mode — no real data"
+   - No real DB writes while enabled
 
-## 4. Job freshness priority
+8. **Weekly Executive PDF Report**
+   - ServerFn `generateExecutivePdf` → returns base64 PDF using existing `pdf-export.ts` patterns + jsPDF
+   - Sections: KPI cards, applications, interviews, response rates, best resume/company/ATS, weekly recommendations, charts (rendered as data tables in PDF)
+   - "Download Executive Report" button on dashboard
 
-- `computeFreshnessBucket(posted_at)` utility (0-3 / 4-7 / 8-14 / stale).
-- Ingest sets `freshness_bucket`; jobs with `stale` are auto-rejected at
-  ingest (matches existing 14-day gate, just makes it explicit).
-- Queue / Review / Smart Apply rows get a `<FreshnessBadge>` component.
-- Auto Review scoring already enforces ≤14d; adds a small bonus for 0–3d.
+## Phase 4 — Optional Google Integrations
+9. **Google Calendar** (via Lovable connector `google_calendar`)
+   - "Connect Google Calendar" CTA in Settings if `LOVABLE_API_KEY` + `GOOGLE_CALENDAR_API_KEY` not present
+   - ServerFn `createCalendarReminder({ kind, when, application_id })` for interview/follow-up/prep
+   - `.ics`-style links on interview prep page as fallback
 
-## 5. Follow-up scheduling
+10. **Gmail** (via Lovable connector `google_mail`, scope `gmail.readonly` + `gmail.modify`)
+    - ServerFn `scanRecruiterInbox` — list recent threads matching recruiter heuristics, never sends
+    - Auto-tag with Gmail label "Job-Search/Recruiter"
+    - Extract recruiter/company → suggest CRM status update (user confirms)
+    - Strict: no auto-send, no auto-reply
 
-- When an application transitions to `submitted` (manual mark), a serverFn
-  `scheduleFollowUps(application_id)` inserts three `follow_up_tasks` rows:
-  +5d, +10d, +3d LinkedIn connect.
-- `Follow-Ups` route lists `follow_up_tasks` ordered by `due_at`, with
-  Mark-Done / Dismiss / Snooze buttons.
-- Dashboard "Follow-Ups Scheduled" card counts pending tasks due within 7d.
+## Safety Layer (cross-cutting)
+- Reuse existing `qc-gate.ts` + `automation_safety_logs`
+- Add detector hooks in Smart Apply: CAPTCHA / MFA / login wall / bot warning / unsupported ATS / suspicious redirect → immediate Safety Block, no retry
+- Manual Review override always available
+- Auto Review cap 5/day enforced
 
-## 6. Final QC gate (auto review)
+## Database migrations needed
+- `application_status` enum extension
+- `applications` new columns
+- New tables: `recruiter_contacts`
+- `companies` new columns
+- `user_settings.demo_mode`
 
-- New `src/lib/qc-gate.ts` `runFinalQC(packet)` returns `{ passed, failures[]
-  }` with checks for: no fabricated metrics (cross-check vs KHALIL_PROOF),
-  no keyword stuffing (>15% repetition), company/title/salary/ATS/portfolio
-  presence, resume_id + cover_id non-null.
-- Smart Apply `auto` decision now requires `qc_passed === true`. Failures
-  push the application to `manual_review` with `qc_failures` populated and
-  surface in Review UI.
+## Out of scope (explicit non-goals)
+- No CAPTCHA/MFA/login-wall bypass
+- No browser automation, stealth, or evasion
+- No auto-submit, no auto-reply, no auto-send email
+- No real recruiter data in Demo Mode
 
-## 7. Interview prep automation
-
-- Trigger: when `applications.status` changes to `interview_requested`
-  (handled in `decideApplication` + a new `markInterviewRequested` serverFn).
-- Calls existing OpenAI prep logic (already in `packet.functions.ts`) +
-  expands to include 60-second pitch and salary talking points; persists to
-  `interview_prep` (or extended `interview_briefs`).
-- Interview prep visible on the packet page + linked from dashboard.
-
-## 8. Weekly learning report
-
-- `generateWeeklyLearningReport` serverFn (extends existing
-  `weekly-report.functions.ts`): aggregates the last 7d into a
-  `weekly_learning_reports` row with best role category, best variant,
-  best company type, best/worst source, avg interview prob, response rate,
-  and a `recommendations[]` array.
-- pg_cron Sunday 09:00 → `/api/public/hooks/weekly-report` route that runs
-  the report for every user with `sms_enabled=true` and optionally SMS-es
-  the headline. (Cron is optional polish; serverFn is callable from UI too.)
-
-## 9. Dashboard updates
-
-`src/routes/index.tsx` gets six new cards driven by one `getDashboardSummary`
-serverFn:
-- Best Source This Week
-- Best Resume Version
-- Fresh Jobs 0–3 Days
-- Follow-Ups Scheduled
-- Interviews Requested
-- Weekly Recommendation (latest row from `weekly_learning_reports`)
-
-## 10. Guardrails preserved
-
-- `application_mode='auto_review'` remains capped at `auto_review_daily_cap=5`.
-- No `submitted_at` is ever auto-set.
-- No browser automation code paths added.
-- Safety-block fallback + manual override unchanged.
-
----
-
-## Build order
-
-1. Migration (schema for all features).
-2. Utilities (`source-ranking.ts`, `qc-gate.ts`, freshness helper, variant
-   assignment).
-3. ServerFns: `recomputeSourcePriority`, `scheduleFollowUps`,
-   `markInterviewRequested`, `generateWeeklyLearningReport`,
-   `getDashboardSummary`, `getResumeVariantStats`, resume variant seed.
-4. Wire into existing pipeline: ingest sets freshness, source ranking gates
-   ingest order, packet generation runs QC + assigns variant, decision flow
-   schedules follow-ups + triggers prep.
-5. UI: FreshnessBadge, Follow-Ups page, Analytics resume-variant card,
-   Dashboard six new cards.
-6. Optional cron route for weekly report.
-
-Estimated touch: 1 migration + ~6 new files + edits to ~8 existing files.
+## Recommended ship order
+**This turn:** Phase 1 only (CRM Pipeline + Recruiter Intelligence + dashboard cards + heatmap). It's already ~6 files + 1 migration and gives the highest-value visible wins.
+**Next turns:** Phase 2 → Phase 3 → Phase 4 (Google connectors require user OAuth approval per integration).
