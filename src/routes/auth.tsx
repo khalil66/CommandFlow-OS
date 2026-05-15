@@ -13,9 +13,12 @@ export const Route = createFileRoute("/auth")({ component: AuthPage });
 
 function AuthPage() {
   const nav = useNavigate();
+  const location = Route.useSearch<{ message?: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -32,6 +35,17 @@ function AuthPage() {
     nav({ to: "/" });
   };
 
+  const sendReset = async () => {
+    if (!email) return toast.error("Enter your email address.");
+    setResetSending(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetSending(false);
+    if (error) return toast.error(error.message);
+    toast.success("Check your email for a reset link.");
+    setShowForgot(false);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -48,12 +62,47 @@ function AuthPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div><Label className="text-xs">Email</Label><Input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-          <div><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></div>
-          <Button onClick={signIn} disabled={loading} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Sign in</Button>
-          <p className="text-xs text-muted-foreground text-center pt-2">
-            Single-admin workspace. Public sign-up is disabled.
-          </p>
+          {(location as any)?.message && (
+            <div className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
+              {(location as any).message}
+            </div>
+          )}
+          {showForgot ? (
+            <>
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <Button onClick={sendReset} disabled={resetSending} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                {resetSending ? "Sending…" : "Send reset link"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowForgot(false)}
+                className="w-full text-center text-xs text-muted-foreground hover:text-foreground"
+              >
+                Back to sign in
+              </button>
+            </>
+          ) : (
+            <>
+              <div><Label className="text-xs">Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+              <div><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+              <Button onClick={signIn} disabled={loading} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Sign in</Button>
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center pt-2">
+                Single-admin workspace. Public sign-up is disabled.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
