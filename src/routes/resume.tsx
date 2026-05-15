@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { ScoreBar } from "@/components/score-bar";
+import { tailorResume } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/resume")({ component: ResumeStudio });
 
@@ -20,14 +22,20 @@ function ResumeStudio() {
   const [category, setCategory] = useState("data-analyst");
   const [out, setOut] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const tailor = useServerFn(tailorResume);
 
-  const generate = () => {
+  const generate = async () => {
+    if (jd.trim().length < 20) return toast.error("Paste the job description first");
     setLoading(true);
-    setTimeout(() => {
-      setOut(buildOutput(title, company, category));
+    try {
+      const result = await tailor({ data: { title, company, category, job_description: jd, save: true } });
+      setOut(result);
+      toast.success("Tailored resume generated and saved");
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to generate");
+    } finally {
       setLoading(false);
-      toast.success("Tailored resume generated");
-    }, 900);
+    }
   };
 
   return (
