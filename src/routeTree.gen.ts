@@ -15,6 +15,7 @@ import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
+import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -50,6 +51,11 @@ const LegitimacyRoute = LegitimacyRouteImport.update({
   path: '/legitimacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HighProbabilityRoute = HighProbabilityRouteImport.update({
+  id: '/high-probability',
+  path: '/high-probability',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
+  '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/high-probability'
     | '/legitimacy'
     | '/queue'
     | '/resume'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/high-probability'
     | '/legitimacy'
     | '/queue'
     | '/resume'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/ats'
     | '/auth'
+    | '/high-probability'
     | '/legitimacy'
     | '/queue'
     | '/resume'
@@ -152,6 +164,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AtsRoute: typeof AtsRoute
   AuthRoute: typeof AuthRoute
+  HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
   QueueRoute: typeof QueueRoute
   ResumeRoute: typeof ResumeRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegitimacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/high-probability': {
+      id: '/high-probability'
+      path: '/high-probability'
+      fullPath: '/high-probability'
+      preLoaderRoute: typeof HighProbabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -240,6 +260,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AtsRoute: AtsRoute,
   AuthRoute: AuthRoute,
+  HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
   QueueRoute: QueueRoute,
   ResumeRoute: ResumeRoute,
@@ -250,3 +271,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
