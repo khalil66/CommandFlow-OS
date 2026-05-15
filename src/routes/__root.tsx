@@ -6,7 +6,14 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useNavigate,
+  useRouterState,
 } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
 
@@ -98,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -112,14 +119,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { Toaster } from "@/components/ui/sonner";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
-
-function AuthGate({ children }: { children: React.ReactNode }) {
+function AuthGate({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [ready, setReady] = useState(false);
@@ -176,8 +176,8 @@ function RootComponent() {
           </div>
         </div>
         <Toaster />
-      </SidebarProvider>
       </AuthGate>
+      </SidebarProvider>
     </QueryClientProvider>
   );
 }
