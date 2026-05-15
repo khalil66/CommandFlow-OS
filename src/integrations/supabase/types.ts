@@ -352,6 +352,60 @@ export type Database = {
         }
         Relationships: []
       }
+      import_logs: {
+        Row: {
+          ats: string | null
+          created_at: string
+          details: Json | null
+          duplicate: number | null
+          found: number | null
+          id: string
+          imported: number | null
+          manual_review: number | null
+          message: string | null
+          rejected: number | null
+          skipped: number | null
+          source_id: string | null
+          source_url: string | null
+          success: boolean | null
+          user_id: string
+        }
+        Insert: {
+          ats?: string | null
+          created_at?: string
+          details?: Json | null
+          duplicate?: number | null
+          found?: number | null
+          id?: string
+          imported?: number | null
+          manual_review?: number | null
+          message?: string | null
+          rejected?: number | null
+          skipped?: number | null
+          source_id?: string | null
+          source_url?: string | null
+          success?: boolean | null
+          user_id: string
+        }
+        Update: {
+          ats?: string | null
+          created_at?: string
+          details?: Json | null
+          duplicate?: number | null
+          found?: number | null
+          id?: string
+          imported?: number | null
+          manual_review?: number | null
+          message?: string | null
+          rejected?: number | null
+          skipped?: number | null
+          source_id?: string | null
+          source_url?: string | null
+          success?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       job_listings: {
         Row: {
           ats: string | null
@@ -446,6 +500,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      job_sources: {
+        Row: {
+          ats: string | null
+          careers_url: string
+          created_at: string
+          id: string
+          last_import_count: number | null
+          last_imported_at: string | null
+          name: string
+          notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ats?: string | null
+          careers_url: string
+          created_at?: string
+          id?: string
+          last_import_count?: number | null
+          last_imported_at?: string | null
+          name: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ats?: string | null
+          careers_url?: string
+          created_at?: string
+          id?: string
+          last_import_count?: number | null
+          last_imported_at?: string | null
+          name?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       legitimacy_checks: {
         Row: {

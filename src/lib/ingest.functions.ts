@@ -1,0 +1,371 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { detectAts, parseSalary, stripHtml, hasAccessBlockers, isRemote, type SupportedAts } from "./ats-detect";
+import { computeTrustScore, computeInterviewProbability, isReadyToApply, SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
+import { detectScamFlags } from "./scam-signals";
+import { projectsForRole } from "./portfolio";
+
+interface NormJob {
+  external_id: string;
+  title: string;
+  location: string | null;
+  description_html: string;
+  description_text: string;
+  url: string;
+  posted_at: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_estimated: boolean;
+}
+
+// ---------- ATS Fetchers ---------- //
+
+async function fetchGreenhouse(slug: string): Promise<NormJob[]> {
+  const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`);
+  if (!r.ok) throw new Error(`Greenhouse: ${r.status}`);
+  const j = await r.json() as any;
+  return (j.jobs || []).map((x: any) => {
+    const text = stripHtml(x.content);
+    const sal = parseSalary(text);
+    return {
+      external_id: String(x.id),
+      title: x.title,
+      location: x.location?.name ?? null,
+      description_html: x.content || "",
+      description_text: text,
+      url: x.absolute_url,
+      posted_at: x.updated_at || null,
+      salary_min: sal.min,
+      salary_max: sal.max,
+      salary_estimated: sal.min == null,
+    };
+  });
+}
+
+async function fetchLever(slug: string): Promise<NormJob[]> {
+  const r = await fetch(`https://api.lever.co/v0/postings/${slug}?mode=json`);
+  if (!r.ok) throw new Error(`Lever: ${r.status}`);
+  const arr = await r.json() as any[];
+  return (arr || []).map((x: any) => {
+    const text = stripHtml(x.descriptionPlain || x.description);
+    const sal = x.salaryRange
+      ? { min: x.salaryRange.min, max: x.salaryRange.max }
+      : parseSalary(text);
+    return {
+      external_id: x.id,
+      title: x.text,
+      location: x.categories?.location ?? null,
+      description_html: x.description || "",
+      description_text: text,
+      url: x.hostedUrl,
+      posted_at: x.createdAt ? new Date(x.createdAt).toISOString() : null,
+      salary_min: sal.min,
+      salary_max: sal.max,
+      salary_estimated: sal.min == null,
+    };
+  });
+}
+
+async function fetchAshby(slug: string): Promise<NormJob[]> {
+  const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true`);
+  if (!r.ok) throw new Error(`Ashby: ${r.status}`);
+  const j = await r.json() as any;
+  return (j.jobs || []).map((x: any) => {
+    const text = stripHtml(x.descriptionHtml || x.description);
+    const comp = x.compensation?.compensationTierSummary || "";
+    const sal = parseSalary(comp || text);
+    return {
+      external_id: x.id,
+      title: x.title,
+      location: x.location ?? null,
+      description_html: x.descriptionHtml || "",
+      description_text: text,
+      url: x.jobUrl,
+      posted_at: x.publishedAt || null,
+      salary_min: sal.min,
+      salary_max: sal.max,
+      salary_estimated: sal.min == null,
+    };
+  });
+}
+
+async function fetchBreezy(slug: string): Promise<NormJob[]> {
+  const r = await fetch(`https://${slug}.breezy.hr/json`);
+  if (!r.ok) throw new Error(`Breezy: ${r.status}`);
+  const arr = await r.json() as any[];
+  return (arr || []).map((x: any) => {
+    const text = stripHtml(x.description);
+    const sal = parseSalary(text);
+    return {
+      external_id: x.id,
+      title: x.name,
+      location: [x.location?.city?.name, x.location?.country?.name].filter(Boolean).join(", ") || null,
+      description_html: x.description || "",
+      description_text: text,
+      url: x.url,
+      posted_at: x.published_date || null,
+      salary_min: sal.min,
+      salary_max: sal.max,
+      salary_estimated: sal.min == null,
+    };
+  });
+}
+
+async function fetchByPlatform(platform: SupportedAts, slug: string): Promise<NormJob[]> {
+  switch (platform) {
+    case "Greenhouse": return fetchGreenhouse(slug);
+    case "Lever":      return fetchLever(slug);
+    case "Ashby":      return fetchAshby(slug);
+    case "Breezy":     return fetchBreezy(slug);
+  }
+}
+
+function dedupeHash(company: string, title: string, location: string | null, url: string): string {
+  return `${company}|${title}|${location ?? ""}|${url}`.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function inferRoleCategory(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes("data")) return "Data Analyst";
+  if (t.includes("business analyst")) return "Business Analyst";
+  if (t.includes("operations") || t.includes("ops")) return "Operations Analyst";
+  if (t.includes("project")) return "Project Manager";
+  if (t.includes("product")) return "Product Operations Analyst";
+  if (t.includes("customer success")) return "Customer Success Manager";
+  if (t.includes("support")) return "Technical Support Engineer";
+  if (t.includes("revenue")) return "Revenue Operations Analyst";
+  if (t.includes("implement")) return "Implementation Specialist";
+  return "Operations Analyst";
+}
+
+// ---------- CRUD: job_sources ---------- //
+
+export const listJobSources = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("job_sources").select("*").order("created_at", { ascending: false });
+    return { sources: data || [] };
+  });
+
+export const addJobSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    name: z.string().min(1).max(200),
+    careers_url: z.string().url(),
+    notes: z.string().max(500).optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const det = detectAts(data.careers_url);
+    const { data: row, error } = await context.supabase.from("job_sources").insert({
+      user_id: context.userId,
+      name: data.name,
+      careers_url: data.careers_url,
+      ats: det.platform,
+      status: det.supported ? "active" : "rejected",
+      notes: data.notes ?? det.reason ?? null,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return { source: row, detection: det };
+  });
+
+export const deleteJobSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("job_sources").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const listImportLogs = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("import_logs").select("*").order("created_at", { ascending: false }).limit(50);
+    return { logs: data || [] };
+  });
+
+// ---------- IMPORT ---------- //
+
+export const importJobsNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ source_id: z.string().uuid().optional() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    let q = supabase.from("job_sources").select("*").eq("status", "active");
+    if (data.source_id) q = q.eq("id", data.source_id);
+    const { data: sources } = await q;
+    if (!sources || sources.length === 0) {
+      return { runs: [], totals: { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 } };
+    }
+
+    const totals = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
+    const runs: any[] = [];
+
+    for (const src of sources) {
+      const det = detectAts(src.careers_url);
+      const counts = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
+      const reasons: string[] = [];
+      let success = true;
+      let message = "";
+
+      if (!det.supported || !det.slug) {
+        success = false;
+        message = det.reason || "Unsupported ATS";
+        counts.rejected = 1;
+      } else {
+        try {
+          const jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
+          counts.found = jobs.length;
+
+          // Ensure company row exists + run trust verification
+          let companyId: string | null = null;
+          {
+            const { data: existing } = await supabase.from("companies")
+              .select("id, trust_score, verification_status")
+              .eq("user_id", userId).eq("name", src.name).maybeSingle();
+            if (existing) {
+              companyId = existing.id;
+            } else {
+              const trust = computeTrustScore({
+                has_official_site: true,
+                has_careers_page: true,
+                has_linkedin: false,
+                ats_domain_match: true,
+                business_footprint_score: 60,
+                news_signals_count: 1,
+                description: src.notes,
+              });
+              const { data: co } = await supabase.from("companies").insert({
+                user_id: userId,
+                name: src.name,
+                careers_url: src.careers_url,
+                trust_score: trust.score,
+                verification_status: trust.decision,
+                red_flags: trust.red_flags,
+                has_linkedin: false,
+                hiring_activity: 60,
+              }).select("id").single();
+              companyId = co?.id ?? null;
+            }
+          }
+
+          for (const j of jobs) {
+            // Reject jobs with login/captcha/MFA language
+            const blockers = hasAccessBlockers(j.description_text);
+            if (blockers.length) { counts.rejected++; reasons.push(`reject:${j.title} (${blockers.join(",")})`); continue; }
+            // Reject scam content
+            const scam = detectScamFlags(j.description_text);
+            if (scam.length) { counts.rejected++; reasons.push(`reject:${j.title} (scam)`); continue; }
+
+            // Remote-only filter
+            const remote = isRemote(j.description_text, j.location);
+            if (!remote) { counts.skipped++; reasons.push(`skip:${j.title} (not remote)`); continue; }
+
+            // Salary gate
+            let toManualReview = false;
+            if (j.salary_min == null) {
+              toManualReview = true; // missing salary → manual review with salary_estimated
+            } else if (j.salary_min < SALARY_FLOOR) {
+              counts.skipped++; reasons.push(`skip:${j.title} (<${SALARY_FLOOR})`); continue;
+            }
+
+            // Dedupe
+            const dedupe = dedupeHash(src.name, j.title, j.location, j.url);
+            const { data: dup } = await supabase.from("job_listings")
+              .select("id").eq("user_id", userId).eq("dedupe_hash", dedupe).maybeSingle();
+            if (dup) { counts.duplicate++; continue; }
+
+            const role = inferRoleCategory(j.title);
+            const portfolio = projectsForRole(role).length > 0;
+            const interview = computeInterviewProbability({
+              resume_match: 75,
+              skills_match: 75,
+              salary_min: j.salary_min,
+              experience_fit: 80,
+              remote: true,
+              ats: det.platform,
+              has_education_match: true,
+              mba_relevant: false,
+              portfolio_relevant: portfolio,
+              profile_strength: 90,
+              hiring_activity: 60,
+            });
+            const ready = !toManualReview && isReadyToApply({
+              trust_score: 90, // verified company default
+              interview_probability: interview.score,
+              salary_min: j.salary_min,
+              remote: true,
+              ats: det.platform,
+            });
+
+            const { error: insErr } = await supabase.from("job_listings").insert({
+              user_id: userId,
+              company_id: companyId,
+              company_name: src.name,
+              title: j.title,
+              location: j.location,
+              remote: true,
+              salary_min: j.salary_min,
+              salary_max: j.salary_max,
+              salary_estimated: j.salary_estimated,
+              ats: det.platform,
+              source_url: j.url,
+              description: j.description_text,
+              role_category: role,
+              category: "saas" as any,
+              dedupe_hash: dedupe,
+              posted_at: j.posted_at,
+              interview_probability: interview.score,
+              resume_match: 75,
+              legitimacy: 90,
+              final_score: interview.score,
+              ready_to_apply: ready,
+              status: toManualReview ? "manual_review" : "new",
+              blockers: toManualReview ? ["salary_missing"] : [],
+            } as any);
+
+            if (insErr) {
+              if (insErr.code === "23505") { counts.duplicate++; continue; }
+              counts.skipped++; reasons.push(`err:${j.title} ${insErr.message}`); continue;
+            }
+            if (toManualReview) counts.manual_review++;
+            else counts.imported++;
+          }
+
+          await supabase.from("job_sources").update({
+            last_imported_at: new Date().toISOString(),
+            last_import_count: counts.imported + counts.manual_review,
+          }).eq("id", src.id);
+        } catch (e: any) {
+          success = false;
+          message = e?.message || "Fetch failed";
+        }
+      }
+
+      // Aggregate
+      (Object.keys(counts) as (keyof typeof counts)[]).forEach((k) => totals[k] += counts[k]);
+
+      const { data: log } = await supabase.from("import_logs").insert({
+        user_id: userId,
+        source_id: src.id,
+        source_url: src.careers_url,
+        ats: det.platform,
+        ...counts,
+        success,
+        message,
+        details: { reasons: reasons.slice(0, 20) },
+      }).select().single();
+      runs.push(log);
+    }
+
+    return { runs, totals };
+  });
+
+export const detectAtsFromUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ url: z.string().url() }).parse(d))
+  .handler(async ({ data }) => detectAts(data.url));
