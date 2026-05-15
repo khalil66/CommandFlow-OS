@@ -48,9 +48,18 @@ function ResumeStudio() {
 
   return (
     <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Resume Tailoring Studio</h1>
-        <p className="text-sm text-muted-foreground mt-1">AI tailors Khalil's master resume to each job description.</p>
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Resume Tailoring Studio</h1>
+          <p className="text-sm text-muted-foreground mt-1">AI tailors Khalil's master resume to each job description.</p>
+        </div>
+        {usage && (
+          <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-md border border-border bg-card">
+            <Gauge className="h-3.5 w-3.5 text-accent" />
+            <span className="font-medium tabular-nums">{usage.resume_remaining}</span>
+            <span className="text-muted-foreground">of {usage.resume_cap} generations left today</span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
