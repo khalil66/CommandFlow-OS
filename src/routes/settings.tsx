@@ -71,9 +71,35 @@ function Settings() {
         daily_cap: typeof s.daily_cap === "number" ? s.daily_cap : undefined,
         trust_threshold: typeof s.trust_threshold === "number" ? s.trust_threshold : undefined,
         manual_review_only: true,
+        phone_number: s.phone_number ?? undefined,
+        sms_enabled: typeof s.sms_enabled === "boolean" ? s.sms_enabled : undefined,
+        sms_daily_cap: typeof s.sms_daily_cap === "number" ? s.sms_daily_cap : undefined,
+        sms_notify_batch_start: typeof s.sms_notify_batch_start === "boolean" ? s.sms_notify_batch_start : undefined,
+        sms_notify_batch_complete: typeof s.sms_notify_batch_complete === "boolean" ? s.sms_notify_batch_complete : undefined,
+        sms_notify_safety_block: typeof s.sms_notify_safety_block === "boolean" ? s.sms_notify_safety_block : undefined,
+        sms_notify_high_probability: typeof s.sms_notify_high_probability === "boolean" ? s.sms_notify_high_probability : undefined,
+        sms_notify_followups: typeof s.sms_notify_followups === "boolean" ? s.sms_notify_followups : undefined,
       } }), { label: "Save settings" });
       toast.success("Settings saved");
     } catch {} finally { setSaving(false); }
+  };
+
+  const handleTestSms = async () => {
+    setTestingSms(true);
+    try {
+      const r: any = await testSmsFn();
+      if (r.ok) {
+        toast.success("Test SMS sent successfully");
+      } else if (r.status === "skipped:not_configured") {
+        toast.error(`SMS not configured. Missing: ${(r.missing ?? []).join(", ")}`);
+      } else {
+        toast.error(`SMS failed: ${r.error ?? "unknown error"}`);
+      }
+    } catch (e: any) {
+      toast.error(`Test SMS error: ${e.message}`);
+    } finally {
+      setTestingSms(false);
+    }
   };
 
   if (loading || !s) {
