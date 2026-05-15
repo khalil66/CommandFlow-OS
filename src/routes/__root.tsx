@@ -125,16 +125,26 @@ function AuthGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let active = true;
+    const isAuthRoute = path === "/auth";
+    if (!isAuthRoute) setReady(false);
+
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      if (!data.session && path !== "/auth") {
-        nav({ to: "/auth" });
-      } else {
-        setReady(true);
+      if (!data.session?.access_token) {
+        setReady(isAuthRoute);
+        if (!isAuthRoute) nav({ to: "/auth", replace: true });
+        return;
       }
+      setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session && path !== "/auth") nav({ to: "/auth" });
+      if (!active) return;
+      if (!session?.access_token) {
+        setReady(isAuthRoute);
+        if (!isAuthRoute) nav({ to: "/auth", replace: true });
+        return;
+      }
+      setReady(true);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [path, nav]);
