@@ -16,6 +16,7 @@ import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
+import { Route as FollowUpsRouteImport } from './routes/follow-ups'
 import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as BatchesRouteImport } from './routes/batches'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -58,6 +59,11 @@ const HighProbabilityRoute = HighProbabilityRouteImport.update({
   path: '/high-probability',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FollowUpsRoute = FollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompaniesRoute = CompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/batches': typeof BatchesRoute
   '/companies': typeof CompaniesRoute
+  '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/batches': typeof BatchesRoute
   '/companies': typeof CompaniesRoute
+  '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/batches': typeof BatchesRoute
   '/companies': typeof CompaniesRoute
+  '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/batches'
     | '/companies'
+    | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
     | '/queue'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/batches'
     | '/companies'
+    | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
     | '/queue'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/batches'
     | '/companies'
+    | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
     | '/queue'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BatchesRoute: typeof BatchesRoute
   CompaniesRoute: typeof CompaniesRoute
+  FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
   QueueRoute: typeof QueueRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HighProbabilityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/follow-ups': {
+      id: '/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/follow-ups'
+      preLoaderRoute: typeof FollowUpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/companies': {
       id: '/companies'
       path: '/companies'
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BatchesRoute: BatchesRoute,
   CompaniesRoute: CompaniesRoute,
+  FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
   QueueRoute: QueueRoute,
@@ -313,3 +334,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
