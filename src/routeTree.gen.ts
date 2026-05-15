@@ -15,6 +15,7 @@ import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
@@ -60,6 +61,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeDiffRoute = ResumeDiffRouteImport.update({
+  id: '/resume-diff',
+  path: '/resume-diff',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumeRoute = ResumeRouteImport.update({
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
+  '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
+  '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
+  '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/queue'
     | '/recruiters'
     | '/resume'
+    | '/resume-diff'
     | '/review'
     | '/settings'
     | '/smart-apply'
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/queue'
     | '/recruiters'
     | '/resume'
+    | '/resume-diff'
     | '/review'
     | '/settings'
     | '/smart-apply'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/queue'
     | '/recruiters'
     | '/resume'
+    | '/resume-diff'
     | '/review'
     | '/settings'
     | '/smart-apply'
@@ -307,6 +319,7 @@ export interface RootRouteChildren {
   QueueRoute: typeof QueueRoute
   RecruitersRoute: typeof RecruitersRoute
   ResumeRoute: typeof ResumeRoute
+  ResumeDiffRoute: typeof ResumeDiffRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SmartApplyRoute: typeof SmartApplyRoute
@@ -358,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume-diff': {
+      id: '/resume-diff'
+      path: '/resume-diff'
+      fullPath: '/resume-diff'
+      preLoaderRoute: typeof ResumeDiffRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resume': {
@@ -491,6 +511,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueueRoute: QueueRoute,
   RecruitersRoute: RecruitersRoute,
   ResumeRoute: ResumeRoute,
+  ResumeDiffRoute: ResumeDiffRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SmartApplyRoute: SmartApplyRoute,
@@ -502,3 +523,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
