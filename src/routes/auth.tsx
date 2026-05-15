@@ -32,17 +32,6 @@ function AuthPage() {
     nav({ to: "/" });
   };
 
-  const signUp = async () => {
-    setLoading(true);
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: redirectUrl },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — check your email to confirm");
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
