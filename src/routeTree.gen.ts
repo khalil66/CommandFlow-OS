@@ -24,6 +24,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
+import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
 import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as CaseStudyRouteImport } from './routes/case-study'
 import { Route as BatchesRouteImport } from './routes/batches'
@@ -108,6 +109,11 @@ const FollowUpsRoute = FollowUpsRouteImport.update({
   path: '/follow-ups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyIntelligenceRoute = CompanyIntelligenceRouteImport.update({
+  id: '/company-intelligence',
+  path: '/company-intelligence',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompaniesRoute = CompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/batches': typeof BatchesRoute
   '/case-study': typeof CaseStudyRoute
   '/companies': typeof CompaniesRoute
+  '/company-intelligence': typeof CompanyIntelligenceRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/batches': typeof BatchesRoute
   '/case-study': typeof CaseStudyRoute
   '/companies': typeof CompaniesRoute
+  '/company-intelligence': typeof CompanyIntelligenceRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/batches': typeof BatchesRoute
   '/case-study': typeof CaseStudyRoute
   '/companies': typeof CompaniesRoute
+  '/company-intelligence': typeof CompanyIntelligenceRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/case-study'
     | '/companies'
+    | '/company-intelligence'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/case-study'
     | '/companies'
+    | '/company-intelligence'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/case-study'
     | '/companies'
+    | '/company-intelligence'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   BatchesRoute: typeof BatchesRoute
   CaseStudyRoute: typeof CaseStudyRoute
   CompaniesRoute: typeof CompaniesRoute
+  CompanyIntelligenceRoute: typeof CompanyIntelligenceRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
@@ -436,6 +449,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FollowUpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company-intelligence': {
+      id: '/company-intelligence'
+      path: '/company-intelligence'
+      fullPath: '/company-intelligence'
+      preLoaderRoute: typeof CompanyIntelligenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/companies': {
       id: '/companies'
       path: '/companies'
@@ -503,6 +523,7 @@ const rootRouteChildren: RootRouteChildren = {
   BatchesRoute: BatchesRoute,
   CaseStudyRoute: CaseStudyRoute,
   CompaniesRoute: CompaniesRoute,
+  CompanyIntelligenceRoute: CompanyIntelligenceRoute,
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
