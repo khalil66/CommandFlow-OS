@@ -25,6 +25,7 @@ import { seedSampleData } from "@/lib/seed.functions";
 import { withRetry } from "@/lib/api-utils";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 import { projectsForRole } from "@/lib/portfolio";
+import { SalaryBadge } from "@/components/salary-badge";
 
 export const Route = createFileRoute("/queue")({ component: QueuePage });
 
