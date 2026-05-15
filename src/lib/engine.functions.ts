@@ -329,6 +329,136 @@ export const listFollowUpsDue = createServerFn({ method: "GET" })
     return { applications: data ?? [] };
   });
 
+// Today's batch queue: jobs created today + their applications
+export const listDailyBatchQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("job_listings")
+      .select("*, companies(trust_score, verification_status, name, category, mba_friendly, is_remote_first, funding_stage)")
+      .eq("user_id", userId)
+      .gte("posted_at", `${today}T00:00:00.000Z`)
+      .order("interview_probability", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { jobs: data ?? [], date: today };
+  });
+
+// Aggregated analytics for charts
+export const getAnalyticsBreakdown = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const [appsRes, jobsRes, resumesRes, logsRes] = await Promise.all([
+      supabase.from("applications")
+        .select("id, status, resume_version_id, follow_up_due_at, submitted_at, created_at, updated_at, job_listings(category, ats, role_category, interview_probability)")
+        .eq("user_id", userId),
+      supabase.from("job_listings")
+        .select("id, ats, category, role_category, interview_probability, ready_to_apply, resume_match")
+        .eq("user_id", userId),
+      supabase.from("resume_versions")
+        .select("id, label, target_role, match_score, keywords")
+        .eq("user_id", userId),
+      supabase.from("automation_logs")
+        .select("action, status, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(500),
+    ]);
+    const apps = appsRes.data ?? [];
+    const jobs = jobsRes.data ?? [];
+    const resumes = resumesRes.data ?? [];
+    const logs = logsRes.data ?? [];
+
+    const groupCount = <T,>(items: T[], key: (t: T) => string | null | undefined) => {
+      const m: Record<string, number> = {};
+      items.forEach((it) => { const k = key(it); if (!k) return; m[k] = (m[k] ?? 0) + 1; });
+      return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    };
+    const groupAvg = <T,>(items: T[], key: (t: T) => string | null | undefined, val: (t: T) => number) => {
+      const m: Record<string, { sum: number; n: number }> = {};
+      items.forEach((it) => {
+        const k = key(it); if (!k) return;
+        const v = val(it); if (!Number.isFinite(v)) return;
+        m[k] = m[k] || { sum: 0, n: 0 }; m[k].sum += v; m[k].n += 1;
+      });
+      return Object.entries(m).map(([name, { sum, n }]) => ({ name, value: Math.round(sum / n) }))
+        .sort((a, b) => b.value - a.value);
+    };
+
+    // Best-performing resume version (by interview/offer count using its id)
+    const resumeMap: Record<string, any> = {};
+    resumes.forEach((r: any) => { resumeMap[r.id] = r; });
+    const resumeStats = Object.values(resumeMap).map((r: any) => {
+      const used = apps.filter((a: any) => a.resume_version_id === r.id);
+      const interviews = used.filter((a: any) => ["interview", "offer"].includes(a.status)).length;
+      return {
+        name: r.label || r.target_role || "Resume",
+        applications: used.length,
+        interviews,
+        match_score: r.match_score ?? 0,
+      };
+    }).sort((a, b) => b.interviews - a.interviews || b.applications - a.applications);
+
+    // Application funnel
+    const statuses = ["queued", "manual_review", "approved", "submitted", "interview", "offer", "rejected", "withdrawn"];
+    const funnel = statuses.map((s) => ({ name: s, value: apps.filter((a: any) => a.status === s).length }));
+
+    // Approval/rejection rates
+    const decided = apps.filter((a: any) => ["approved", "rejected", "submitted", "interview", "offer"].includes(a.status)).length;
+    const approved = apps.filter((a: any) => ["approved", "submitted", "interview", "offer"].includes(a.status)).length;
+    const rejected = apps.filter((a: any) => a.status === "rejected").length;
+    const approval_rate = decided > 0 ? Math.round((approved / decided) * 100) : 0;
+    const rejection_rate = decided > 0 ? Math.round((rejected / decided) * 100) : 0;
+
+    // Follow-up completion: due in past + status moved past manual_review/approved
+    const dueApps = apps.filter((a: any) => a.follow_up_due_at && new Date(a.follow_up_due_at) <= new Date());
+    const completedFollowUps = dueApps.filter((a: any) => ["submitted", "interview", "offer", "rejected"].includes(a.status)).length;
+    const follow_up_completion = dueApps.length > 0 ? Math.round((completedFollowUps / dueApps.length) * 100) : 0;
+
+    // Interview response trend (last 14 days)
+    const trend: { day: string; submitted: number; interviews: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const dayApps = apps.filter((a: any) => (a.updated_at ?? a.created_at)?.slice(0, 10) === key);
+      trend.push({
+        day: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        submitted: dayApps.filter((a: any) => ["submitted", "interview", "offer"].includes(a.status)).length,
+        interviews: dayApps.filter((a: any) => ["interview", "offer"].includes(a.status)).length,
+      });
+    }
+
+    // Resume keyword performance: keyword -> avg match_score across resumes that include it
+    const kwAgg: Record<string, { sum: number; n: number }> = {};
+    resumes.forEach((r: any) => {
+      (r.keywords ?? []).forEach((k: string) => {
+        kwAgg[k] = kwAgg[k] || { sum: 0, n: 0 };
+        kwAgg[k].sum += r.match_score ?? 0; kwAgg[k].n += 1;
+      });
+    });
+    const keyword_performance = Object.entries(kwAgg)
+      .map(([name, { sum, n }]) => ({ name, value: Math.round(sum / n), count: n }))
+      .sort((a, b) => b.value - a.value).slice(0, 12);
+
+    return {
+      resume_performance: resumeStats,
+      role_probability: groupAvg(jobs, (j: any) => j.role_category, (j: any) => j.interview_probability ?? 0).slice(0, 8),
+      category_performance: groupAvg(jobs, (j: any) => j.category, (j: any) => j.interview_probability ?? 0),
+      ats_breakdown: groupCount(jobs, (j: any) => j.ats),
+      ats_performance: groupAvg(jobs, (j: any) => j.ats, (j: any) => j.interview_probability ?? 0),
+      response_trend: trend,
+      keyword_performance,
+      funnel,
+      approval_rate,
+      rejection_rate,
+      follow_up_completion,
+      decided_count: decided,
+      logs_today: logs.filter((l: any) => l.created_at?.slice(0, 10) === new Date().toISOString().slice(0, 10)).length,
+    };
+  });
+
 export const setFollowUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
