@@ -193,7 +193,10 @@ function QueuePage() {
                         <Button size="sm" variant="ghost" title="Save to Manual Review" onClick={() => handleSave(j)} disabled={!!savedIds[j.id]}>
                           {savedIds[j.id] ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : <Save className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button size="sm" variant="ghost" title="Export Application Packet" onClick={() => handleExport(j)} disabled={!savedIds[j.id]}>
+                        <Button size="sm" variant="ghost" title="Export PDF Packet" onClick={() => handleExportPdf(j)} disabled={!savedIds[j.id]}>
+                          <FileDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" title="Export JSON Packet" onClick={() => handleExportJson(j)} disabled={!savedIds[j.id]}>
                           <Package className="h-3.5 w-3.5" />
                         </Button>
                         <Button size="sm" variant="ghost" title="Open"><ExternalLink className="h-3.5 w-3.5" /></Button>
