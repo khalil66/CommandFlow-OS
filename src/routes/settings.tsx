@@ -124,7 +124,7 @@ function Settings() {
             label="Remote-only roles"
             desc="Reject onsite/hybrid postings during ingestion."
             checked={s.remote_only !== false}
-            onChange={(v: string) => set("remote_only", v)}
+            onChange={(v: boolean) => set("remote_only", v)}
           />
 
           <div className="space-y-2">
@@ -259,7 +259,13 @@ function Settings() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: any) {
+interface FieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}
+function Field({ label, value, onChange, placeholder }: FieldProps) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
@@ -267,7 +273,13 @@ function Field({ label, value, onChange, placeholder }: any) {
     </div>
   );
 }
-function Toggle({ label, desc, checked, onChange }: any) {
+interface ToggleProps {
+  label: string;
+  desc?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}
+function Toggle({ label, desc, checked, onChange }: ToggleProps) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
