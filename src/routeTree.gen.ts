@@ -15,6 +15,7 @@ import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
@@ -49,6 +50,11 @@ const LegitimacyRoute = LegitimacyRouteImport.update({
   path: '/legitimacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AtsRoute = AtsRouteImport.update({
   id: '/ats',
   path: '/ats',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
+  '/auth': typeof AuthRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
+  '/auth': typeof AuthRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
+  '/auth': typeof AuthRoute
   '/legitimacy': typeof LegitimacyRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/ats'
+    | '/auth'
     | '/legitimacy'
     | '/queue'
     | '/resume'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/ats'
+    | '/auth'
     | '/legitimacy'
     | '/queue'
     | '/resume'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/ats'
+    | '/auth'
     | '/legitimacy'
     | '/queue'
     | '/resume'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AtsRoute: typeof AtsRoute
+  AuthRoute: typeof AuthRoute
   LegitimacyRoute: typeof LegitimacyRoute
   QueueRoute: typeof QueueRoute
   ResumeRoute: typeof ResumeRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegitimacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ats': {
       id: '/ats'
       path: '/ats'
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   AtsRoute: AtsRoute,
+  AuthRoute: AuthRoute,
   LegitimacyRoute: LegitimacyRoute,
   QueueRoute: QueueRoute,
   ResumeRoute: ResumeRoute,
@@ -229,3 +250,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
