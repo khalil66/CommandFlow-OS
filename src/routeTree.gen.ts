@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
 import { Route as SystemRouteImport } from './routes/system'
 import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
@@ -42,6 +43,11 @@ const SystemRoute = SystemRouteImport.update({
 const SourcesRoute = SourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SmartApplyRoute = SmartApplyRouteImport.update({
+  id: '/smart-apply',
+  path: '/smart-apply',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
+  '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
+  '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
+  '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/review'
     | '/settings'
+    | '/smart-apply'
     | '/sources'
     | '/system'
     | '/tracker'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/review'
     | '/settings'
+    | '/smart-apply'
     | '/sources'
     | '/system'
     | '/tracker'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/review'
     | '/settings'
+    | '/smart-apply'
     | '/sources'
     | '/system'
     | '/tracker'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   ResumeRoute: typeof ResumeRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
+  SmartApplyRoute: typeof SmartApplyRoute
   SourcesRoute: typeof SourcesRoute
   SystemRoute: typeof SystemRoute
   TrackerRoute: typeof TrackerRoute
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/sources'
       fullPath: '/sources'
       preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/smart-apply': {
+      id: '/smart-apply'
+      path: '/smart-apply'
+      fullPath: '/smart-apply'
+      preLoaderRoute: typeof SmartApplyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -431,6 +451,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResumeRoute: ResumeRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
+  SmartApplyRoute: SmartApplyRoute,
   SourcesRoute: SourcesRoute,
   SystemRoute: SystemRoute,
   TrackerRoute: TrackerRoute,
