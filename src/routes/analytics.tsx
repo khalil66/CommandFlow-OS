@@ -285,3 +285,33 @@ function KPI({ icon: Icon, label, value, sub, accent }: any) {
 function Empty({ msg }: { msg: string }) {
   return <p className="text-xs text-muted-foreground text-center pt-12">{msg}</p>;
 }
+
+function RateCard({ title, rows }: { title: string; rows: any[] }) {
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <Empty msg="No data yet" />
+        ) : (
+          <div className="space-y-2">
+            {rows.slice(0, 8).map((r) => (
+              <div key={r.name} className="flex items-center justify-between text-sm">
+                <div className="truncate flex-1">
+                  <span className="font-medium">{r.name}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{r.submitted}/{r.total}</span>
+                </div>
+                <div className="flex items-center gap-2 ml-3">
+                  <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-accent" style={{ width: `${Math.min(100, r.response_rate)}%` }} />
+                  </div>
+                  <span className="font-semibold tabular-nums w-10 text-right">{r.response_rate}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
