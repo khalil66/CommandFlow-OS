@@ -197,7 +197,15 @@ export const runSmartApply = createServerFn({ method: "POST" })
     let approved = 0, blocked = 0, prepared = 0, skipped = 0, rejected = 0;
     let evaluated = 0; // jobs evaluated against auto-review (for pass-rate guard)
     let guardTripped = false;
+    const rejectReasons = new Map<string, number>();
+    const manualReasons = new Map<string, number>();
+    const bestFit: Array<{ title: string; company: string; interview: number }> = [];
     const generateFn = (data: any) => generatePacket({ data });
+
+    const scanned = (jobs ?? []).length;
+    const cutoffMs = Date.now() - AUTO_GATES.freshDays * 86400000;
+    const freshImported = (jobs ?? []).filter((j: any) =>
+      j.posted_at && new Date(j.posted_at).getTime() >= cutoffMs).length;
 
     for (const j of jobs ?? []) {
       if (prepared >= packetCap) { skipped++; continue; }
@@ -260,6 +268,11 @@ export const runSmartApply = createServerFn({ method: "POST" })
         guardTripped = true;
       }
 
+      bestFit.push({
+        title: j.title, company: j.company_name,
+        interview: j.interview_probability ?? 0,
+      });
+
       if (detection.length > 0) {
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
@@ -269,6 +282,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
         });
         blocked++;
       } else if (review.decision === "reject") {
+        for (const r of review.rejected_for) rejectReasons.set(r, (rejectReasons.get(r) ?? 0) + 1);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "rejected", reason: `Hard reject: ${review.rejected_for.join("; ")}`,
@@ -297,6 +311,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
         else if (mode === "auto_review" && fridayPrepareOnly) note = "Friday prepare-only — Manual Review required";
         else if (mode === "auto_review") note = `Failed gates: ${review.failed.join(", ")}`;
         else note = "Manual Review mode — packet ready for approval";
+        for (const r of review.failed) manualReasons.set(r, (manualReasons.get(r) ?? 0) + 1);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "prepared", reason: note, gates: review,
@@ -305,10 +320,61 @@ export const runSmartApply = createServerFn({ method: "POST" })
       }
     }
 
+    // Build daily summary
+    const topReasons = (m: Map<string, number>) =>
+      [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([reason, count]) => ({ reason, count }));
+
+    const passRate = evaluated > 0 ? +(approved / evaluated).toFixed(3) : 0;
+
+    // Follow-ups due (next 24h)
+    const tomorrow = new Date(Date.now() + 86400000).toISOString();
+    const { count: followUpsDue } = await (supabase as any).from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).lte("follow_up_due_at", tomorrow).not("follow_up_due_at", "is", null);
+
+    // OpenAI usage today
+    const { data: usageToday } = await (supabase as any).from("openai_usage")
+      .select("estimated_cost_cents")
+      .eq("user_id", userId).gte("created_at", startOfDay.toISOString());
+    const openaiGenerations = usageToday?.length ?? 0;
+    const openaiCostCents = (usageToday ?? []).reduce((a: number, r: any) => a + Number(r.estimated_cost_cents ?? 0), 0);
+
+    const topCompanies = [...bestFit]
+      .sort((a, b) => b.interview - a.interview).slice(0, 5);
+
+    const summary = {
+      jobs_scanned: scanned,
+      fresh_imported: freshImported,
+      auto_reviewed: approved,
+      manual_review: prepared - approved,
+      safety_blocked: blocked,
+      rejected,
+      duplicates_skipped: skipped,
+      top_rejection_reasons: topReasons(rejectReasons),
+      top_manual_reasons: topReasons(manualReasons),
+      best_fit_roles: topCompanies,
+      follow_ups_due: followUpsDue ?? 0,
+      openai_generations: openaiGenerations,
+      openai_cost_cents: +openaiCostCents.toFixed(2),
+      pass_rate: passRate,
+      mode, fridayPrepareOnly, guardTripped,
+    };
+
+    // Send completion SMS (best-effort, never throws)
+    let smsResult: any = { ok: false, status: "skipped:disabled" };
+    if (s.sms_enabled && (s.sms_notify_batch_complete ?? true)) {
+      const body = `Smart Apply complete: ${scanned} scanned, ${freshImported} imported, ${approved} auto-reviewed, ${prepared - approved} manual, ${blocked} safety-blocked. Pass rate ${(passRate * 100).toFixed(1)}%. Review dashboard.`;
+      smsResult = await sendSmsInternal({
+        supabase, userId,
+        to: s.phone_number || process.env.USER_PHONE_NUMBER,
+        body, kind: "batch_complete",
+      });
+    }
+
     return {
       ok: true, processed: prepared, approved, blocked, rejected, skipped,
-      mode, fridayPrepareOnly, guardTripped,
-      pass_rate: prepared > 0 ? +(approved / prepared).toFixed(3) : 0,
+      mode, fridayPrepareOnly, guardTripped, pass_rate: passRate,
+      summary, sms: smsResult,
     };
   });
 
