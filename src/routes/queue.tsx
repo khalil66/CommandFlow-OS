@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScoreBar, StatusBadge } from "@/components/score-bar";
 import { MOCK_JOBS, SUPPORTED_ATS } from "@/lib/mock-data";
-import { Search, Filter as FilterIcon, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Search, Filter as FilterIcon, ExternalLink, CheckCircle2, Save, Package } from "lucide-react";
 import { toast } from "sonner";
+import { saveJob, getJobPacket } from "@/lib/jobs.functions";
+import { upsertApplication } from "@/lib/applications.functions";
 
 export const Route = createFileRoute("/queue")({ component: QueuePage });
 
@@ -29,6 +32,40 @@ function QueuePage() {
   const [matchMin, setMatch] = useState([60]);
   const [legitMin, setLegit] = useState([70]);
   const [ats, setAts] = useState("all");
+  const [savedIds, setSavedIds] = useState<Record<string, string>>({});
+  const saveJobFn = useServerFn(saveJob);
+  const upsertAppFn = useServerFn(upsertApplication);
+  const getPacketFn = useServerFn(getJobPacket);
+
+  const handleSave = async (j: any) => {
+    try {
+      const { job } = await saveJobFn({ data: {
+        title: j.title, company_name: j.company, location: j.location,
+        remote: j.remote, salary_min: j.salaryMin, salary_max: j.salaryMax,
+        ats: j.ats, source_url: j.url ?? null,
+        resume_match: j.resumeMatch, legitimacy: j.legitimacy,
+        final_score: j.finalScore, blockers: j.blockers ?? [],
+      }});
+      await upsertAppFn({ data: { job_id: job.id, status: "manual_review" } });
+      setSavedIds(prev => ({ ...prev, [j.id]: job.id }));
+      toast.success(`Saved ${j.company} to Manual Review`);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleExport = async (j: any) => {
+    const dbId = savedIds[j.id];
+    if (!dbId) return toast.error("Save the job first");
+    try {
+      const packet = await getPacketFn({ data: { jobId: dbId } });
+      const blob = new Blob([JSON.stringify(packet, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `packet-${j.company.replace(/\W+/g,"-")}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      toast.success("Application packet exported");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
 
   const filtered = useMemo(() => {
     return MOCK_JOBS.filter(j => {
@@ -140,10 +177,13 @@ function QueuePage() {
                     <TableCell><StatusBadge status={j.status} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => toast.success(`Prepared application for ${j.company}`)}>
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        <Button size="sm" variant="ghost" title="Save to Manual Review" onClick={() => handleSave(j)} disabled={!!savedIds[j.id]}>
+                          {savedIds[j.id] ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : <Save className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button size="sm" variant="ghost"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" title="Export Application Packet" onClick={() => handleExport(j)} disabled={!savedIds[j.id]}>
+                          <Package className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" title="Open"><ExternalLink className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>

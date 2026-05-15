@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { ScoreBar } from "@/components/score-bar";
+import { tailorResume } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/resume")({ component: ResumeStudio });
 
@@ -20,14 +22,20 @@ function ResumeStudio() {
   const [category, setCategory] = useState("data-analyst");
   const [out, setOut] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const tailor = useServerFn(tailorResume);
 
-  const generate = () => {
+  const generate = async () => {
+    if (jd.trim().length < 20) return toast.error("Paste the job description first");
     setLoading(true);
-    setTimeout(() => {
-      setOut(buildOutput(title, company, category));
+    try {
+      const result = await tailor({ data: { title, company, category, job_description: jd, save: true } });
+      setOut(result);
+      toast.success("Tailored resume generated and saved");
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to generate");
+    } finally {
       setLoading(false);
-      toast.success("Tailored resume generated");
-    }, 900);
+    }
   };
 
   return (
@@ -149,22 +157,3 @@ function SectionWithCopy({ children, text }: { children: React.ReactNode; text: 
   );
 }
 
-function buildOutput(title: string, company: string, _category: string) {
-  return {
-    matchScore: 88,
-    summary: `Data Analyst & Technical Operations Specialist with 5+ years analyzing 10,000+ Tier 2/3 support cases to drive measurable business outcomes. Reduced escalations 25% and sustained 91% CSAT by building SQL-driven KPI dashboards in Tableau and forecasting models that informed staffing, SLA strategy, and customer revenue analysis. Seeking to bring operational rigor and analytical depth to ${title} at ${company}.`,
-    skills: ["SQL", "Tableau", "Excel (advanced)", "Salesforce", "Zendesk", "Data Analysis", "KPI Optimization", "Forecasting", "Operations Strategy", "Stakeholder Reporting", "Process Automation"],
-    bullets: [
-      `Analyzed 10,000+ Tier 2/3 support tickets in SQL to identify root-cause patterns, reducing escalations by 25% over two quarters.`,
-      `Built executive Tableau dashboards tracking CSAT, FRT, and resolution velocity that drove a sustained 91% CSAT across 18 months.`,
-      `Designed forecasting models in Excel and SQL that improved fulfillment efficiency by 35%, informing weekly staffing and capacity decisions.`,
-      `Partnered with Customer Success and Revenue Operations to surface at-risk accounts, enabling proactive saves on six-figure ARR.`,
-      `Standardized Zendesk + Salesforce reporting pipelines, cutting weekly reporting prep from 6 hours to 45 minutes.`,
-      `Translated operational data into clear narratives for non-technical leaders, accelerating decision cycles on hiring and tooling.`,
-      `Documented analytical playbooks and trained two junior analysts, raising team self-service reporting adoption above 80%.`,
-    ],
-    keywords: ["SQL", "Tableau", "KPI dashboards", "forecasting", "CSAT", "Zendesk", "Salesforce", "operations analyst", "ticket analysis", "customer success", "process improvement", "data-driven decisions"],
-    cover: `Hi ${company} team,\n\nThe ${title} role caught my attention because it sits exactly at the intersection of analysis and operational impact — which is where I do my best work. At my last role I analyzed over 10,000 Tier 2/3 support cases, built the Tableau and SQL dashboards leadership used weekly, and shipped forecasting models that lifted fulfillment efficiency by 35% while reducing escalations 25% and holding CSAT at 91%.\n\nI'd love to bring that combination of rigor, clarity, and customer empathy to ${company}. Happy to share dashboards or walk through a recent forecasting project on a quick call.\n\nBest,\nKhalil Hickson\nkhalilhickson.com · Jacksonville, FL`,
-    explanation: `Strong overlap on SQL, Tableau, KPI dashboards, and forecasting (primary JD requirements). Quantified outcomes (25%, 91%, 35%) align to the impact-driven language in the description. Minor gap: leadership scope language can be reinforced if JD emphasizes management.`,
-  };
-}
