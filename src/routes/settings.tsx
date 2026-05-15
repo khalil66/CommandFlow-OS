@@ -13,8 +13,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
+import { sendTestSms } from "@/lib/sms.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Gauge, AlertCircle, ShieldCheck, Loader2 } from "lucide-react";
+import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
