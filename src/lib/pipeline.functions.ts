@@ -63,9 +63,9 @@ export const getPipelineMetrics = createServerFn({ method: "GET" })
 
     // Avg time-to-response in hours
     const ttrHours: number[] = [];
-    for (const a of responded) {
+    for (const a of submitted) {
       if (a.submitted_at && a.response_received_at) {
-        const diff = (new Date(a.response_received_at).getTime() - new Date(a.submitted_at).getTime()) / 3.6e6;
+        const diff = (new Date(a.response_received_at as string).getTime() - new Date(a.submitted_at as string).getTime()) / 3.6e6;
         if (diff >= 0 && diff < 24 * 60) ttrHours.push(diff);
       }
     }
