@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +77,8 @@ function HighProb() {
                     <TableCell><span className="text-lg font-semibold tabular-nums text-accent">{j.interview_probability}</span></TableCell>
                     <TableCell className="text-xs tabular-nums">${((j.salary_min??0)/1000).toFixed(0)}–{((j.salary_max??0)/1000).toFixed(0)}k</TableCell>
                     <TableCell><span className="text-xs font-mono">{j.ats}</span></TableCell>
-                    <TableCell>
+                    <TableCell className="flex gap-1">
+                      <Button asChild size="sm" variant="outline"><Link to="/packet/$jobId" params={{ jobId: j.id }}><Package className="h-3.5 w-3.5" /></Link></Button>
                       <Button size="sm" variant="ghost" onClick={() => exportPdf(j)}><FileDown className="h-3.5 w-3.5" /></Button>
                     </TableCell>
                   </TableRow>

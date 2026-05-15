@@ -4,6 +4,18 @@ export interface ResumePacket {
   job: { title: string; company_name: string; location?: string | null; ats?: string | null; salary_min?: number | null; salary_max?: number | null; source_url?: string | null };
   resume?: { summary?: string | null; skills?: string[] | null; bullets?: string[] | null; keywords?: string[] | null; match_score?: number | null } | null;
   cover?: { body?: string | null } | null;
+  prep?: {
+    quality_score?: number;
+    confidence?: string;
+    why_company?: string;
+    portfolio_project?: string | null;
+    talking_points?: string[];
+    recruiter_questions?: string[];
+    technical_questions?: string[];
+    star_examples?: Array<{ question: string; situation: string; task: string; action: string; result: string }>;
+    linkedin_tips?: string[];
+    ats_summary?: string;
+  } | null;
 }
 
 const CANDIDATE = {
@@ -90,6 +102,26 @@ export function exportApplicationPdf(packet: ResumePacket, filename: string) {
     doc.addPage(); y = margin;
     heading("Cover Letter");
     para(packet.cover.body);
+  }
+
+  if (packet.prep) {
+    doc.addPage(); y = margin;
+    heading("Application Readiness");
+    if (packet.prep.quality_score != null) para(`Quality: ${packet.prep.quality_score}/100  ·  ${packet.prep.confidence ?? ""}`);
+    if (packet.prep.portfolio_project) para(`Recommended portfolio project: ${packet.prep.portfolio_project}`);
+    if (packet.prep.ats_summary) para(packet.prep.ats_summary);
+    if (packet.prep.why_company) { heading("Why This Company"); para(packet.prep.why_company); }
+    if (packet.prep.talking_points?.length) { heading("Talking Points"); bullets(packet.prep.talking_points); }
+    if (packet.prep.recruiter_questions?.length) { heading("Likely Recruiter Questions"); bullets(packet.prep.recruiter_questions); }
+    if (packet.prep.technical_questions?.length) { heading("Likely Technical Questions"); bullets(packet.prep.technical_questions); }
+    if (packet.prep.star_examples?.length) {
+      heading("STAR Examples");
+      for (const s of packet.prep.star_examples) {
+        para(`Q: ${s.question}`);
+        bullets([`S: ${s.situation}`, `T: ${s.task}`, `A: ${s.action}`, `R: ${s.result}`]);
+      }
+    }
+    if (packet.prep.linkedin_tips?.length) { heading("LinkedIn Optimization"); bullets(packet.prep.linkedin_tips); }
   }
 
   doc.save(filename);
