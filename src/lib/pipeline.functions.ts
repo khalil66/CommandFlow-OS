@@ -74,7 +74,7 @@ export const getPipelineMetrics = createServerFn({ method: "GET" })
     // Best application window (day-of-week + hour of day)
     const windowCounts: Record<string, { sent: number; responded: number }> = {};
     for (const a of submitted) {
-      const d = new Date(a.submitted_at);
+      const d = new Date(a.submitted_at as string);
       const k = `${d.getDay()}-${d.getHours()}`;
       windowCounts[k] = windowCounts[k] || { sent: 0, responded: 0 };
       windowCounts[k].sent++;
