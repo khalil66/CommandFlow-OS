@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
@@ -54,6 +55,11 @@ const ResumeRoute = ResumeRouteImport.update({
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LegitimacyRoute = LegitimacyRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/onboarding': typeof OnboardingRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/onboarding': typeof OnboardingRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/onboarding': typeof OnboardingRoute
   '/queue': typeof QueueRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/onboarding'
     | '/queue'
     | '/resume'
     | '/review'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/onboarding'
     | '/queue'
     | '/resume'
     | '/review'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/onboarding'
     | '/queue'
     | '/resume'
     | '/review'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
+  OnboardingRoute: typeof OnboardingRoute
   QueueRoute: typeof QueueRoute
   ResumeRoute: typeof ResumeRoute
   ReviewRoute: typeof ReviewRoute
@@ -280,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/queue'
       fullPath: '/queue'
       preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/legitimacy': {
@@ -365,6 +385,7 @@ const rootRouteChildren: RootRouteChildren = {
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
+  OnboardingRoute: OnboardingRoute,
   QueueRoute: QueueRoute,
   ResumeRoute: ResumeRoute,
   ReviewRoute: ReviewRoute,
@@ -376,3 +397,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
