@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_bootstrap: {
+        Row: {
+          enabled: boolean
+          id: boolean
+          target_email: string
+          target_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: boolean
+          target_email: string
+          target_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: boolean
+          target_email?: string
+          target_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           application_url: string | null
