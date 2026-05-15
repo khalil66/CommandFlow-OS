@@ -148,16 +148,16 @@ function AuthGate({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [ready, setReady] = useState(false);
+  const isPublic = path === "/auth" || path === "/demo";
   useEffect(() => {
     let active = true;
-    const isAuthRoute = path === "/auth";
-    if (!isAuthRoute) setReady(false);
+    if (!isPublic) setReady(false);
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       if (!data.session?.access_token) {
-        setReady(isAuthRoute);
-        if (!isAuthRoute) nav({ to: "/auth", replace: true });
+        setReady(isPublic);
+        if (!isPublic) nav({ to: "/auth", replace: true });
         return;
       }
       setReady(true);
@@ -165,15 +165,15 @@ function AuthGate({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!active) return;
       if (!session?.access_token) {
-        setReady(isAuthRoute);
-        if (!isAuthRoute) nav({ to: "/auth", replace: true });
+        setReady(isPublic);
+        if (!isPublic) nav({ to: "/auth", replace: true });
         return;
       }
       setReady(true);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, [path, nav]);
-  if (path === "/auth") return <>{children}</>;
+  }, [path, nav, isPublic]);
+  if (isPublic) return <>{children}</>;
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   return <>{children}</>;
 }
@@ -182,7 +182,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const path = useRouterState({ select: (r) => r.location.pathname });
 
-  if (path === "/auth") {
+  if (path === "/auth" || path === "/demo") {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthGate><Outlet /></AuthGate>
