@@ -72,7 +72,10 @@ function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Best-performing resume version */}
             <Card>
-              <CardHeader><CardTitle className="text-base">Best-performing resume versions</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Best-performing resume versions</CardTitle>
+                <Link to="/resume-diff" className="text-xs text-accent inline-flex items-center gap-1 hover:underline"><FileDiff className="h-3 w-3" /> View diff</Link>
+              </CardHeader>
               <CardContent>
                 {data.resume_performance.length === 0 ? <Empty msg="No resume versions yet." /> : (
                   <div className="space-y-3">
