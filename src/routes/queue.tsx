@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScoreBar, StatusBadge } from "@/components/score-bar";
 import { MOCK_JOBS, SUPPORTED_ATS } from "@/lib/mock-data";
-import { Search, Filter as FilterIcon, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Search, Filter as FilterIcon, ExternalLink, CheckCircle2, Save, Package } from "lucide-react";
 import { toast } from "sonner";
+import { saveJob, getJobPacket } from "@/lib/jobs.functions";
+import { upsertApplication } from "@/lib/applications.functions";
 
 export const Route = createFileRoute("/queue")({ component: QueuePage });
 
