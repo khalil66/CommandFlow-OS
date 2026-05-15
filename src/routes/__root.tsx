@@ -148,7 +148,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [ready, setReady] = useState(false);
-  const isPublic = path === "/auth" || path === "/demo";
+  const isPublic = path === "/auth" || path === "/demo" || path === "/reset-password";
   useEffect(() => {
     let active = true;
     if (!isPublic) setReady(false);
@@ -182,7 +182,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const path = useRouterState({ select: (r) => r.location.pathname });
 
-  if (path === "/auth" || path === "/demo") {
+  if (path === "/auth" || path === "/demo" || path === "/reset-password") {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthGate><Outlet /></AuthGate>

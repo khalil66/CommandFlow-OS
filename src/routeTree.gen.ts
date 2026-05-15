@@ -17,6 +17,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
 import { Route as ResumeRouteImport } from './routes/resume'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as PipelineRouteImport } from './routes/pipeline'
@@ -73,6 +74,11 @@ const ResumeDiffRoute = ResumeDiffRouteImport.update({
 const ResumeRoute = ResumeRouteImport.update({
   id: '/resume',
   path: '/resume',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecruitersRoute = RecruitersRouteImport.update({
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
@@ -233,6 +241,7 @@ export interface FileRoutesById {
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/queue'
     | '/recruiters'
+    | '/reset-password'
     | '/resume'
     | '/resume-diff'
     | '/review'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/queue'
     | '/recruiters'
+    | '/reset-password'
     | '/resume'
     | '/resume-diff'
     | '/review'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/queue'
     | '/recruiters'
+    | '/reset-password'
     | '/resume'
     | '/resume-diff'
     | '/review'
@@ -344,6 +356,7 @@ export interface RootRouteChildren {
   PipelineRoute: typeof PipelineRoute
   QueueRoute: typeof QueueRoute
   RecruitersRoute: typeof RecruitersRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ResumeRoute: typeof ResumeRoute
   ResumeDiffRoute: typeof ResumeDiffRoute
   ReviewRoute: typeof ReviewRoute
@@ -411,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/resume'
       fullPath: '/resume'
       preLoaderRoute: typeof ResumeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recruiters': {
@@ -552,6 +572,7 @@ const rootRouteChildren: RootRouteChildren = {
   PipelineRoute: PipelineRoute,
   QueueRoute: QueueRoute,
   RecruitersRoute: RecruitersRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ResumeRoute: ResumeRoute,
   ResumeDiffRoute: ResumeDiffRoute,
   ReviewRoute: ReviewRoute,
@@ -565,3 +586,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
