@@ -87,10 +87,10 @@ function Settings() {
       <Card>
         <CardHeader><CardTitle className="text-base">Profile</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Full name" value={s.full_name ?? ""} onChange={(v) => set("full_name", v)} />
-          <Field label="Location" value={s.location ?? ""} onChange={(v) => set("location", v)} />
-          <Field label="Website" value={s.website ?? ""} onChange={(v) => set("website", v)} placeholder="https://" />
-          <Field label="LinkedIn URL" value={s.linkedin_url ?? ""} onChange={(v) => set("linkedin_url", v)} placeholder="https://linkedin.com/in/…" />
+          <Field label="Full name" value={s.full_name ?? ""} onChange={(v: string) => set("full_name", v)} />
+          <Field label="Location" value={s.location ?? ""} onChange={(v: string) => set("location", v)} />
+          <Field label="Website" value={s.website ?? ""} onChange={(v: string) => set("website", v)} placeholder="https://" />
+          <Field label="LinkedIn URL" value={s.linkedin_url ?? ""} onChange={(v: string) => set("linkedin_url", v)} placeholder="https://linkedin.com/in/…" />
           <div className="md:col-span-2 space-y-1.5">
             <Label className="text-xs">Target roles (comma-separated)</Label>
             <Textarea
@@ -114,7 +114,7 @@ function Settings() {
             </div>
             <Slider
               value={[Math.round((s.salary_min ?? 55000) / 1000)]}
-              onValueChange={([v]) => set("salary_min", v * 1000)}
+              onValueChange={([v]: number[]) => set("salary_min", v * 1000)}
               min={40} max={200} step={5}
             />
             <p className="text-[11px] text-muted-foreground">Roles below this floor go to Manual Review or get rejected.</p>
@@ -124,7 +124,7 @@ function Settings() {
             label="Remote-only roles"
             desc="Reject onsite/hybrid postings during ingestion."
             checked={s.remote_only !== false}
-            onChange={(v) => set("remote_only", v)}
+            onChange={(v: string) => set("remote_only", v)}
           />
 
           <div className="space-y-2">
@@ -132,7 +132,7 @@ function Settings() {
               <Label>Daily preparation limit</Label>
               <span className="font-mono tabular-nums">{s.daily_cap ?? 25}</span>
             </div>
-            <Slider value={[s.daily_cap ?? 25]} onValueChange={([v]) => set("daily_cap", v)} min={5} max={50} step={1} />
+            <Slider value={[s.daily_cap ?? 25]} onValueChange={([v]: number[]) => set("daily_cap", v)} min={5} max={50} step={1} />
             <p className="text-[11px] text-muted-foreground">Max packets prepared per day. AI generations cap separately at 25.</p>
           </div>
 
@@ -141,7 +141,7 @@ function Settings() {
               <Label>Company trust threshold</Label>
               <span className="font-mono tabular-nums">{s.trust_threshold ?? 90}</span>
             </div>
-            <Slider value={[s.trust_threshold ?? 90]} onValueChange={([v]) => set("trust_threshold", v)} min={70} max={100} step={1} />
+            <Slider value={[s.trust_threshold ?? 90]} onValueChange={([v]: number[]) => set("trust_threshold", v)} min={70} max={100} step={1} />
           </div>
 
           <div className="space-y-2">
