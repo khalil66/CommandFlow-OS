@@ -456,7 +456,22 @@ function RoadmapItem({ phase, title, desc }: { phase: string; title: string; des
   );
 }
 
+function FeatureSplit({ metrics, body }: { metrics: { k: string; v: string }[]; body: string }) {
+  return (
+    <div className="grid md:grid-cols-2 gap-6 items-center">
+      <p className="text-muted-foreground leading-relaxed">{body}</p>
+      <div className="grid grid-cols-1 gap-3">
+        {metrics.map((m) => (
+          <div key={m.v} className="flex items-baseline justify-between p-4 rounded-lg border border-border bg-card">
+            <span className="text-sm text-muted-foreground">{m.v}</span>
+            <span className="text-2xl font-semibold tabular-nums text-accent">{m.k}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Download({ className }: { className?: string }) {
-  // local glyph fallback to avoid an unused import
   return <FileText className={className} />;
 }
