@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const STATUSES = ["queued","manual_review","approved","submitted","submitted_manually","follow_up_due","interview_requested","interview","rejected","ghosted","offer","withdrawn","archived"] as const;
+const STATUSES = ["queued","manual_review","imported","reviewed","approved","submitted","submitted_manually","submitted_manual","follow_up_due","recruiter_screen","interview_requested","interview","technical_interview","final_interview","rejected","ghosted","offer","withdrawn","archived"] as const;
 const ACTIONS = ["save","tailor","approve","reject","submit","export","status_change","note"] as const;
 
 async function logActivity(
@@ -97,9 +97,15 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const updates: any = { status: data.status };
     const now = new Date().toISOString();
-    if (data.status === "submitted" || data.status === "submitted_manually") {
+    if (data.status === "reviewed") updates.reviewed_at = now;
+    if (data.status === "approved") updates.approved_at = now;
+    if (data.status === "submitted" || data.status === "submitted_manually" || data.status === "submitted_manual") {
       updates.submitted_at = now;
+      if (data.status === "submitted_manual") updates.submitted_manual_at = now;
     }
+    if (data.status === "recruiter_screen") { updates.recruiter_screen_at = now; updates.response_received_at = updates.response_received_at ?? now; }
+    if (data.status === "technical_interview") updates.technical_interview_at = now;
+    if (data.status === "final_interview") updates.final_interview_at = now;
     if (data.status === "interview_requested" || data.status === "interview") {
       updates.interview_requested_at = now;
       updates.response_received_at = now;
@@ -107,6 +113,7 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
     if (data.status === "rejected") updates.rejected_at = now;
     if (data.status === "ghosted") updates.ghosted_at = now;
     if (data.status === "offer") updates.offer_at = now;
+    if (data.status === "archived") updates.archived_at = now;
 
     const { data: row, error } = await (supabase as any)
       .from("applications").update(updates).eq("id", data.application_id).select().single();

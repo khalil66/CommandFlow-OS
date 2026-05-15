@@ -16,7 +16,9 @@ import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeRouteImport } from './routes/resume'
+import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
@@ -65,9 +67,19 @@ const ResumeRoute = ResumeRouteImport.update({
   path: '/resume',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecruitersRoute = RecruitersRouteImport.update({
+  id: '/recruiters',
+  path: '/recruiters',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelineRoute = PipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -143,7 +155,9 @@ export interface FileRoutesByFullPath {
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/onboarding': typeof OnboardingRoute
+  '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
+  '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -165,7 +179,9 @@ export interface FileRoutesByTo {
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/onboarding': typeof OnboardingRoute
+  '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
+  '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -188,7 +204,9 @@ export interface FileRoutesById {
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
   '/onboarding': typeof OnboardingRoute
+  '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
+  '/recruiters': typeof RecruitersRoute
   '/resume': typeof ResumeRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
@@ -212,7 +230,9 @@ export interface FileRouteTypes {
     | '/high-probability'
     | '/legitimacy'
     | '/onboarding'
+    | '/pipeline'
     | '/queue'
+    | '/recruiters'
     | '/resume'
     | '/review'
     | '/settings'
@@ -234,7 +254,9 @@ export interface FileRouteTypes {
     | '/high-probability'
     | '/legitimacy'
     | '/onboarding'
+    | '/pipeline'
     | '/queue'
+    | '/recruiters'
     | '/resume'
     | '/review'
     | '/settings'
@@ -256,7 +278,9 @@ export interface FileRouteTypes {
     | '/high-probability'
     | '/legitimacy'
     | '/onboarding'
+    | '/pipeline'
     | '/queue'
+    | '/recruiters'
     | '/resume'
     | '/review'
     | '/settings'
@@ -279,7 +303,9 @@ export interface RootRouteChildren {
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
   OnboardingRoute: typeof OnboardingRoute
+  PipelineRoute: typeof PipelineRoute
   QueueRoute: typeof QueueRoute
+  RecruitersRoute: typeof RecruitersRoute
   ResumeRoute: typeof ResumeRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
@@ -341,11 +367,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recruiters': {
+      id: '/recruiters'
+      path: '/recruiters'
+      fullPath: '/recruiters'
+      preLoaderRoute: typeof RecruitersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/queue': {
       id: '/queue'
       path: '/queue'
       fullPath: '/queue'
       preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipeline': {
+      id: '/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof PipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -447,7 +487,9 @@ const rootRouteChildren: RootRouteChildren = {
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
   OnboardingRoute: OnboardingRoute,
+  PipelineRoute: PipelineRoute,
   QueueRoute: QueueRoute,
+  RecruitersRoute: RecruitersRoute,
   ResumeRoute: ResumeRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,

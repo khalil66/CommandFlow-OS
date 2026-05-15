@@ -17,79 +17,118 @@ export type Database = {
       applications: {
         Row: {
           application_url: string | null
+          approved_at: string | null
+          archived_at: string | null
           cover_letter_id: string | null
           created_at: string
+          final_interview_at: string | null
           follow_up_due_at: string | null
           freshness_bucket: string | null
           ghosted_at: string | null
           id: string
+          interview_notes: string | null
           interview_requested_at: string | null
           job_id: string
+          next_action_at: string | null
+          next_action_label: string | null
           notes: string | null
           offer_at: string | null
           portfolio_project: string | null
           priority: Database["public"]["Enums"]["application_priority"] | null
           qc_failures: string[]
           qc_passed: boolean | null
+          recruiter_contact_id: string | null
+          recruiter_notes: string | null
+          recruiter_screen_at: string | null
           rejected_at: string | null
           response_received_at: string | null
           resume_variant_key: string | null
           resume_version_id: string | null
+          reviewed_at: string | null
+          salary_expectation: string | null
           status: Database["public"]["Enums"]["application_status"]
           submission_notes: string | null
           submitted_at: string | null
+          submitted_manual_at: string | null
+          technical_interview_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           application_url?: string | null
+          approved_at?: string | null
+          archived_at?: string | null
           cover_letter_id?: string | null
           created_at?: string
+          final_interview_at?: string | null
           follow_up_due_at?: string | null
           freshness_bucket?: string | null
           ghosted_at?: string | null
           id?: string
+          interview_notes?: string | null
           interview_requested_at?: string | null
           job_id: string
+          next_action_at?: string | null
+          next_action_label?: string | null
           notes?: string | null
           offer_at?: string | null
           portfolio_project?: string | null
           priority?: Database["public"]["Enums"]["application_priority"] | null
           qc_failures?: string[]
           qc_passed?: boolean | null
+          recruiter_contact_id?: string | null
+          recruiter_notes?: string | null
+          recruiter_screen_at?: string | null
           rejected_at?: string | null
           response_received_at?: string | null
           resume_variant_key?: string | null
           resume_version_id?: string | null
+          reviewed_at?: string | null
+          salary_expectation?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           submission_notes?: string | null
           submitted_at?: string | null
+          submitted_manual_at?: string | null
+          technical_interview_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           application_url?: string | null
+          approved_at?: string | null
+          archived_at?: string | null
           cover_letter_id?: string | null
           created_at?: string
+          final_interview_at?: string | null
           follow_up_due_at?: string | null
           freshness_bucket?: string | null
           ghosted_at?: string | null
           id?: string
+          interview_notes?: string | null
           interview_requested_at?: string | null
           job_id?: string
+          next_action_at?: string | null
+          next_action_label?: string | null
           notes?: string | null
           offer_at?: string | null
           portfolio_project?: string | null
           priority?: Database["public"]["Enums"]["application_priority"] | null
           qc_failures?: string[]
           qc_passed?: boolean | null
+          recruiter_contact_id?: string | null
+          recruiter_notes?: string | null
+          recruiter_screen_at?: string | null
           rejected_at?: string | null
           response_received_at?: string | null
           resume_variant_key?: string | null
           resume_version_id?: string | null
+          reviewed_at?: string | null
+          salary_expectation?: string | null
           status?: Database["public"]["Enums"]["application_status"]
           submission_notes?: string | null
           submitted_at?: string | null
+          submitted_manual_at?: string | null
+          technical_interview_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1016,6 +1055,60 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_contacts: {
+        Row: {
+          avg_response_hours: number
+          company_id: string | null
+          company_name: string | null
+          contact_count: number
+          created_at: string
+          email: string | null
+          id: string
+          last_contact_at: string | null
+          last_response_at: string | null
+          name: string
+          notes: string | null
+          response_count: number
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_response_hours?: number
+          company_id?: string | null
+          company_name?: string | null
+          contact_count?: number
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          last_response_at?: string | null
+          name: string
+          notes?: string | null
+          response_count?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_response_hours?: number
+          company_id?: string | null
+          company_name?: string | null
+          contact_count?: number
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          last_response_at?: string | null
+          name?: string
+          notes?: string | null
+          response_count?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       resume_versions: {
         Row: {
           bullets: string[] | null
@@ -1317,6 +1410,12 @@ export type Database = {
         | "interview_requested"
         | "ghosted"
         | "archived"
+        | "imported"
+        | "reviewed"
+        | "submitted_manual"
+        | "recruiter_screen"
+        | "technical_interview"
+        | "final_interview"
       automation_action:
         | "scrape"
         | "score"
@@ -1478,6 +1577,12 @@ export const Constants = {
         "interview_requested",
         "ghosted",
         "archived",
+        "imported",
+        "reviewed",
+        "submitted_manual",
+        "recruiter_screen",
+        "technical_interview",
+        "final_interview",
       ],
       automation_action: [
         "scrape",
