@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Job App" },
+      { name: "description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Job App" },
+      { property: "og:description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Job App" },
+      { name: "twitter:description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
     ],
     links: [
       {
@@ -111,39 +115,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import { useAuth } from "@/hooks/use-auth";
-import { useEffect } from "react";
-import { useNavigate, useLocation } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const { user, loading } = useAuth();
-  const nav = useNavigate();
-  const loc = useLocation();
-
-  useEffect(() => {
-    if (!loading && !user && loc.pathname !== "/auth") nav({ to: "/auth" });
-  }, [user, loading, loc.pathname, nav]);
-
-  if (loc.pathname === "/auth") {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Outlet />
-        <Toaster />
-      </QueryClientProvider>
-    );
-  }
-
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Loading…</div>
-      </div>
-    );
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -155,11 +129,8 @@ function RootComponent() {
               <SidebarTrigger />
               <div className="flex-1" />
               <div className="text-xs text-muted-foreground hidden sm:block">
-                {user.email} · Manual Review mode
+                khalilhickson.com · Remote-first
               </div>
-              <Button size="sm" variant="ghost" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }}>
-                <LogOut className="h-3.5 w-3.5" />
-              </Button>
             </header>
             <main className="flex-1 min-w-0">
               <Outlet />
