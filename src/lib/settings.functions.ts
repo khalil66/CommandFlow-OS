@@ -43,6 +43,16 @@ export const updateSettings = createServerFn({ method: "POST" })
     trust_threshold: z.number().int().min(0).max(100).optional(),
     manual_review_only: z.boolean().optional(),
     onboarded_at: z.string().datetime().optional(),
+    application_mode: z.enum(["manual_review","auto_review"]).optional(),
+    automation_paused: z.boolean().optional(),
+    friday_prepare_only: z.boolean().optional(),
+    auto_review_daily_cap: z.number().int().min(0).max(100).optional(),
+    packet_daily_cap: z.number().int().min(1).max(100).optional(),
+    per_ats_daily_cap: z.number().int().min(0).max(50).optional(),
+    company_cooldown_days: z.number().int().min(1).max(365).optional(),
+    schedule_hour: z.number().int().min(0).max(23).optional(),
+    schedule_minute: z.number().int().min(0).max(59).optional(),
+    active_weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
