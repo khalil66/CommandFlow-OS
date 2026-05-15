@@ -19,6 +19,8 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{ email: string; redirectTo: string; error?: any; data?: any } | null>(null);
+  const isDev = import.meta.env.DEV;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
