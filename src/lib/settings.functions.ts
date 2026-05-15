@@ -10,6 +10,10 @@ const SETTINGS_FIELDS = [
   "application_mode","automation_paused","friday_prepare_only",
   "auto_review_daily_cap","packet_daily_cap","per_ats_daily_cap",
   "company_cooldown_days","schedule_hour","schedule_minute","active_weekdays",
+  "phone_number","sms_enabled","sms_daily_cap",
+  "sms_notify_batch_start","sms_notify_batch_complete","sms_notify_manual_mode",
+  "sms_notify_auto_mode","sms_notify_safety_block","sms_notify_high_probability",
+  "sms_notify_followups",
 ].join(",");
 
 export const getSettings = createServerFn({ method: "GET" })
