@@ -1,18 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generatePacket, computeQuality, confidenceLabel } from "./packet.functions";
-import { SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
-import { enrichSalary, type SalaryGateStatus } from "./salary-estimator";
+import { generatePacket, confidenceLabel } from "./packet.functions";
+import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
 
-// Auto-Review safety constants. Tightened intentionally — see "Auto Review Safety Gates".
+// Auto-Review safety constants. Source of truth lives in auto-review-scoring.ts.
 export const AUTO_GATES = {
-  trust: 95,
-  interview: 88,
-  quality: 88,
-  salary: 55000,
-  freshDays: 14,
+  trust: AUTO_THRESHOLDS.trust,
+  interview: AUTO_THRESHOLDS.interview,
+  quality: AUTO_THRESHOLDS.quality,
+  salary: AUTO_THRESHOLDS.salary_min,
+  freshDays: AUTO_THRESHOLDS.fresh_days,
   atsAllowed: ["Greenhouse", "Lever", "Ashby", "Breezy"],
+  passRateCap: AUTO_THRESHOLDS.daily_pass_rate_cap,
 };
 
 export const DETECTION_FLAGS = [
@@ -20,84 +20,27 @@ export const DETECTION_FLAGS = [
   "bot_detected", "account_verification", "blocked", "unusual_traffic",
 ] as const;
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
-// ----- Gate evaluation ----- //
+// Backwards-compat shape for any caller still importing evaluateGates.
 export interface GateResult {
   pass: boolean;
   failed: string[];
   passed: string[];
-  scores: Record<string, number>;
-}
-
-function ageDays(iso?: string | null) {
-  if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  scores: Record<string, any>;
 }
 
 export function evaluateGates(args: {
-  job: any;
-  company: any;
-  quality: number;
-  ats_check?: any;
-  duplicate?: boolean;
-  recent_company_app?: boolean;
+  job: any; company: any; quality: number;
+  ats_check?: any; duplicate?: boolean; recent_company_app?: boolean;
 }): GateResult {
-  const failed: string[] = [];
-  const passed: string[] = [];
-  const j = args.job, c = args.company || {};
-  const trust = c.trust_score ?? 0;
-  const interview = j.interview_probability ?? 0;
-  const age = ageDays(j.posted_at ?? j.created_at);
-  const ats = j.ats ?? "";
-  const ac = args.ats_check ?? {};
-  const scamFlags = (c.red_flags ?? []).length;
-
-  // Salary gate now uses confidence-aware enrichment. The job row already
-  // carries salary_gate_status (set during ingest); fall back to live enrich
-  // if missing.
-  const gateStatus: SalaryGateStatus =
-    j.salary_gate_status ??
-    enrichSalary({
-      title: j.title ?? "",
-      description: j.description ?? "",
-      remote: j.remote ?? false,
-      companyCategory: c.category ?? null,
-      postedMin: j.salary_min ?? null,
-      postedMax: j.salary_max ?? null,
-    }).gate_status;
-  const salaryDisplay =
-    j.salary_min ?? j.salary_estimated_min ?? null;
-
-  const check = (cond: boolean, label: string) =>
-    cond ? passed.push(label) : failed.push(label);
-
-  check(trust >= AUTO_GATES.trust, `trust ≥ ${AUTO_GATES.trust} (got ${trust})`);
-  check(interview >= AUTO_GATES.interview, `interview ≥ ${AUTO_GATES.interview} (got ${interview})`);
-  check(args.quality >= AUTO_GATES.quality, `quality ≥ ${AUTO_GATES.quality} (got ${args.quality})`);
-  check(
-    gateStatus === "pass",
-    `salary gate (status ${gateStatus}${salaryDisplay ? `, $${salaryDisplay}` : ""})`,
-  );
-  check(j.remote === true, "remote-only");
-  check(AUTO_GATES.atsAllowed.includes(ats), `ATS in {${AUTO_GATES.atsAllowed.join(",")}} (got ${ats || "n/a"})`);
-  check(age != null && age <= AUTO_GATES.freshDays, `posted ≤ ${AUTO_GATES.freshDays}d (age ${age ?? "unknown"})`);
-  check(!ac.requires_login, "no login wall");
-  check(!ac.has_mfa, "no MFA");
-  check(!ac.has_captcha, "no CAPTCHA");
-  check(!scamFlags, "no scam flags");
-  check(!args.duplicate, "no duplicate application");
-  check(!args.recent_company_app, "no application to same company in last 30d");
-
+  const r = evaluateAutoReview(args);
   return {
-    pass: failed.length === 0,
-    failed, passed,
-    scores: {
-      trust, interview, quality: args.quality,
-      salary: salaryDisplay ?? 0, age: age ?? -1,
-    },
+    pass: r.decision === "auto",
+    failed: [...r.failed, ...r.rejected_for],
+    passed: r.passed,
+    scores: r.scores as any,
   };
 }
+
 
 // ----- Pause / resume automation ----- //
 export const setAutomationPaused = createServerFn({ method: "POST" })
@@ -250,7 +193,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
       }
     }
 
-    let approved = 0, blocked = 0, prepared = 0, skipped = 0;
+    let approved = 0, blocked = 0, prepared = 0, skipped = 0, rejected = 0;
+    let evaluated = 0; // jobs evaluated against auto-review (for pass-rate guard)
+    let guardTripped = false;
     const generateFn = (data: any) => generatePacket({ data });
 
     for (const j of jobs ?? []) {
@@ -266,7 +211,6 @@ export const runSmartApply = createServerFn({ method: "POST" })
         skipped++; continue;
       }
 
-      // 30-day per-company cooldown
       const { data: recentApp } = await (supabase as any).from("applications")
         .select("id, created_at, job_listings!inner(company_name)")
         .eq("user_id", userId)
@@ -275,12 +219,10 @@ export const runSmartApply = createServerFn({ method: "POST" })
         .limit(1).maybeSingle();
       const recentCompany = !!recentApp;
 
-      // Existing application = duplicate
       const { data: existing } = await (supabase as any).from("applications")
         .select("id").eq("user_id", userId).eq("job_id", j.id).maybeSingle();
       const duplicate = !!existing;
 
-      // Generate packet (this enforces packet creation; counts toward packetCap)
       let packet: any;
       try {
         packet = await generateFn({ job_id: j.id });
@@ -298,49 +240,74 @@ export const runSmartApply = createServerFn({ method: "POST" })
         .eq("user_id", userId).eq("job_id", j.id)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
-      const gate = evaluateGates({
+      const review = evaluateAutoReview({
         job: j, company: j.companies, quality: packet.quality?.score ?? 0,
         ats_check: atsCheck, duplicate, recent_company_app: recentCompany,
       });
 
-      // Detection flags
       const detection = [
         atsCheck?.has_captcha && "captcha",
         atsCheck?.has_mfa && "mfa",
         atsCheck?.requires_login && "login_required",
       ].filter(Boolean) as string[];
 
-      if (mode === "auto_review" && !fridayPrepareOnly && gate.pass && detection.length === 0) {
+      // Pass-rate guard: after a small warmup, if today's auto-pass rate
+      // exceeds the cap, force remaining jobs to Manual Review.
+      evaluated++;
+      const liveRate = evaluated >= 5 ? approved / evaluated : 0;
+      if (mode === "auto_review" && liveRate > AUTO_GATES.passRateCap) {
+        guardTripped = true;
+      }
+
+      if (detection.length > 0) {
+        await log({
+          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+          action: "safety_blocked",
+          reason: `Detection signals: ${detection.join(", ")} — Manual Review. No retry.`,
+          gates: { detection, ...review },
+        });
+        blocked++;
+      } else if (review.decision === "reject") {
+        await log({
+          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+          action: "rejected", reason: `Hard reject: ${review.rejected_for.join("; ")}`,
+          gates: review,
+        });
+        rejected++;
+      } else if (
+        mode === "auto_review" && !fridayPrepareOnly &&
+        !guardTripped && review.decision === "auto"
+      ) {
         await (supabase as any).from("applications")
-          .update({ status: "approved", priority: "high", notes: `Auto-approved · quality ${packet.quality?.score}` })
+          .update({ status: "approved", priority: "high",
+            notes: `Auto-approved · quality ${packet.quality?.score}` })
           .eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "auto_approved",
           reason: `All gates passed · quality ${packet.quality?.score} · ${confidenceLabel(packet.quality?.score ?? 0)}`,
-          gates: gate,
+          gates: review,
         });
         approved++;
         atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
-      } else if (detection.length > 0) {
-        await log({
-          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-          action: "safety_blocked",
-          reason: `Detection signals: ${detection.join(", ")} — moved to Manual Review. Will not retry automatically.`,
-          gates: { detection, ...gate },
-        });
-        blocked++;
       } else {
-        const note = mode === "auto_review"
-          ? (fridayPrepareOnly ? "Friday — prepare-only mode, manual review required" : `Failed gates: ${gate.failed.join(", ")}`)
-          : "Manual Review mode — packet ready for approval";
+        let note: string;
+        if (guardTripped) note = `Pass-rate guard tripped (>${Math.round(AUTO_GATES.passRateCap*100)}%) — sent to Manual Review`;
+        else if (mode === "auto_review" && fridayPrepareOnly) note = "Friday prepare-only — Manual Review required";
+        else if (mode === "auto_review") note = `Failed gates: ${review.failed.join(", ")}`;
+        else note = "Manual Review mode — packet ready for approval";
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-          action: "prepared", reason: note, gates: gate,
+          action: "prepared", reason: note, gates: review,
         });
         atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
       }
     }
 
-    return { ok: true, processed: prepared, approved, blocked, skipped, mode, fridayPrepareOnly };
+    return {
+      ok: true, processed: prepared, approved, blocked, rejected, skipped,
+      mode, fridayPrepareOnly, guardTripped,
+      pass_rate: prepared > 0 ? +(approved / prepared).toFixed(3) : 0,
+    };
   });
+
