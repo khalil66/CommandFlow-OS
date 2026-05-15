@@ -36,9 +36,11 @@ function Dashboard() {
   const listAppsFn = useServerFn(listApplications);
   const listJobsFn = useServerFn(listJobs);
   const listLogsFn = useServerFn(listActivityLogs);
+  const statusFn = useServerFn(checkBackendStatus);
   const [apps, setApps] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,8 +48,9 @@ function Dashboard() {
       withRetry(() => listAppsFn(), { label: "Apps", silent: true }).catch(() => ({ applications: [] })),
       withRetry(() => listJobsFn(), { label: "Jobs", silent: true }).catch(() => ({ jobs: [] })),
       withRetry(() => listLogsFn(), { label: "Logs", silent: true }).catch(() => ({ logs: [] })),
-    ]).then(([a, j, l]: any) => {
-      setApps(a.applications); setJobs(j.jobs); setLogs(l.logs);
+      withRetry(() => statusFn(), { label: "Status", silent: true }).catch(() => null),
+    ]).then(([a, j, l, s]: any) => {
+      setApps(a.applications); setJobs(j.jobs); setLogs(l.logs); setStatus(s);
     }).finally(() => setLoading(false));
   }, []);
 
