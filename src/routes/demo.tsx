@@ -134,12 +134,17 @@ function DemoPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm"><a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">← Back to Portfolio</a></Button>
-            <Button asChild variant="outline" size="sm"><Link to="/case-study">View Case Study</Link></Button>
-            <Button asChild size="sm"><a href={`${PORTFOLIO_URL}#contact`} target="_blank" rel="noopener noreferrer">Request Live Walkthrough</a></Button>
+            <Button size="sm" variant="default" onClick={() => window.dispatchEvent(new CustomEvent("start-walkthrough"))}>
+              <PlayCircle className="h-4 w-4 mr-1.5" /> Start guided walkthrough
+            </Button>
+            <Button asChild variant="ghost" size="sm"><a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">← Portfolio</a></Button>
+            <Button asChild variant="outline" size="sm"><Link to="/case-study">Case Study</Link></Button>
+            <Button asChild size="sm"><a href={`${PORTFOLIO_URL}#contact`} target="_blank" rel="noopener noreferrer">Request Walkthrough</a></Button>
           </div>
         </div>
       </header>
+
+      <WalkthroughTour />
 
       <main className="max-w-[1400px] mx-auto px-6 py-10 space-y-12">
         {/* Hero */}
