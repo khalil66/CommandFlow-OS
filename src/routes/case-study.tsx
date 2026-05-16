@@ -38,11 +38,11 @@ function CaseStudy() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link to="/">View Live Dashboard <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
+              <Link to="/demo">View Public Demo <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
             </Button>
-            <Button variant="outline" asChild><a href="#architecture">Technical Architecture</a></Button>
-            <Button variant="outline" asChild><a href="#decisions">Product Decisions</a></Button>
-            <Button variant="outline" asChild><a href="#lessons">Lessons Learned</a></Button>
+            <Button variant="outline" asChild><a href="#summary">Read Full Case Study</a></Button>
+            <Button variant="outline" asChild><a href="https://khalilhickson.com#contact" target="_blank" rel="noopener noreferrer">Request Live Walkthrough</a></Button>
+            <Button variant="outline" asChild><a href="https://khalilhickson.com" target="_blank" rel="noopener noreferrer">View Resume</a></Button>
           </div>
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
             <HeroStat value="30+" label="Verified Companies" />
