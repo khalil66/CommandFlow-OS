@@ -539,3 +539,61 @@ function FeatureSplit({ metrics, body }: { metrics: { k: string; v: string }[]; 
 function Download({ className }: { className?: string }) {
   return <FileText className={className} />;
 }
+
+function ResponsibleCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="p-5 rounded-lg border border-destructive/30 bg-destructive/5">
+      <div className="flex items-start gap-2 mb-2">
+        <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+        <div className="font-semibold text-sm">{title}</div>
+      </div>
+      <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function DecisionFlowchart() {
+  const Step = ({ label, sub, tone = "bg-card" }: { label: string; sub?: string; tone?: string }) => (
+    <div className={`px-4 py-2 rounded-md border border-border ${tone} text-center min-w-[180px]`}>
+      <div className="text-sm font-medium">{label}</div>
+      {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
+  );
+  const Arrow = ({ label }: { label?: string }) => (
+    <div className="flex flex-col items-center text-muted-foreground text-[10px]">
+      <div>↓</div>
+      {label && <div className="mt-0.5">{label}</div>}
+    </div>
+  );
+  return (
+    <div className="p-6 rounded-lg border border-border bg-muted/30 overflow-x-auto">
+      <div className="min-w-[720px] flex flex-col items-center gap-2">
+        <Step label="Ingest job posting" sub="ATS adapter: GH · Lever · Ashby · Breezy" />
+        <Arrow />
+        <Step label="ATS platform supported?" sub="Reject Workday / Taleo / SAP / iCIMS" tone="bg-warning/10" />
+        <Arrow label="yes" />
+        <Step label="14-day freshness filter" />
+        <Arrow />
+        <Step label="30-day duplicate company guard" />
+        <Arrow />
+        <Step label="11-factor trust score" tone="bg-accent/10" />
+        <Arrow />
+        <div className="grid grid-cols-3 gap-3 w-full">
+          <Step label="Trust ≥ 90" sub="High-Probability queue" tone="bg-success/10" />
+          <Step label="Trust 70–89" sub="Manual Review" tone="bg-info/10" />
+          <Step label="Trust < 70" sub="Reject" tone="bg-destructive/10" />
+        </div>
+        <Arrow />
+        <Step label="Interview probability scorer" sub="Match score + confidence label" />
+        <Arrow />
+        <Step label="Packet generation" sub="Resume · cover · talking points (25/day cap)" tone="bg-accent/10" />
+        <Arrow />
+        <Step label="Auto Review (5/day cap)" sub="Conservative pass rate ~5.4%" />
+        <Arrow />
+        <Step label="Manual approval" sub="Human in the loop — always" tone="bg-success/10" />
+        <Arrow />
+        <Step label="Submit + log outcome" sub="Feeds analytics learning loop" />
+      </div>
+    </div>
+  );
+}
