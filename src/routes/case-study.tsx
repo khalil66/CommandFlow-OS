@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   ShieldCheck, Brain, Database, Workflow, BarChart3, Lock, Sparkles,
   Building2, FileText, Target, Zap, GitBranch, ArrowRight, CheckCircle2,
-  TrendingUp, Layers, Cpu, Cloud,
+  TrendingUp, Layers, Cpu, Cloud, XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/case-study")({
