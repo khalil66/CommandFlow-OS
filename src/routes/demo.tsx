@@ -164,7 +164,7 @@ function DemoPage() {
         </section>
 
         {/* Dashboard */}
-        <Section icon={LayoutDashboard} title="Dashboard preview" subtitle="The morning briefing — what shipped, what's queued, what needs you.">
+        <Section id="tour-dashboard" icon={LayoutDashboard} title="Dashboard preview" subtitle="The morning briefing — what shipped, what's queued, what needs you.">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {MOCK_KPIS.map((k) => (
               <Card key={k.label}><CardContent className="p-5">
@@ -188,7 +188,7 @@ function DemoPage() {
         </Section>
 
         {/* Pipeline */}
-        <Section icon={KanbanSquare} title="Recruiting pipeline preview" subtitle="A visual CRM from imported job → offer. Drag-and-drop in the live app.">
+        <Section id="tour-pipeline" icon={KanbanSquare} title="Recruiting pipeline preview" subtitle="A visual CRM from imported job → offer. Drag-and-drop in the live app.">
           <div className="overflow-x-auto pb-2">
             <div className="flex gap-3 min-w-max">
               {MOCK_PIPELINE.map((s) => (
@@ -212,7 +212,7 @@ function DemoPage() {
         </Section>
 
         {/* Analytics */}
-        <Section icon={BarChart3} title="Analytics preview" subtitle="Response rate by ATS, recruiter heatmap, resume version performance.">
+        <Section id="tour-analytics" icon={BarChart3} title="Analytics preview" subtitle="Response rate by ATS, recruiter heatmap, resume version performance.">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader><CardTitle className="text-base">Response rate by ATS</CardTitle></CardHeader>
@@ -250,7 +250,7 @@ function DemoPage() {
         </Section>
 
         {/* Resume Diff */}
-        <Section icon={FileDiff} title="Resume Diff preview" subtitle="Master profile vs tailored resume — keywords added, bullets rewritten, ATS readability.">
+        <Section id="tour-resume" icon={FileDiff} title="Resume Diff preview" subtitle="Master profile vs tailored resume — keywords added, bullets rewritten, ATS readability.">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Match score" value={`${MOCK_RESUME_DIFF.match_score}/100`} tone="good" />
             <Stat label="Δ vs master" value={`+${MOCK_RESUME_DIFF.match_improvement}`} tone="good" />
@@ -289,7 +289,7 @@ function DemoPage() {
         </Section>
 
         {/* Company Intelligence */}
-        <Section icon={Building2} title="Company intelligence preview" subtitle="Enriched profile with interview themes, role competitiveness, and questions to ask.">
+        <Section id="tour-company" icon={Building2} title="Company intelligence preview" subtitle="Enriched profile with interview themes, role competitiveness, and questions to ask.">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">{MOCK_COMPANY.name}</CardTitle>
@@ -321,7 +321,7 @@ function DemoPage() {
         </Section>
 
         {/* Application Packet */}
-        <Section icon={FileText} title="Application packet preview" subtitle="Everything Khalil reviews before sending an application — by hand.">
+        <Section id="tour-interview" icon={FileText} title="Application packet preview" subtitle="Everything Khalil reviews before sending an application — by hand.">
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -349,7 +349,7 @@ function DemoPage() {
         </Section>
 
         {/* Safety */}
-        <Section icon={ShieldCheck} title="Safety controls preview" subtitle="What this tool will not do. By design.">
+        <Section id="tour-smart-apply" icon={ShieldCheck} title="Safety controls preview" subtitle="What this tool will not do. By design.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {MOCK_SAFETY.map((s) => (
               <Card key={s.label}>
