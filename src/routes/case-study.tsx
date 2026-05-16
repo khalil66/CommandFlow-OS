@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   ShieldCheck, Brain, Database, Workflow, BarChart3, Lock, Sparkles,
   Building2, FileText, Target, Zap, GitBranch, ArrowRight, CheckCircle2,
-  TrendingUp, Layers, Cpu, Cloud,
+  TrendingUp, Layers, Cpu, Cloud, XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/case-study")({
@@ -38,11 +38,11 @@ function CaseStudy() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link to="/">View Live Dashboard <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
+              <Link to="/demo">View Public Demo <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
             </Button>
-            <Button variant="outline" asChild><a href="#architecture">Technical Architecture</a></Button>
-            <Button variant="outline" asChild><a href="#decisions">Product Decisions</a></Button>
-            <Button variant="outline" asChild><a href="#lessons">Lessons Learned</a></Button>
+            <Button variant="outline" asChild><a href="#summary">Read Full Case Study</a></Button>
+            <Button variant="outline" asChild><a href="https://khalilhickson.com#contact" target="_blank" rel="noopener noreferrer">Request Live Walkthrough</a></Button>
+            <Button variant="outline" asChild><a href="https://khalilhickson.com" target="_blank" rel="noopener noreferrer">View Resume</a></Button>
           </div>
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
             <HeroStat value="30+" label="Verified Companies" />
@@ -270,15 +270,79 @@ function CaseStudy() {
           </div>
         </Section>
 
+        {/* 60-SECOND SCRIPT */}
+        <Section id="script" eyebrow="16" title="60-Second Demo Script">
+          <Card className="border-accent/30 bg-accent/5">
+            <CardContent className="p-6">
+              <p className="text-base leading-relaxed text-foreground">
+                "This platform scans verified remote job sources, filters unsupported ATS systems, scores
+                company trust and interview probability, generates tailored application packets, and tracks
+                outcomes through a recruiter CRM pipeline."
+              </p>
+              <p className="mt-3 text-xs text-muted-foreground">Read aloud in ~25s. Pair with the <Link to="/demo" className="text-accent underline">/demo</Link> guided walkthrough for a full 60-second story.</p>
+            </CardContent>
+          </Card>
+        </Section>
+
+        {/* METRICS PROOF */}
+        <Section id="proof" eyebrow="17" title="Metrics Proof — Real Numbers From Testing">
+          <p className="text-muted-foreground mb-6">Operational thresholds from the live system, not aspirational targets.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Metric v="1,441" l="Raw jobs tested" />
+            <Metric v="460" l="Jobs imported after filtering" />
+            <Metric v="5.4%" l="Conservative Auto Review pass rate" />
+            <Metric v="11-factor" l="Trust scoring model" />
+            <Metric v="14 days" l="Freshness filter window" />
+            <Metric v="30 days" l="Duplicate company guard" />
+            <Metric v="25/day" l="AI generation cap" />
+            <Metric v="5/day" l="Auto Review cap" />
+          </div>
+        </Section>
+
+        {/* RESPONSIBLE PRODUCT DECISIONS */}
+        <Section id="responsible" eyebrow="18" title="Responsible Product Design — What This Platform Will Not Do">
+          <p className="text-muted-foreground mb-6">
+            Many "apply automation" tools cut corners that violate ATS terms, expose users to bans, or harm
+            the labor market. This platform intentionally refuses several patterns — these are product
+            decisions, not missing features.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            <ResponsibleCard title="No CAPTCHA bypass" body="CAPTCHAs are an explicit consent signal from the employer. Bypassing them violates terms and degrades the trust signal the recruiter relies on." />
+            <ResponsibleCard title="No MFA bypass" body="Multi-factor authentication protects both candidate and employer accounts. The platform never solves, replays, or routes around MFA challenges." />
+            <ResponsibleCard title="No login-wall evasion" body="If a posting requires authentication to view, it is rejected at ingest. No cookie replay, session hijacking, or credential stuffing." />
+            <ResponsibleCard title="No stealth browser automation" body="No headless Chromium, no fingerprint spoofing, no anti-bot evasion. Every supported ATS is reached via documented public endpoints only." />
+            <ResponsibleCard title="No public access to production data" body="The dashboard, candidate data, applications, and recruiter notes are private. /demo and /case-study expose only mock data and explanatory text." />
+            <ResponsibleCard title="No auto-submit" body="Every packet requires explicit human approval before any application leaves the operator's hands. Automation accelerates triage, not the final action." />
+          </div>
+        </Section>
+
+        {/* DECISION ENGINE FLOWCHART */}
+        <Section id="flowchart" eyebrow="19" title="Decision Engine Flowchart">
+          <DecisionFlowchart />
+        </Section>
+
+        {/* WHAT I'D IMPROVE */}
+        <Section id="next" eyebrow="20" title="What I Would Improve Next">
+          <div className="grid md:grid-cols-2 gap-3">
+            <RoadmapItem phase="Soon" title="Gmail recruiter reply detection" desc="Auto-detect inbound recruiter emails and link to the originating application." />
+            <RoadmapItem phase="Soon" title="Google Calendar interview prep" desc="Auto-create prep events 24h before scheduled interviews with company brief attached." />
+            <RoadmapItem phase="Next" title="Stronger salary enrichment" desc="Cross-source salary data (Levels.fyi, Glassdoor, BLS) for missing or vague listings." />
+            <RoadmapItem phase="Next" title="Outcome-based scoring calibration" desc="Re-weight the 11-factor trust model on real interview outcomes once n > 100." />
+            <RoadmapItem phase="Q4" title="Custom domain deployment" desc="apply.khalilhickson.com with SSL and SEO-friendly OG cards per route." />
+            <RoadmapItem phase="Q4" title="Public sandbox mode" desc="Recruiter-facing read-only sandbox with synthetic data, no auth required." />
+          </div>
+        </Section>
+
         {/* FOOTER CTA */}
         <section className="border-t border-border pt-12 text-center">
           <h2 className="text-2xl font-semibold tracking-tight">Want to see it in motion?</h2>
-          <p className="mt-2 text-muted-foreground">Open the live dashboard or jump into the technical architecture.</p>
+          <p className="mt-2 text-muted-foreground">Take the guided walkthrough or schedule a live demo.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link to="/">View Live Dashboard <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
+              <Link to="/demo">View Public Demo <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
             </Button>
-            <Button variant="outline" asChild><a href="#architecture">Technical Architecture</a></Button>
+            <Button variant="outline" asChild><a href="https://khalilhickson.com#contact" target="_blank" rel="noopener noreferrer">Request Live Walkthrough</a></Button>
+            <Button variant="outline" asChild><a href="https://khalilhickson.com" target="_blank" rel="noopener noreferrer">View Resume</a></Button>
           </div>
         </section>
       </div>
@@ -474,4 +538,62 @@ function FeatureSplit({ metrics, body }: { metrics: { k: string; v: string }[]; 
 
 function Download({ className }: { className?: string }) {
   return <FileText className={className} />;
+}
+
+function ResponsibleCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="p-5 rounded-lg border border-destructive/30 bg-destructive/5">
+      <div className="flex items-start gap-2 mb-2">
+        <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+        <div className="font-semibold text-sm">{title}</div>
+      </div>
+      <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function DecisionFlowchart() {
+  const Step = ({ label, sub, tone = "bg-card" }: { label: string; sub?: string; tone?: string }) => (
+    <div className={`px-4 py-2 rounded-md border border-border ${tone} text-center min-w-[180px]`}>
+      <div className="text-sm font-medium">{label}</div>
+      {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
+  );
+  const Arrow = ({ label }: { label?: string }) => (
+    <div className="flex flex-col items-center text-muted-foreground text-[10px]">
+      <div>↓</div>
+      {label && <div className="mt-0.5">{label}</div>}
+    </div>
+  );
+  return (
+    <div className="p-6 rounded-lg border border-border bg-muted/30 overflow-x-auto">
+      <div className="min-w-[720px] flex flex-col items-center gap-2">
+        <Step label="Ingest job posting" sub="ATS adapter: GH · Lever · Ashby · Breezy" />
+        <Arrow />
+        <Step label="ATS platform supported?" sub="Reject Workday / Taleo / SAP / iCIMS" tone="bg-warning/10" />
+        <Arrow label="yes" />
+        <Step label="14-day freshness filter" />
+        <Arrow />
+        <Step label="30-day duplicate company guard" />
+        <Arrow />
+        <Step label="11-factor trust score" tone="bg-accent/10" />
+        <Arrow />
+        <div className="grid grid-cols-3 gap-3 w-full">
+          <Step label="Trust ≥ 90" sub="High-Probability queue" tone="bg-success/10" />
+          <Step label="Trust 70–89" sub="Manual Review" tone="bg-info/10" />
+          <Step label="Trust < 70" sub="Reject" tone="bg-destructive/10" />
+        </div>
+        <Arrow />
+        <Step label="Interview probability scorer" sub="Match score + confidence label" />
+        <Arrow />
+        <Step label="Packet generation" sub="Resume · cover · talking points (25/day cap)" tone="bg-accent/10" />
+        <Arrow />
+        <Step label="Auto Review (5/day cap)" sub="Conservative pass rate ~5.4%" />
+        <Arrow />
+        <Step label="Manual approval" sub="Human in the loop — always" tone="bg-success/10" />
+        <Arrow />
+        <Step label="Submit + log outcome" sub="Feeds analytics learning loop" />
+      </div>
+    </div>
+  );
 }

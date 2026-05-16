@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import {
   Briefcase, LayoutDashboard, KanbanSquare, BarChart3, FileDiff,
   Building2, FileText, ShieldCheck, Sparkles, ArrowRight, CheckCircle2,
   AlertTriangle, TrendingUp, Users2, Globe2, MapPin, BellRing, Zap,
+  PlayCircle, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/demo")({
@@ -132,12 +134,17 @@ function DemoPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm"><a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">← Back to Portfolio</a></Button>
-            <Button asChild variant="outline" size="sm"><Link to="/case-study">View Case Study</Link></Button>
-            <Button asChild size="sm"><a href={`${PORTFOLIO_URL}#contact`} target="_blank" rel="noopener noreferrer">Request Live Walkthrough</a></Button>
+            <Button size="sm" variant="default" onClick={() => window.dispatchEvent(new CustomEvent("start-walkthrough"))}>
+              <PlayCircle className="h-4 w-4 mr-1.5" /> Start guided walkthrough
+            </Button>
+            <Button asChild variant="ghost" size="sm"><a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">← Portfolio</a></Button>
+            <Button asChild variant="outline" size="sm"><Link to="/case-study">Case Study</Link></Button>
+            <Button asChild size="sm"><a href={`${PORTFOLIO_URL}#contact`} target="_blank" rel="noopener noreferrer">Request Walkthrough</a></Button>
           </div>
         </div>
       </header>
+
+      <WalkthroughTour />
 
       <main className="max-w-[1400px] mx-auto px-6 py-10 space-y-12">
         {/* Hero */}
@@ -157,7 +164,7 @@ function DemoPage() {
         </section>
 
         {/* Dashboard */}
-        <Section icon={LayoutDashboard} title="Dashboard preview" subtitle="The morning briefing — what shipped, what's queued, what needs you.">
+        <Section id="tour-dashboard" icon={LayoutDashboard} title="Dashboard preview" subtitle="The morning briefing — what shipped, what's queued, what needs you.">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {MOCK_KPIS.map((k) => (
               <Card key={k.label}><CardContent className="p-5">
@@ -181,7 +188,7 @@ function DemoPage() {
         </Section>
 
         {/* Pipeline */}
-        <Section icon={KanbanSquare} title="Recruiting pipeline preview" subtitle="A visual CRM from imported job → offer. Drag-and-drop in the live app.">
+        <Section id="tour-pipeline" icon={KanbanSquare} title="Recruiting pipeline preview" subtitle="A visual CRM from imported job → offer. Drag-and-drop in the live app.">
           <div className="overflow-x-auto pb-2">
             <div className="flex gap-3 min-w-max">
               {MOCK_PIPELINE.map((s) => (
@@ -205,7 +212,7 @@ function DemoPage() {
         </Section>
 
         {/* Analytics */}
-        <Section icon={BarChart3} title="Analytics preview" subtitle="Response rate by ATS, recruiter heatmap, resume version performance.">
+        <Section id="tour-analytics" icon={BarChart3} title="Analytics preview" subtitle="Response rate by ATS, recruiter heatmap, resume version performance.">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader><CardTitle className="text-base">Response rate by ATS</CardTitle></CardHeader>
@@ -243,7 +250,7 @@ function DemoPage() {
         </Section>
 
         {/* Resume Diff */}
-        <Section icon={FileDiff} title="Resume Diff preview" subtitle="Master profile vs tailored resume — keywords added, bullets rewritten, ATS readability.">
+        <Section id="tour-resume" icon={FileDiff} title="Resume Diff preview" subtitle="Master profile vs tailored resume — keywords added, bullets rewritten, ATS readability.">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Match score" value={`${MOCK_RESUME_DIFF.match_score}/100`} tone="good" />
             <Stat label="Δ vs master" value={`+${MOCK_RESUME_DIFF.match_improvement}`} tone="good" />
@@ -282,7 +289,7 @@ function DemoPage() {
         </Section>
 
         {/* Company Intelligence */}
-        <Section icon={Building2} title="Company intelligence preview" subtitle="Enriched profile with interview themes, role competitiveness, and questions to ask.">
+        <Section id="tour-company" icon={Building2} title="Company intelligence preview" subtitle="Enriched profile with interview themes, role competitiveness, and questions to ask.">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">{MOCK_COMPANY.name}</CardTitle>
@@ -314,7 +321,7 @@ function DemoPage() {
         </Section>
 
         {/* Application Packet */}
-        <Section icon={FileText} title="Application packet preview" subtitle="Everything Khalil reviews before sending an application — by hand.">
+        <Section id="tour-interview" icon={FileText} title="Application packet preview" subtitle="Everything Khalil reviews before sending an application — by hand.">
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -342,7 +349,7 @@ function DemoPage() {
         </Section>
 
         {/* Safety */}
-        <Section icon={ShieldCheck} title="Safety controls preview" subtitle="What this tool will not do. By design.">
+        <Section id="tour-smart-apply" icon={ShieldCheck} title="Safety controls preview" subtitle="What this tool will not do. By design.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {MOCK_SAFETY.map((s) => (
               <Card key={s.label}>
@@ -394,9 +401,9 @@ function DemoPage() {
 // ============================================================
 // Helpers
 // ============================================================
-function Section({ icon: Icon, title, subtitle, children }: any) {
+function Section({ id, icon: Icon, title, subtitle, children }: any) {
   return (
-    <section className="space-y-4">
+    <section id={id} className="space-y-4 scroll-mt-24">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent/10 text-accent shrink-0"><Icon className="h-5 w-5" /></div>
         <div>
@@ -408,6 +415,73 @@ function Section({ icon: Icon, title, subtitle, children }: any) {
     </section>
   );
 }
+
+const TOUR_STEPS: { id: string; title: string; body: string }[] = [
+  { id: "tour-dashboard", title: "1. Dashboard overview", body: "The morning briefing — KPIs, today's Smart Apply summary, and what's queued for review." },
+  { id: "tour-smart-apply", title: "2. Smart Apply safety system", body: "Auto-submit, browser automation, and login-wall evasion are disabled by design. Anything ambiguous routes to Manual Review." },
+  { id: "tour-resume", title: "3. Resume tailoring engine", body: "Master profile vs tailored resume — keywords added, bullets rewritten, ATS readability scored." },
+  { id: "tour-company", title: "4. Company trust scoring", body: "Enriched profile with hiring signals, interview themes, role competitiveness, and questions to ask." },
+  { id: "tour-interview", title: "5. Interview probability scoring", body: "Match scores, confidence labels, talking points and likely recruiter questions per application." },
+  { id: "tour-pipeline", title: "6. Recruiter CRM pipeline", body: "Visual CRM from imported job → offer with stage counts and drag-and-drop in the live app." },
+  { id: "tour-analytics", title: "7. Analytics & learning loop", body: "Response rates by ATS, recruiter heatmap, resume version performance — the feedback that closes the loop." },
+];
+
+function WalkthroughTour() {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const start = () => { setStep(0); setOpen(true); };
+    window.addEventListener("start-walkthrough", start);
+    return () => window.removeEventListener("start-walkthrough", start);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = document.getElementById(TOUR_STEPS[step].id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [open, step]);
+
+  if (!open) return null;
+  const s = TOUR_STEPS[step];
+  const isLast = step === TOUR_STEPS.length - 1;
+
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(560px,calc(100vw-2rem))]">
+      <div className="rounded-xl border border-accent/40 bg-card shadow-2xl p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">Guided walkthrough · {step + 1} of {TOUR_STEPS.length}</div>
+            <div className="mt-1 text-base font-semibold">{s.title}</div>
+            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Exit tour"><X className="h-4 w-4" /></Button>
+        </div>
+        <div className="flex items-center gap-1">
+          {TOUR_STEPS.map((_, i) => (
+            <div key={i} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-accent" : "bg-muted"}`} />
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Exit tour</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            {isLast ? (
+              <Button size="sm" onClick={() => setOpen(false)}>Finish</Button>
+            ) : (
+              <Button size="sm" onClick={() => setStep((s) => Math.min(TOUR_STEPS.length - 1, s + 1))}>
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function Stat({ label, value, tone }: { label: string; value: any; tone?: "good" | "warn" }) {
   const color = tone === "good" ? "text-success" : tone === "warn" ? "text-warning-foreground" : "";
