@@ -401,9 +401,9 @@ function DemoPage() {
 // ============================================================
 // Helpers
 // ============================================================
-function Section({ icon: Icon, title, subtitle, children }: any) {
+function Section({ id, icon: Icon, title, subtitle, children }: any) {
   return (
-    <section className="space-y-4">
+    <section id={id} className="space-y-4 scroll-mt-24">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent/10 text-accent shrink-0"><Icon className="h-5 w-5" /></div>
         <div>
@@ -415,6 +415,73 @@ function Section({ icon: Icon, title, subtitle, children }: any) {
     </section>
   );
 }
+
+const TOUR_STEPS: { id: string; title: string; body: string }[] = [
+  { id: "tour-dashboard", title: "1. Dashboard overview", body: "The morning briefing — KPIs, today's Smart Apply summary, and what's queued for review." },
+  { id: "tour-smart-apply", title: "2. Smart Apply safety system", body: "Auto-submit, browser automation, and login-wall evasion are disabled by design. Anything ambiguous routes to Manual Review." },
+  { id: "tour-resume", title: "3. Resume tailoring engine", body: "Master profile vs tailored resume — keywords added, bullets rewritten, ATS readability scored." },
+  { id: "tour-company", title: "4. Company trust scoring", body: "Enriched profile with hiring signals, interview themes, role competitiveness, and questions to ask." },
+  { id: "tour-interview", title: "5. Interview probability scoring", body: "Match scores, confidence labels, talking points and likely recruiter questions per application." },
+  { id: "tour-pipeline", title: "6. Recruiter CRM pipeline", body: "Visual CRM from imported job → offer with stage counts and drag-and-drop in the live app." },
+  { id: "tour-analytics", title: "7. Analytics & learning loop", body: "Response rates by ATS, recruiter heatmap, resume version performance — the feedback that closes the loop." },
+];
+
+function WalkthroughTour() {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const start = () => { setStep(0); setOpen(true); };
+    window.addEventListener("start-walkthrough", start);
+    return () => window.removeEventListener("start-walkthrough", start);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = document.getElementById(TOUR_STEPS[step].id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [open, step]);
+
+  if (!open) return null;
+  const s = TOUR_STEPS[step];
+  const isLast = step === TOUR_STEPS.length - 1;
+
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(560px,calc(100vw-2rem))]">
+      <div className="rounded-xl border border-accent/40 bg-card shadow-2xl p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">Guided walkthrough · {step + 1} of {TOUR_STEPS.length}</div>
+            <div className="mt-1 text-base font-semibold">{s.title}</div>
+            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Exit tour"><X className="h-4 w-4" /></Button>
+        </div>
+        <div className="flex items-center gap-1">
+          {TOUR_STEPS.map((_, i) => (
+            <div key={i} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-accent" : "bg-muted"}`} />
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Exit tour</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            {isLast ? (
+              <Button size="sm" onClick={() => setOpen(false)}>Finish</Button>
+            ) : (
+              <Button size="sm" onClick={() => setStep((s) => Math.min(TOUR_STEPS.length - 1, s + 1))}>
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function Stat({ label, value, tone }: { label: string; value: any; tone?: "good" | "warn" }) {
   const color = tone === "good" ? "text-success" : tone === "warn" ? "text-warning-foreground" : "";
