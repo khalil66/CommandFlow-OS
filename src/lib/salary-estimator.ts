@@ -12,8 +12,10 @@ export const SALARY_FLOOR = 55000;
 
 export type SalarySource =
   | "posted_salary"
-  | "estimated_from_title"
-  | "estimated_from_market"
+  | "company_careers_page"
+  | "verified_market_estimate"
+  | "salary_review_sources"
+  | "title_based_estimate"
   | "missing";
 
 export type SalaryConfidence = "high" | "medium" | "low" | "unknown";
@@ -28,6 +30,7 @@ export interface SalaryEnrichment {
   confidence: SalaryConfidence;
   gate_status: SalaryGateStatus;
   gate_reason: string;
+  evidence: string[];
 }
 
 // -------- Posted-salary parsing -------- //
