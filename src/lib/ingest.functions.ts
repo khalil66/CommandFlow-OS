@@ -385,3 +385,136 @@ export const detectAtsFromUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ url: z.string().url() }).parse(d))
   .handler(async ({ data }) => detectAts(data.url));
+
+// ---------- Default seed sources ---------- //
+const DEFAULT_SOURCES: Array<{ name: string; careers_url: string }> = [
+  { name: "Stripe",     careers_url: "https://boards.greenhouse.io/stripe" },
+  { name: "Airbnb",     careers_url: "https://boards.greenhouse.io/airbnb" },
+  { name: "Dropbox",    careers_url: "https://boards.greenhouse.io/dropbox" },
+  { name: "Plaid",      careers_url: "https://boards.greenhouse.io/plaid" },
+  { name: "Brex",       careers_url: "https://boards.greenhouse.io/brex" },
+  { name: "Ramp",       careers_url: "https://jobs.ashbyhq.com/ramp" },
+  { name: "Linear",     careers_url: "https://jobs.ashbyhq.com/Linear" },
+  { name: "OpenAI",     careers_url: "https://jobs.ashbyhq.com/openai" },
+  { name: "PostHog",    careers_url: "https://jobs.ashbyhq.com/posthog" },
+  { name: "Netflix",    careers_url: "https://jobs.lever.co/netflix" },
+];
+
+export const seedDefaultJobSources = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: existing } = await supabase
+      .from("job_sources").select("name").eq("user_id", userId);
+    const have = new Set((existing ?? []).map((r: any) => r.name.toLowerCase()));
+
+    const toInsert = DEFAULT_SOURCES
+      .filter((s) => !have.has(s.name.toLowerCase()))
+      .map((s) => {
+        const det = detectAts(s.careers_url);
+        return {
+          user_id: userId,
+          name: s.name,
+          careers_url: s.careers_url,
+          ats: det.platform,
+          status: det.supported ? "active" : "rejected",
+          notes: det.reason ?? null,
+        };
+      });
+
+    if (toInsert.length === 0) {
+      return { inserted: 0, skipped: DEFAULT_SOURCES.length, total: existing?.length ?? 0 };
+    }
+    const { data, error } = await supabase.from("job_sources").insert(toInsert as any).select();
+    if (error) throw new Error(error.message);
+    return {
+      inserted: data?.length ?? 0,
+      skipped: DEFAULT_SOURCES.length - toInsert.length,
+      total: (existing?.length ?? 0) + (data?.length ?? 0),
+    };
+  });
+
+export const testSourceFetch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ source_id: z.string().uuid().optional() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    let q = supabase.from("job_sources").select("*").eq("user_id", userId).eq("status", "active");
+    if (data.source_id) q = q.eq("id", data.source_id);
+    const { data: sources } = await q.limit(10);
+    if (!sources || sources.length === 0) {
+      return { ok: false, results: [], error: "No active sources found. Click 'Seed Default Sources'." };
+    }
+    const results: any[] = [];
+    for (const src of sources) {
+      const det = detectAts(src.careers_url);
+      if (!det.supported || !det.slug) {
+        results.push({ name: src.name, ats: det.platform, ok: false, count: 0, error: det.reason });
+        continue;
+      }
+      try {
+        const jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
+        results.push({ name: src.name, ats: det.platform, ok: true, count: jobs.length, sample: jobs[0]?.title ?? null });
+      } catch (e: any) {
+        results.push({ name: src.name, ats: det.platform, ok: false, count: 0, error: e?.message || String(e) });
+      }
+    }
+    return { ok: true, results };
+  });
+
+export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const [srcRes, logsRes, jobsRes] = await Promise.all([
+      supabase.from("job_sources").select("*").eq("user_id", userId),
+      supabase.from("import_logs").select("*").eq("user_id", userId)
+        .order("created_at", { ascending: false }).limit(20),
+      supabase.from("job_listings").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    ]);
+    const sources = srcRes.data ?? [];
+    const active = sources.filter((s: any) => s.status === "active");
+    const logs = logsRes.data ?? [];
+
+    // Aggregate from most recent run set (same created_at second window)
+    const lastRunTs = logs[0]?.created_at;
+    const lastRun = logs.filter((l: any) =>
+      lastRunTs && Math.abs(new Date(l.created_at).getTime() - new Date(lastRunTs).getTime()) < 60_000
+    );
+    const totals = lastRun.reduce(
+      (acc: any, l: any) => {
+        acc.found += l.found ?? 0;
+        acc.imported += l.imported ?? 0;
+        acc.manual_review += l.manual_review ?? 0;
+        acc.duplicate += l.duplicate ?? 0;
+        acc.rejected += l.rejected ?? 0;
+        acc.skipped += l.skipped ?? 0;
+        if (!l.success && l.message) acc.errors.push(`${l.ats}: ${l.message}`);
+        for (const r of (l.details?.reasons ?? [])) acc.reasons.push(r);
+        return acc;
+      },
+      { found: 0, imported: 0, manual_review: 0, duplicate: 0, rejected: 0, skipped: 0, errors: [] as string[], reasons: [] as string[] }
+    );
+
+    // Top rejection reason
+    const reasonCounts = new Map<string, number>();
+    for (const r of totals.reasons) {
+      const key = r.replace(/^[^:]+:/, "").replace(/\s*\([^)]*\)\s*$/, "").trim().slice(0, 80);
+      const cat = r.split(":")[0];
+      const k = `${cat}: ${key}`;
+      reasonCounts.set(k, (reasonCounts.get(k) ?? 0) + 1);
+    }
+    const topRejection = [...reasonCounts.entries()]
+      .sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([reason, count]) => ({ reason, count }));
+
+    return {
+      enabled_sources: active.length,
+      total_sources: sources.length,
+      source_names: active.map((s: any) => ({ name: s.name, ats: s.ats, status: s.status })),
+      total_jobs_in_db: jobsRes.count ?? 0,
+      last_run_at: lastRunTs ?? null,
+      last_run: totals,
+      top_rejection: topRejection,
+    };
+  });
