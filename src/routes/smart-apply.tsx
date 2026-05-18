@@ -151,6 +151,35 @@ function SmartApplyPage() {
     finally { setBusy(null); }
   };
 
+  const handleDeepDebug = async () => {
+    setBusy("deep");
+    setDeepResult(null);
+    try {
+      const r: any = await deepFn({
+        data: {
+          source_id: selectedSourceId || undefined,
+          bypass_filters: bypassFilters,
+        },
+      });
+      setDeepResult(r);
+      if (r.ok) toast.success(`Traced ${r.trace?.source?.name}: ${r.trace?.steps?.length ?? 0} steps`);
+      else toast.error(`Trace failed: ${r.error}`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleMockInsert = async () => {
+    setBusy("mock");
+    try {
+      const r: any = await mockFn();
+      if (r.ok) toast.success(`✓ DB write works. Inserted mock job (project: ${r.project_ref})`);
+      else toast.error(`DB write failed: ${r.error}${r.code ? ` [${r.code}]` : ""} (project: ${r.project_ref})`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
   const handleRun = async () => {
     setRunning(true);
     try {
