@@ -174,6 +174,10 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const cooldownDays = s.company_cooldown_days ?? 30;
     const mode: "manual_review" | "auto_review" = s.application_mode ?? "manual_review";
 
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    const cutoff = new Date(Date.now() - AUTO_GATES.freshDays * 86400000).toISOString();
+    const cooldownCutoff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
+
     // Safe Auto-Submit configuration (OFF by default)
     const safeSubmitEnabled = !!s.safe_auto_submit_enabled;
     const safeSubmitDailyCap = s.safe_auto_submit_daily_cap ?? 3;
@@ -185,10 +189,6 @@ export const runSmartApply = createServerFn({ method: "POST" })
       .gte("auto_submitted_at", startOfDay.toISOString());
     let safeSubmittedSoFar = autoSubmittedToday ?? 0;
     const safeAtsCounts = new Map<string, number>();
-
-    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-    const cutoff = new Date(Date.now() - AUTO_GATES.freshDays * 86400000).toISOString();
-    const cooldownCutoff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
 
     const { data: jobs } = await (supabase as any).from("job_listings")
       .select("*, companies(*)")
