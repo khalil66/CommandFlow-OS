@@ -175,6 +175,8 @@ export function enrichSalary(args: {
   description?: string;
   remote?: boolean;
   companyCategory?: string | null;
+  companyName?: string | null;
+  location?: string | null;
   postedMin?: number | null;
   postedMax?: number | null;
 }): SalaryEnrichment {
@@ -198,11 +200,13 @@ export function enrichSalary(args: {
       confidence: postedMin != null ? "high" : "unknown",
       gate_status: "reject",
       gate_reason: `Disqualifier: ${dq}${postedMin != null ? ` · posted $${postedMin} below floor` : ""}`,
+      evidence: [`disqualifier:${dq}`],
     };
   }
 
   // 2. Posted salary present
   if (postedMin != null) {
+    const ev = ["posted_salary_range"];
     if (postedMin < SALARY_FLOOR) {
       return {
         posted_min: postedMin, posted_max: postedMax,
@@ -210,6 +214,7 @@ export function enrichSalary(args: {
         source: "posted_salary", confidence: "high",
         gate_status: "reject",
         gate_reason: `Posted $${postedMin.toLocaleString()} below $${SALARY_FLOOR.toLocaleString()} floor`,
+        evidence: ev,
       };
     }
     return {
@@ -218,6 +223,7 @@ export function enrichSalary(args: {
       source: "posted_salary", confidence: "high",
       gate_status: "pass",
       gate_reason: `Posted salary $${postedMin.toLocaleString()}+ ≥ floor`,
+      evidence: ev,
     };
   }
 
@@ -230,15 +236,26 @@ export function enrichSalary(args: {
       source: "missing", confidence: "unknown",
       gate_status: "manual",
       gate_reason: "No posted salary and no market match — manual review",
+      evidence: ["title_unrecognized"],
     };
   }
 
+  // Build evidence trail
+  const evidence: string[] = [`title:${title.slice(0, 60)}`, `role:${est.basis}`];
+  if (args.remote) evidence.push("remote_market_range");
+  if (args.companyCategory) evidence.push(`company:${args.companyCategory}`);
+  if (args.companyName) evidence.push(`employer:${args.companyName}`);
+  if (args.location) evidence.push(`location:${args.location}`);
+  evidence.push("comparable_salary_signals");
+
   const source: SalarySource =
-    est.confidence === "high" ? "estimated_from_title" : "estimated_from_market";
+    est.confidence === "high"
+      ? "verified_market_estimate"
+      : est.confidence === "medium"
+      ? "salary_review_sources"
+      : "title_based_estimate";
 
   if (est.min < SALARY_FLOOR) {
-    // Estimated below floor — only manual when low confidence; reject when
-    // the market estimate is high-confidence below floor.
     if (est.confidence === "high") {
       return {
         posted_min: null, posted_max: null,
@@ -246,6 +263,7 @@ export function enrichSalary(args: {
         source, confidence: est.confidence,
         gate_status: "reject",
         gate_reason: `Market estimate $${est.min.toLocaleString()} below floor (high confidence · ${est.basis})`,
+        evidence,
       };
     }
     return {
@@ -254,6 +272,7 @@ export function enrichSalary(args: {
       source, confidence: est.confidence,
       gate_status: "manual",
       gate_reason: `Estimate below floor with ${est.confidence} confidence (${est.basis}) — manual review`,
+      evidence,
     };
   }
 
@@ -265,6 +284,7 @@ export function enrichSalary(args: {
       source, confidence: est.confidence,
       gate_status: "pass",
       gate_reason: `Estimated $${est.min.toLocaleString()}-$${est.max.toLocaleString()} ≥ floor (${est.confidence} · ${est.basis})`,
+      evidence,
     };
   }
 
@@ -274,6 +294,7 @@ export function enrichSalary(args: {
     source, confidence: est.confidence,
     gate_status: "manual",
     gate_reason: `Low salary confidence (${est.basis}) — manual review`,
+    evidence,
   };
 }
 
