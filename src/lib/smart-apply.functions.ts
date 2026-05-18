@@ -174,6 +174,18 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const cooldownDays = s.company_cooldown_days ?? 30;
     const mode: "manual_review" | "auto_review" = s.application_mode ?? "manual_review";
 
+    // Safe Auto-Submit configuration (OFF by default)
+    const safeSubmitEnabled = !!s.safe_auto_submit_enabled;
+    const safeSubmitDailyCap = s.safe_auto_submit_daily_cap ?? 3;
+    const safeSubmitPerAtsCap = 2;
+    const safeAtsAllowed = new Set(["Greenhouse", "Lever", "Ashby", "Breezy"]);
+    const { count: autoSubmittedToday } = await (supabase as any)
+      .from("applications").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("status", "submitted_automatically")
+      .gte("auto_submitted_at", startOfDay.toISOString());
+    let safeSubmittedSoFar = autoSubmittedToday ?? 0;
+    const safeAtsCounts = new Map<string, number>();
+
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
     const cutoff = new Date(Date.now() - AUTO_GATES.freshDays * 86400000).toISOString();
     const cooldownCutoff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
