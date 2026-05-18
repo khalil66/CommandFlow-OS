@@ -61,18 +61,26 @@ function SmartApplyPage() {
   const pauseFn = useServerFn(setAutomationPaused);
   const modeFn = useServerFn(setApplicationMode);
   const saveFn = useServerFn(updateSettings);
+  const importFn = useServerFn(importJobsNow);
+  const seedFn = useServerFn(seedDefaultJobSources);
+  const testFn = useServerFn(testSourceFetch);
+  const diagFn = useServerFn(getSmartApplyDiagnostics);
 
   const [m, setM] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
+  const [diag, setDiag] = useState<any>(null);
+  const [testResults, setTestResults] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const refresh = async () => {
-    const [mm, ll]: any = await Promise.all([
+    const [mm, ll, dd]: any = await Promise.all([
       metricsFn().catch(() => null),
       logsFn().catch(() => ({ logs: [] })),
+      diagFn().catch(() => null),
     ]);
-    setM(mm); setLogs(ll.logs ?? []);
+    setM(mm); setLogs(ll.logs ?? []); setDiag(dd);
   };
 
   useEffect(() => { refresh().finally(() => setLoading(false)); }, []);
@@ -101,14 +109,71 @@ function SmartApplyPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const handleSeed = async () => {
+    setBusy("seed");
+    try {
+      const r: any = await seedFn();
+      toast.success(`Seeded ${r.inserted} sources (${r.skipped} already present · ${r.total} total active)`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleTest = async () => {
+    setBusy("test");
+    setTestResults(null);
+    try {
+      const r: any = await testFn({ data: {} });
+      if (!r.ok) { toast.warning(r.error ?? "No active sources"); setTestResults([]); return; }
+      setTestResults(r.results);
+      const okCount = r.results.filter((x: any) => x.ok).length;
+      const totalJobs = r.results.reduce((a: number, x: any) => a + (x.count ?? 0), 0);
+      toast.success(`Fetched ${totalJobs} raw jobs from ${okCount}/${r.results.length} sources`);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleImportOnly = async () => {
+    setBusy("import");
+    try {
+      const r: any = await importFn({ data: {} });
+      const t = r.totals;
+      if (r.runs.length === 0) toast.warning("No active sources — click 'Seed Default Sources' first");
+      else toast.success(`Ingestion: ${t.imported} imported · ${t.manual_review} manual · ${t.duplicate} dupes · ${t.rejected} rejected · ${t.skipped} skipped (found ${t.found})`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
   const handleRun = async () => {
     setRunning(true);
     try {
+      // 1. Ingest first
+      let importTotals: any = null;
+      try {
+        const ir: any = await importFn({ data: {} });
+        importTotals = ir.totals;
+        if (ir.runs.length === 0) {
+          toast.warning("No active sources — Smart Apply will scan 0 jobs. Click 'Seed Default Sources'.");
+        }
+      } catch (e: any) {
+        toast.error(`Ingestion failed: ${e.message}`);
+      }
+
+      // 2. Then score / route
       const r: any = await runFn();
       if (!r.ok) toast.warning(`Skipped: ${r.reason}`);
       else {
         const sm = r.summary ?? {};
-        toast.success(`Smart Apply complete: ${sm.jobs_scanned ?? 0} scanned, ${sm.fresh_imported ?? 0} imported, ${sm.auto_reviewed ?? 0} auto, ${sm.manual_review ?? 0} manual, ${sm.safety_blocked ?? 0} blocked. Pass rate ${((sm.pass_rate ?? 0) * 100).toFixed(1)}%.`);
+        const scanned = sm.jobs_scanned ?? 0;
+        if (scanned === 0) {
+          const reason = importTotals
+            ? `Ingestion found ${importTotals.found}, imported ${importTotals.imported}, rejected ${importTotals.rejected}, skipped ${importTotals.skipped}. No fresh jobs (<14 days) to score.`
+            : "No jobs in database. Seed sources and run ingestion.";
+          toast.warning(`Smart Apply scanned 0 jobs. ${reason}`);
+        } else {
+          toast.success(`Smart Apply: ${scanned} scanned · ${sm.fresh_imported ?? 0} fresh · ${sm.auto_reviewed ?? 0} auto · ${sm.manual_review ?? 0} manual · ${sm.safety_blocked ?? 0} blocked · pass ${((sm.pass_rate ?? 0) * 100).toFixed(1)}%`);
+        }
         if (r.sms?.status === "skipped:not_configured") toast.info(`SMS skipped: missing ${(r.sms.missing ?? []).join(", ")}`);
         else if (r.sms?.status === "sent") toast.info("Summary SMS sent");
       }
