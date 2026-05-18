@@ -229,8 +229,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
       routingFailures.set(reason, (routingFailures.get(reason) ?? 0) + 1);
 
     for (const j of jobs ?? []) {
-      if (prepared >= packetCap) { skipped++; continue; }
-      if (mode === "auto_review" && approved >= autoCap) { skipped++; continue; }
+      processedJobIds.push(j.id);
+      if (prepared >= packetCap) { skipped++; trackFailure("packet_cap_reached"); continue; }
+      if (mode === "auto_review" && approved >= autoCap) { skipped++; trackFailure("auto_cap_reached"); continue; }
 
       const ats = j.ats ?? "";
       if ((atsCounts.get(ats) ?? 0) >= perAtsCap) {
@@ -238,7 +239,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "skipped", reason: `Per-ATS cap reached (${perAtsCap}/day for ${ats})`, gates: {},
         });
-        skipped++; continue;
+        skipped++; trackFailure("per_ats_cap"); continue;
       }
 
       const { data: recentApp } = await (supabase as any).from("applications")
@@ -253,14 +254,26 @@ export const runSmartApply = createServerFn({ method: "POST" })
         .select("id").eq("user_id", userId).eq("job_id", j.id).maybeSingle();
       const duplicate = !!existing;
 
+      // Always create an application row so routing is observable.
+      await ensureApp(j, "manual_review");
+
       let packet: any;
+      packet_attempted++;
       try {
         packet = await generateFn({ job_id: j.id });
         prepared++;
       } catch (e: any) {
+        packet_failed++;
+        const reason = `Packet generation failed: ${e.message?.slice(0, 200)}`;
+        trackFailure("packet_generation_failed");
+        manualReasons.set("packet_generation_failed", (manualReasons.get("packet_generation_failed") ?? 0) + 1);
+        await (supabase as any).from("applications").update({
+          status: "manual_review", priority: "manual",
+          notes: reason,
+        }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-          action: "error", reason: `Packet generation failed: ${e.message?.slice(0, 200)}`, gates: {},
+          action: "prepared", reason, gates: {},
         });
         continue;
       }
@@ -274,6 +287,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
         job: j, company: j.companies, quality: packet.quality?.score ?? 0,
         ats_check: atsCheck, duplicate, recent_company_app: recentCompany,
       });
+      scored++;
 
       const detection = [
         atsCheck?.has_captcha && "captcha",
@@ -281,8 +295,6 @@ export const runSmartApply = createServerFn({ method: "POST" })
         atsCheck?.requires_login && "login_required",
       ].filter(Boolean) as string[];
 
-      // Pass-rate guard: after a small warmup, if today's auto-pass rate
-      // exceeds the cap, force remaining jobs to Manual Review.
       evaluated++;
       const liveRate = evaluated >= 5 ? approved / evaluated : 0;
       if (mode === "auto_review" && liveRate > AUTO_GATES.passRateCap) {
@@ -295,6 +307,10 @@ export const runSmartApply = createServerFn({ method: "POST" })
       });
 
       if (detection.length > 0) {
+        await (supabase as any).from("applications").update({
+          status: "safety_blocked", priority: "manual",
+          notes: `Safety blocked: ${detection.join(", ")}`,
+        }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "safety_blocked",
@@ -302,8 +318,17 @@ export const runSmartApply = createServerFn({ method: "POST" })
           gates: { detection, ...review },
         });
         blocked++;
+        trackFailure(`safety:${detection[0]}`);
       } else if (review.decision === "reject") {
-        for (const r of review.rejected_for) rejectReasons.set(r, (rejectReasons.get(r) ?? 0) + 1);
+        for (const r of review.rejected_for) {
+          rejectReasons.set(r, (rejectReasons.get(r) ?? 0) + 1);
+          trackFailure(`reject:${r}`);
+        }
+        rejected_by_scoring++;
+        await (supabase as any).from("applications").update({
+          status: "rejected", priority: "manual",
+          notes: `Hard reject: ${review.rejected_for.join("; ")}`,
+        }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "rejected", reason: `Hard reject: ${review.rejected_for.join("; ")}`,
@@ -314,7 +339,6 @@ export const runSmartApply = createServerFn({ method: "POST" })
         mode === "auto_review" && !fridayPrepareOnly &&
         !guardTripped && review.decision === "auto"
       ) {
-        // Final QC gate before auto-approval
         const qc = runFinalQC({
           job: j, company: j.companies, packet,
           resume_id: (packet as any).resume?.resume_id ?? (packet as any).resume_id ?? null,
@@ -323,7 +347,11 @@ export const runSmartApply = createServerFn({ method: "POST" })
         const variantKey = assignResumeVariant(j.role_category, j.title);
         const bucket = freshnessBucket(j.posted_at);
         if (!qc.passed) {
-          for (const f of qc.failures) manualReasons.set(f, (manualReasons.get(f) ?? 0) + 1);
+          rejected_by_qc++;
+          for (const f of qc.failures) {
+            manualReasons.set(f, (manualReasons.get(f) ?? 0) + 1);
+            trackFailure(`qc:${f}`);
+          }
           await (supabase as any).from("applications").update({
             status: "manual_review", priority: "manual",
             qc_passed: false, qc_failures: qc.failures,
@@ -359,13 +387,42 @@ export const runSmartApply = createServerFn({ method: "POST" })
         else if (mode === "auto_review" && fridayPrepareOnly) note = "Friday prepare-only — Manual Review required";
         else if (mode === "auto_review") note = `Failed gates: ${review.failed.join(", ")}`;
         else note = "Manual Review mode — packet ready for approval";
-        for (const r of review.failed) manualReasons.set(r, (manualReasons.get(r) ?? 0) + 1);
+        for (const r of review.failed) {
+          manualReasons.set(r, (manualReasons.get(r) ?? 0) + 1);
+          trackFailure(`manual:${r}`);
+        }
+        if (review.failed.length === 0) trackFailure("manual:mode_default");
+        await (supabase as any).from("applications").update({
+          status: "manual_review", priority: "manual",
+          notes: note,
+        }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "prepared", reason: note, gates: review,
         });
         atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
       }
+    }
+
+    // Fallback: if scan found jobs but nothing got routed, force-assign
+    // every processed job to Manual Review so nothing is left in limbo.
+    if (scanned > 0 && approved === 0 && blocked === 0 && rejected === 0 &&
+        (prepared - approved) === 0 && processedJobIds.length > 0) {
+      for (const jid of processedJobIds) {
+        await ensureApp({ id: jid }, "manual_review");
+        await (supabase as any).from("applications").update({
+          status: "manual_review", priority: "manual",
+          notes: "routing_unresolved — forced to Manual Review by fallback",
+        }).eq("user_id", userId).eq("job_id", jid);
+        await log({
+          job_id: jid, action: "prepared",
+          reason: "routing_unresolved — fallback to Manual Review", gates: {},
+        });
+        fallback_unresolved++;
+      }
+      manualReasons.set("routing_unresolved", fallback_unresolved);
+      trackFailure("routing_unresolved");
+      prepared += fallback_unresolved;
     }
 
     // Build daily summary
