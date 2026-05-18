@@ -9,12 +9,16 @@ import { Label } from "@/components/ui/label";
 import {
   Shield, ShieldAlert, ShieldCheck, PauseCircle, PlayCircle, Loader2,
   CalendarClock, Sparkles, AlertOctagon, Activity, ListChecks, Zap, Clock, Lock,
+  Database, Download, FlaskConical, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSmartApplyMetrics, runSmartApply, listSafetyLogs,
   setAutomationPaused, setApplicationMode, AUTO_GATES,
 } from "@/lib/smart-apply.functions";
+import {
+  importJobsNow, seedDefaultJobSources, testSourceFetch, getSmartApplyDiagnostics,
+} from "@/lib/ingest.functions";
 import { updateSettings } from "@/lib/settings.functions";
 
 export const Route = createFileRoute("/smart-apply")({ component: SmartApplyPage });
@@ -57,18 +61,26 @@ function SmartApplyPage() {
   const pauseFn = useServerFn(setAutomationPaused);
   const modeFn = useServerFn(setApplicationMode);
   const saveFn = useServerFn(updateSettings);
+  const importFn = useServerFn(importJobsNow);
+  const seedFn = useServerFn(seedDefaultJobSources);
+  const testFn = useServerFn(testSourceFetch);
+  const diagFn = useServerFn(getSmartApplyDiagnostics);
 
   const [m, setM] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
+  const [diag, setDiag] = useState<any>(null);
+  const [testResults, setTestResults] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const refresh = async () => {
-    const [mm, ll]: any = await Promise.all([
+    const [mm, ll, dd]: any = await Promise.all([
       metricsFn().catch(() => null),
       logsFn().catch(() => ({ logs: [] })),
+      diagFn().catch(() => null),
     ]);
-    setM(mm); setLogs(ll.logs ?? []);
+    setM(mm); setLogs(ll.logs ?? []); setDiag(dd);
   };
 
   useEffect(() => { refresh().finally(() => setLoading(false)); }, []);
@@ -97,14 +109,71 @@ function SmartApplyPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const handleSeed = async () => {
+    setBusy("seed");
+    try {
+      const r: any = await seedFn();
+      toast.success(`Seeded ${r.inserted} sources (${r.skipped} already present · ${r.total} total active)`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleTest = async () => {
+    setBusy("test");
+    setTestResults(null);
+    try {
+      const r: any = await testFn({ data: {} });
+      if (!r.ok) { toast.warning(r.error ?? "No active sources"); setTestResults([]); return; }
+      setTestResults(r.results);
+      const okCount = r.results.filter((x: any) => x.ok).length;
+      const totalJobs = r.results.reduce((a: number, x: any) => a + (x.count ?? 0), 0);
+      toast.success(`Fetched ${totalJobs} raw jobs from ${okCount}/${r.results.length} sources`);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleImportOnly = async () => {
+    setBusy("import");
+    try {
+      const r: any = await importFn({ data: {} });
+      const t = r.totals;
+      if (r.runs.length === 0) toast.warning("No active sources — click 'Seed Default Sources' first");
+      else toast.success(`Ingestion: ${t.imported} imported · ${t.manual_review} manual · ${t.duplicate} dupes · ${t.rejected} rejected · ${t.skipped} skipped (found ${t.found})`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
   const handleRun = async () => {
     setRunning(true);
     try {
+      // 1. Ingest first
+      let importTotals: any = null;
+      try {
+        const ir: any = await importFn({ data: {} });
+        importTotals = ir.totals;
+        if (ir.runs.length === 0) {
+          toast.warning("No active sources — Smart Apply will scan 0 jobs. Click 'Seed Default Sources'.");
+        }
+      } catch (e: any) {
+        toast.error(`Ingestion failed: ${e.message}`);
+      }
+
+      // 2. Then score / route
       const r: any = await runFn();
       if (!r.ok) toast.warning(`Skipped: ${r.reason}`);
       else {
         const sm = r.summary ?? {};
-        toast.success(`Smart Apply complete: ${sm.jobs_scanned ?? 0} scanned, ${sm.fresh_imported ?? 0} imported, ${sm.auto_reviewed ?? 0} auto, ${sm.manual_review ?? 0} manual, ${sm.safety_blocked ?? 0} blocked. Pass rate ${((sm.pass_rate ?? 0) * 100).toFixed(1)}%.`);
+        const scanned = sm.jobs_scanned ?? 0;
+        if (scanned === 0) {
+          const reason = importTotals
+            ? `Ingestion found ${importTotals.found}, imported ${importTotals.imported}, rejected ${importTotals.rejected}, skipped ${importTotals.skipped}. No fresh jobs (<14 days) to score.`
+            : "No jobs in database. Seed sources and run ingestion.";
+          toast.warning(`Smart Apply scanned 0 jobs. ${reason}`);
+        } else {
+          toast.success(`Smart Apply: ${scanned} scanned · ${sm.fresh_imported ?? 0} fresh · ${sm.auto_reviewed ?? 0} auto · ${sm.manual_review ?? 0} manual · ${sm.safety_blocked ?? 0} blocked · pass ${((sm.pass_rate ?? 0) * 100).toFixed(1)}%`);
+        }
         if (r.sms?.status === "skipped:not_configured") toast.info(`SMS skipped: missing ${(r.sms.missing ?? []).join(", ")}`);
         else if (r.sms?.status === "sent") toast.info("Summary SMS sent");
       }
@@ -147,6 +216,109 @@ function SmartApplyPage() {
           </Button>
         </div>
       </div>
+
+      {/* Diagnostics + Recovery tools */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FlaskConical className="h-4 w-4" /> Ingestion Diagnostics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={handleSeed} disabled={busy !== null}>
+              {busy === "seed" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Database className="h-3.5 w-3.5 mr-1.5" />}
+              Seed Default Sources
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleTest} disabled={busy !== null}>
+              {busy === "test" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5 mr-1.5" />}
+              Test Source Fetch
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleImportOnly} disabled={busy !== null}>
+              {busy === "import" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
+              Run Ingestion Only
+            </Button>
+          </div>
+
+          {diag && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <DiagStat label="Enabled sources" value={diag.enabled_sources} sub={`${diag.total_sources} total`} />
+              <DiagStat label="Jobs in DB" value={diag.total_jobs_in_db} />
+              <DiagStat label="Last run found" value={diag.last_run?.found ?? 0} sub={`${diag.last_run?.imported ?? 0} imported`} />
+              <DiagStat label="Last run rejected" value={diag.last_run?.rejected ?? 0} sub={`${diag.last_run?.skipped ?? 0} skipped`} />
+            </div>
+          )}
+
+          {diag?.enabled_sources === 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 flex items-start gap-2 text-sm">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+              <div>
+                <div className="font-medium text-destructive">No enabled job sources</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Smart Apply will return 0 for every metric until at least one active source exists.
+                  Click <span className="font-medium">Seed Default Sources</span> to add 10 reliable Greenhouse/Lever/Ashby boards.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {diag?.source_names?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Active sources</div>
+              <div className="flex flex-wrap gap-1.5">
+                {diag.source_names.map((s: any) => (
+                  <Badge key={s.name} variant="outline" className="text-[10px]">
+                    {s.name} · {s.ats}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {diag?.last_run?.errors?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Last-run import errors</div>
+              <ul className="space-y-1 text-xs text-destructive">
+                {diag.last_run.errors.slice(0, 5).map((e: string, i: number) => <li key={i}>• {e}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {diag?.top_rejection?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Top rejection reasons</div>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {diag.top_rejection.map((r: any, i: number) => (
+                  <li key={i}>• <span className="font-medium text-foreground">{r.count}×</span> {r.reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {testResults && testResults.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Test fetch results</div>
+              <div className="space-y-1 text-xs">
+                {testResults.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 border-b border-border py-1">
+                    <span className="flex items-center gap-1.5">
+                      {r.ok
+                        ? <ShieldCheck className="h-3 w-3 text-success" />
+                        : <ShieldAlert className="h-3 w-3 text-destructive" />}
+                      <span className="font-medium">{r.name}</span>
+                      <Badge variant="outline" className="text-[10px]">{r.ats}</Badge>
+                    </span>
+                    <span className={r.ok ? "text-muted-foreground" : "text-destructive"}>
+                      {r.ok ? `${r.count} jobs` : (r.error ?? "fetch failed")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {/* Status banner */}
       {paused && (
@@ -280,6 +452,16 @@ function Gate({ label }: { label: string }) {
     <div className="flex items-center gap-2">
       <ShieldCheck className="h-3 w-3 text-success shrink-0" />
       <span>{label}</span>
+    </div>
+  );
+}
+
+function DiagStat({ label, value, sub }: { label: string; value: any; sub?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold tabular-nums mt-0.5">{value}</div>
+      {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
     </div>
   );
 }
