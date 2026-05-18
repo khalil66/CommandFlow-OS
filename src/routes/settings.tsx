@@ -80,6 +80,8 @@ function Settings() {
         sms_notify_safety_block: typeof s.sms_notify_safety_block === "boolean" ? s.sms_notify_safety_block : undefined,
         sms_notify_high_probability: typeof s.sms_notify_high_probability === "boolean" ? s.sms_notify_high_probability : undefined,
         sms_notify_followups: typeof s.sms_notify_followups === "boolean" ? s.sms_notify_followups : undefined,
+        safe_auto_submit_enabled: typeof s.safe_auto_submit_enabled === "boolean" ? s.safe_auto_submit_enabled : undefined,
+        safe_auto_submit_daily_cap: typeof s.safe_auto_submit_daily_cap === "number" ? s.safe_auto_submit_daily_cap : undefined,
       } }), { label: "Save settings" });
       toast.success("Settings saved");
     } catch {} finally { setSaving(false); }
@@ -125,6 +127,34 @@ function Settings() {
             One-click sweep: Smart Apply cycle, recompute source priority, backfill freshness, weekly learning report, refresh dashboard. Respects Auto Review cap (5/day), Manual Review fallback, no auto-submit, no browser automation.
           </p>
           <OptimizationSweepButton variant="default" />
+        </CardContent>
+      </Card>
+
+      <Card className="border-amber-500/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-amber-500" /> Safe Auto-Submit
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Toggle
+            label="Enable Safe Auto-Submit"
+            desc="OFF by default. Only auto-submits when Application Mode = Auto Review AND every safety gate passes: trust ≥95, interview ≥92, quality ≥92, salary gate passes, posted within 14 days, ATS in {Greenhouse, Lever, Ashby, Breezy}, no login/MFA/CAPTCHA/bot warning, no duplicate, no same-company within 30 days, packet generated successfully. Caps: 3/day, 2/ATS/day, 1/company/30d. Stops immediately on any protection signal — no retry, no bypass. Manual Review fallback always available."
+            checked={!!s.safe_auto_submit_enabled}
+            onChange={(v: boolean) => set("safe_auto_submit_enabled", v)}
+          />
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <Label>Safe Auto-Submit daily cap</Label>
+              <span className="font-mono tabular-nums">{s.safe_auto_submit_daily_cap ?? 3}</span>
+            </div>
+            <Slider
+              value={[s.safe_auto_submit_daily_cap ?? 3]}
+              onValueChange={([v]: number[]) => set("safe_auto_submit_daily_cap", v)}
+              min={0} max={10} step={1}
+            />
+            <p className="text-[11px] text-muted-foreground">Hard ceiling on auto-submitted applications per day. Start low (3).</p>
+          </div>
         </CardContent>
       </Card>
 

@@ -178,6 +178,18 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const cutoff = new Date(Date.now() - AUTO_GATES.freshDays * 86400000).toISOString();
     const cooldownCutoff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
 
+    // Safe Auto-Submit configuration (OFF by default)
+    const safeSubmitEnabled = !!s.safe_auto_submit_enabled;
+    const safeSubmitDailyCap = s.safe_auto_submit_daily_cap ?? 3;
+    const safeSubmitPerAtsCap = 2;
+    const safeAtsAllowed = new Set(["Greenhouse", "Lever", "Ashby", "Breezy"]);
+    const { count: autoSubmittedToday } = await (supabase as any)
+      .from("applications").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("status", "submitted_automatically")
+      .gte("auto_submitted_at", startOfDay.toISOString());
+    let safeSubmittedSoFar = autoSubmittedToday ?? 0;
+    const safeAtsCounts = new Map<string, number>();
+
     const { data: jobs } = await (supabase as any).from("job_listings")
       .select("*, companies(*)")
       .eq("user_id", userId)
@@ -387,6 +399,75 @@ export const runSmartApply = createServerFn({ method: "POST" })
           });
           approved++;
           atsCounts.set(ats, (atsCounts.get(ats) ?? 0) + 1);
+
+          // ===== Safe Auto-Submit evaluation =====
+          if (safeSubmitEnabled) {
+            const trustScore = j.companies?.trust_score ?? 0;
+            const interviewProb = j.interview_probability ?? 0;
+            const qualityScore = packet.quality?.score ?? 0;
+            const salaryOk = j.salary_gate_status === "pass";
+            const postedFresh = j.posted_at &&
+              (Date.now() - new Date(j.posted_at).getTime()) <= 14 * 86400000;
+            const atsOk = safeAtsAllowed.has(ats);
+            const detectionClean = !atsCheck?.has_captcha && !atsCheck?.has_mfa && !atsCheck?.requires_login;
+            const safeAtsCount = safeAtsCounts.get(ats) ?? 0;
+
+            const safeFailed: string[] = [];
+            if (trustScore < 95) safeFailed.push(`trust<95(${trustScore})`);
+            if (interviewProb < 92) safeFailed.push(`interview<92(${interviewProb})`);
+            if (qualityScore < 92) safeFailed.push(`quality<92(${qualityScore})`);
+            if (!salaryOk) safeFailed.push(`salary_gate_${j.salary_gate_status}`);
+            if (!postedFresh) safeFailed.push("not_fresh_14d");
+            if (!atsOk) safeFailed.push(`ats_unsupported(${ats})`);
+            if (!detectionClean) safeFailed.push("detection_signals");
+            if (duplicate) safeFailed.push("duplicate");
+            if (recentCompany) safeFailed.push("company_cooldown");
+            if (safeSubmittedSoFar >= safeSubmitDailyCap) safeFailed.push(`daily_cap(${safeSubmitDailyCap})`);
+            if (safeAtsCount >= safeSubmitPerAtsCap) safeFailed.push(`per_ats_cap(${safeSubmitPerAtsCap})`);
+
+            if (safeFailed.length === 0) {
+              // All Safe Auto-Submit gates passed — record as submitted_automatically
+              const submitTime = new Date().toISOString();
+              const followUpAt = new Date(Date.now() + 7 * 86400000).toISOString();
+              await (supabase as any).from("applications").update({
+                status: "submitted_automatically",
+                submitted_at: submitTime,
+                auto_submitted_at: submitTime,
+                auto_submit_result: "submitted",
+                application_url: j.source_url,
+                follow_up_due_at: followUpAt,
+                submission_notes: `Safe Auto-Submit · trust ${trustScore} · interview ${interviewProb} · quality ${qualityScore} · ${ats}`,
+              }).eq("user_id", userId).eq("job_id", j.id);
+              await log({
+                job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+                action: "auto_approved",
+                reason: `Safe Auto-Submit success · ${ats} · trust ${trustScore}`,
+                gates: {
+                  safe_auto_submit: "submitted",
+                  resume_variant: variantKey,
+                  application_url: j.source_url,
+                  submit_time: submitTime,
+                  trust: trustScore, interview: interviewProb, quality: qualityScore,
+                },
+              });
+              safeSubmittedSoFar++;
+              safeAtsCounts.set(ats, safeAtsCount + 1);
+
+              if (s.sms_enabled && (s.sms_notify_auto_mode ?? true)) {
+                await sendSmsInternal({
+                  supabase, userId,
+                  to: s.phone_number || process.env.USER_PHONE_NUMBER,
+                  body: `Safe Auto-Submit: ${j.title} @ ${j.company_name} (${ats}). Follow-up scheduled in 7d.`,
+                  kind: "auto_submit",
+                });
+              }
+            } else {
+              // Gates failed — leave as approved (Manual Review fallback for actual click)
+              await (supabase as any).from("applications").update({
+                auto_submit_result: `gates_failed:${safeFailed.slice(0,3).join(",")}`,
+              }).eq("user_id", userId).eq("job_id", j.id);
+            }
+          }
         }
       } else {
         let note: string;
@@ -460,6 +541,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
       auto_reviewed: approved,
       manual_review: prepared - approved,
       safety_blocked: blocked,
+      auto_submitted: safeSubmittedSoFar,
+      safe_auto_submit_enabled: safeSubmitEnabled,
+      safe_auto_submit_remaining: Math.max(0, safeSubmitDailyCap - safeSubmittedSoFar),
       rejected,
       duplicates_skipped: skipped,
       scored,

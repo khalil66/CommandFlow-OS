@@ -43,6 +43,9 @@ export type Database = {
           application_url: string | null
           approved_at: string | null
           archived_at: string | null
+          auto_submit_result: string | null
+          auto_submitted_at: string | null
+          confirmation_text: string | null
           cover_letter_id: string | null
           created_at: string
           final_interview_at: string | null
@@ -82,6 +85,9 @@ export type Database = {
           application_url?: string | null
           approved_at?: string | null
           archived_at?: string | null
+          auto_submit_result?: string | null
+          auto_submitted_at?: string | null
+          confirmation_text?: string | null
           cover_letter_id?: string | null
           created_at?: string
           final_interview_at?: string | null
@@ -121,6 +127,9 @@ export type Database = {
           application_url?: string | null
           approved_at?: string | null
           archived_at?: string | null
+          auto_submit_result?: string | null
+          auto_submitted_at?: string | null
+          confirmation_text?: string | null
           cover_letter_id?: string | null
           created_at?: string
           final_interview_at?: string | null
@@ -1229,6 +1238,8 @@ export type Database = {
           phone_number: string | null
           remote_only: boolean
           role_categories: string[]
+          safe_auto_submit_daily_cap: number
+          safe_auto_submit_enabled: boolean
           salary_min: number
           schedule_hour: number
           schedule_minute: number
@@ -1271,6 +1282,8 @@ export type Database = {
           phone_number?: string | null
           remote_only?: boolean
           role_categories?: string[]
+          safe_auto_submit_daily_cap?: number
+          safe_auto_submit_enabled?: boolean
           salary_min?: number
           schedule_hour?: number
           schedule_minute?: number
@@ -1313,6 +1326,8 @@ export type Database = {
           phone_number?: string | null
           remote_only?: boolean
           role_categories?: string[]
+          safe_auto_submit_daily_cap?: number
+          safe_auto_submit_enabled?: boolean
           salary_min?: number
           schedule_hour?: number
           schedule_minute?: number
@@ -1451,6 +1466,7 @@ export type Database = {
         | "final_interview"
         | "safety_blocked"
         | "skipped_cap"
+        | "submitted_automatically"
       automation_action:
         | "scrape"
         | "score"
@@ -1620,6 +1636,7 @@ export const Constants = {
         "final_interview",
         "safety_blocked",
         "skipped_cap",
+        "submitted_automatically",
       ],
       automation_action: [
         "scrape",
