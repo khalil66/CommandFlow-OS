@@ -5,12 +5,15 @@ import { DollarSign, Sparkles, AlertCircle, ShieldCheck, ShieldX } from "lucide-
 type Job = {
   salary_min?: number | null;
   salary_max?: number | null;
+  salary_posted_min?: number | null;
+  salary_posted_max?: number | null;
   salary_source?: string | null;
   salary_confidence?: string | null;
   salary_estimated_min?: number | null;
   salary_estimated_max?: number | null;
   salary_gate_status?: string | null;
   salary_gate_reason?: string | null;
+  salary_evidence?: string[] | null;
 };
 
 const STATUS_STYLE: Record<string, string> = {
