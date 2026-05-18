@@ -471,11 +471,14 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [srcRes, logsRes, jobsRes] = await Promise.all([
+    const [srcRes, logsRes, jobsRes, salaryRes] = await Promise.all([
       supabase.from("job_sources").select("*").eq("user_id", userId),
       supabase.from("import_logs").select("*").eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(20),
       supabase.from("job_listings").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      supabase.from("job_listings")
+        .select("salary_source, salary_confidence, salary_gate_status")
+        .eq("user_id", userId).limit(1000),
     ]);
     const sources = srcRes.data ?? [];
     const active = sources.filter((s: any) => s.status === "active");
