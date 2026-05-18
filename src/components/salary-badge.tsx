@@ -65,10 +65,24 @@ export function SalaryBadge({ job }: { job: Job }) {
           <Badge variant="outline" className={`text-[10px] ${CONF_STYLE[conf]}`}>{conf} confidence</Badge>
         </div>
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs">
-        <div className="text-xs space-y-1">
+      <TooltipContent className="max-w-sm">
+        <div className="text-xs space-y-1.5">
           <div><span className="text-muted-foreground">Source:</span> {source.replace(/_/g, " ")}</div>
+          <div><span className="text-muted-foreground">Gate:</span> {status}</div>
           {job.salary_gate_reason && <div className="text-muted-foreground">{job.salary_gate_reason}</div>}
+          {job.salary_evidence && job.salary_evidence.length > 0 && (
+            <div>
+              <div className="text-muted-foreground">Evidence:</div>
+              <ul className="list-disc list-inside text-[10px] mt-0.5">
+                {job.salary_evidence.slice(0, 6).map((e, i) => (
+                  <li key={i}>{e.replace(/_/g, " ")}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {source !== "posted_salary" && (
+            <div className="text-[10px] italic text-warning-foreground">Estimated — not a posted figure.</div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>
