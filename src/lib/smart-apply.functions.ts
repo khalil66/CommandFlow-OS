@@ -235,6 +235,13 @@ export const runSmartApply = createServerFn({ method: "POST" })
 
       const ats = j.ats ?? "";
       if ((atsCounts.get(ats) ?? 0) >= perAtsCap) {
+        // Preserve the job by parking the application in `skipped_cap` so it
+        // remains visible in the Skipped / Capped tab and can be reviewed.
+        await ensureApp(j, "manual_review");
+        await (supabase as any).from("applications").update({
+          status: "skipped_cap", priority: "manual",
+          notes: `Per-ATS cap reached (${perAtsCap}/day for ${ats}) — Review Anyway to re-queue`,
+        }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "skipped", reason: `Per-ATS cap reached (${perAtsCap}/day for ${ats})`, gates: {},
