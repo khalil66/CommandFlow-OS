@@ -66,11 +66,16 @@ function SmartApplyPage() {
   const seedFn = useServerFn(seedDefaultJobSources);
   const testFn = useServerFn(testSourceFetch);
   const diagFn = useServerFn(getSmartApplyDiagnostics);
+  const deepFn = useServerFn(deepDebugSource);
+  const mockFn = useServerFn(insertMockTestJob);
 
   const [m, setM] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [diag, setDiag] = useState<any>(null);
   const [testResults, setTestResults] = useState<any[] | null>(null);
+  const [deepResult, setDeepResult] = useState<any>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>("");
+  const [bypassFilters, setBypassFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
