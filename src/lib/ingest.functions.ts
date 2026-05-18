@@ -516,6 +516,17 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
       .sort((a, b) => b[1] - a[1]).slice(0, 3)
       .map(([reason, count]) => ({ reason, count }));
 
+    // Salary enrichment breakdown
+    const salaryRows = salaryRes.data ?? [];
+    const salaryBreakdown = {
+      total: salaryRows.length,
+      posted_pass: salaryRows.filter((r: any) => r.salary_source === "posted_salary" && r.salary_gate_status === "pass").length,
+      estimated_pass: salaryRows.filter((r: any) => r.salary_source !== "posted_salary" && r.salary_source !== "missing" && r.salary_gate_status === "pass").length,
+      manual_low_confidence: salaryRows.filter((r: any) => r.salary_gate_status === "manual").length,
+      rejected_below_floor: salaryRows.filter((r: any) => r.salary_gate_status === "reject").length,
+      missing: salaryRows.filter((r: any) => r.salary_source === "missing").length,
+    };
+
     return {
       enabled_sources: active.length,
       total_sources: sources.length,
@@ -524,5 +535,6 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
       last_run_at: lastRunTs ?? null,
       last_run: totals,
       top_rejection: topRejection,
+      salary: salaryBreakdown,
     };
   });
