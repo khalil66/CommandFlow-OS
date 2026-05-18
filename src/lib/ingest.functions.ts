@@ -467,6 +467,281 @@ export const testSourceFetch = createServerFn({ method: "POST" })
     return { ok: true, results };
   });
 
+// ---------- DEEP DEBUG ---------- //
+
+/**
+ * Runs ONE source end-to-end with a full per-step trace.
+ * If `bypass_filters` is true: skips salary/freshness/category/remote/blocker gates
+ * and imports up to 5 raw jobs to verify DB writes work.
+ */
+export const deepDebugSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      source_id: z.string().uuid().optional(),
+      bypass_filters: z.boolean().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const runtime = {
+      location: "server_function",
+      project_url: process.env.SUPABASE_URL ?? null,
+      project_ref: (process.env.SUPABASE_URL ?? "").match(/https:\/\/([^.]+)/)?.[1] ?? null,
+      node_env: typeof process !== "undefined" ? "server" : "browser",
+    };
+
+    // Pick source
+    let q = supabase.from("job_sources").select("*").eq("user_id", userId).eq("status", "active");
+    if (data.source_id) q = q.eq("id", data.source_id);
+    const { data: sources, error: srcErr } = await q.limit(1);
+    if (srcErr) return { ok: false, runtime, error: `source query failed: ${srcErr.message}` };
+    const src = sources?.[0];
+    if (!src) return { ok: false, runtime, error: "No active source found. Seed default sources first." };
+
+    const trace: any = {
+      source: { id: src.id, name: src.name, careers_url: src.careers_url, ats: src.ats },
+      bypass_filters: !!data.bypass_filters,
+      steps: [] as any[],
+    };
+
+    // Step 1: detect ATS
+    const det = detectAts(src.careers_url);
+    trace.steps.push({
+      step: "detect_ats",
+      ok: det.supported,
+      platform: det.platform,
+      slug: det.slug,
+      reason: det.reason ?? null,
+    });
+    if (!det.supported || !det.slug) {
+      return { ok: false, runtime, trace, error: det.reason ?? "Unsupported ATS" };
+    }
+
+    // Step 2: raw HTTP fetch — capture URL, status, byte size
+    const urlByPlatform: Record<SupportedAts, string> = {
+      Greenhouse: `https://boards-api.greenhouse.io/v1/boards/${det.slug}/jobs?content=true`,
+      Lever:      `https://api.lever.co/v0/postings/${det.slug}?mode=json`,
+      Ashby:      `https://api.ashbyhq.com/posting-api/job-board/${det.slug}?includeCompensation=true`,
+      Breezy:     `https://${det.slug}.breezy.hr/json`,
+    };
+    const requestUrl = urlByPlatform[det.platform as SupportedAts];
+    let httpStatus: number | null = null;
+    let bodyText = "";
+    let fetchOk = false;
+    let fetchError: string | null = null;
+    try {
+      const r = await fetch(requestUrl);
+      httpStatus = r.status;
+      bodyText = await r.text();
+      fetchOk = r.ok;
+      if (!r.ok) fetchError = `HTTP ${r.status}`;
+    } catch (e: any) {
+      fetchError = e?.message || String(e);
+    }
+    trace.steps.push({
+      step: "http_fetch",
+      ok: fetchOk,
+      request_url: requestUrl,
+      http_status: httpStatus,
+      bytes: bodyText.length,
+      error: fetchError,
+      failure_reason: !fetchOk
+        ? (fetchError?.includes("CORS") ? "CORS blocked"
+          : httpStatus === 404 ? "empty response / 404"
+          : httpStatus === 0 ? "fetch failed (network)"
+          : "fetch failed")
+        : null,
+    });
+    if (!fetchOk) return { ok: false, runtime, trace, error: fetchError ?? "fetch failed" };
+
+    // Step 3: parse
+    let jobs: NormJob[] = [];
+    let parseError: string | null = null;
+    try {
+      jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
+    } catch (e: any) {
+      parseError = e?.message || String(e);
+    }
+    trace.steps.push({
+      step: "parse",
+      ok: parseError == null,
+      jobs_returned: jobs.length,
+      error: parseError,
+      failure_reason: parseError ? "parser failed / schema mismatch" : (jobs.length === 0 ? "empty response" : null),
+    });
+    if (parseError) return { ok: false, runtime, trace, error: parseError };
+
+    // Step 3.5: raw preview — first 3 jobs as fetched, BEFORE filters
+    trace.raw_preview = jobs.slice(0, 3).map((j) => ({
+      external_id: j.external_id,
+      title: j.title,
+      location: j.location,
+      url: j.url,
+      posted_at: j.posted_at,
+      salary_min: j.salary_min,
+      salary_max: j.salary_max,
+      description_excerpt: (j.description_text || "").slice(0, 240),
+    }));
+
+    if (jobs.length === 0) {
+      return { ok: false, runtime, trace, error: "empty response — 0 jobs returned" };
+    }
+
+    // Step 4: import
+    const toProcess = data.bypass_filters ? jobs.slice(0, 5) : jobs;
+    const filterCounts = { not_remote: 0, blockers: 0, scam: 0, salary_reject: 0 };
+    const importCounts = { attempted: 0, inserted: 0, duplicate: 0, db_failed: 0, filtered: 0 };
+    const insertErrors: string[] = [];
+
+    // Ensure company exists
+    let companyId: string | null = null;
+    const { data: existingCo } = await supabase.from("companies")
+      .select("id").eq("user_id", userId).eq("name", src.name).maybeSingle();
+    if (existingCo) companyId = existingCo.id;
+    else {
+      const { data: co } = await supabase.from("companies").insert({
+        user_id: userId, name: src.name, careers_url: src.careers_url,
+        trust_score: 90, verification_status: "verified", red_flags: [], has_linkedin: false, hiring_activity: 60,
+      }).select("id").single();
+      companyId = co?.id ?? null;
+    }
+
+    for (const j of toProcess) {
+      if (!data.bypass_filters) {
+        const blockers = hasAccessBlockers(j.description_text);
+        if (blockers.length) { filterCounts.blockers++; importCounts.filtered++; continue; }
+        const scam = detectScamFlags(j.description_text);
+        if (scam.length) { filterCounts.scam++; importCounts.filtered++; continue; }
+        const remote = isRemote(j.description_text, j.location);
+        if (!remote) { filterCounts.not_remote++; importCounts.filtered++; continue; }
+      }
+      importCounts.attempted++;
+      const dedupe = dedupeHash(src.name, j.title, j.location, j.url);
+      const { data: dup } = await supabase.from("job_listings")
+        .select("id").eq("user_id", userId).eq("dedupe_hash", dedupe).maybeSingle();
+      if (dup) { importCounts.duplicate++; continue; }
+
+      const { error: insErr } = await supabase.from("job_listings").insert({
+        user_id: userId,
+        company_id: companyId,
+        company_name: src.name,
+        title: j.title,
+        location: j.location,
+        remote: true,
+        salary_min: j.salary_min,
+        salary_max: j.salary_max,
+        salary_estimated: j.salary_estimated,
+        salary_source: j.salary_min != null ? "posted_salary" : "missing",
+        salary_confidence: j.salary_min != null ? "high" : "unknown",
+        salary_gate_status: data.bypass_filters ? "manual" : (j.salary_min != null && j.salary_min >= 55000 ? "pass" : "manual"),
+        salary_gate_reason: data.bypass_filters ? "bypass_filters debug import" : null,
+        ats: det.platform,
+        source_url: j.url,
+        description: j.description_text,
+        role_category: inferRoleCategory(j.title),
+        category: "saas" as any,
+        dedupe_hash: dedupe,
+        posted_at: j.posted_at,
+        interview_probability: 50,
+        resume_match: 70,
+        legitimacy: 90,
+        final_score: 50,
+        ready_to_apply: false,
+        status: "manual_review",
+        blockers: data.bypass_filters ? ["bypass_filters_debug"] : [],
+      } as any);
+
+      if (insErr) {
+        if (insErr.code === "23505") { importCounts.duplicate++; continue; }
+        importCounts.db_failed++;
+        insertErrors.push(insErr.message);
+      } else {
+        importCounts.inserted++;
+      }
+    }
+
+    trace.steps.push({
+      step: "import",
+      ok: importCounts.db_failed === 0,
+      processed: toProcess.length,
+      filtered: importCounts.filtered,
+      filter_breakdown: filterCounts,
+      attempted: importCounts.attempted,
+      inserted: importCounts.inserted,
+      duplicate: importCounts.duplicate,
+      db_failed: importCounts.db_failed,
+      insert_errors: insertErrors.slice(0, 5),
+      failure_reason:
+        importCounts.inserted === 0 && toProcess.length > 0
+          ? (importCounts.filtered === toProcess.length ? "all jobs filtered before insert"
+            : importCounts.db_failed > 0 ? "database insert failed"
+            : importCounts.duplicate === toProcess.length ? "all duplicates"
+            : null)
+          : null,
+    });
+
+    // Step 5: DB write verification — count rows for this source now
+    const { count: dbCount } = await supabase.from("job_listings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("company_name", src.name);
+
+    trace.steps.push({
+      step: "db_verify",
+      total_rows_for_source: dbCount ?? 0,
+      ok: (dbCount ?? 0) > 0,
+    });
+
+    return { ok: true, runtime, trace };
+  });
+
+/**
+ * Inserts ONE hardcoded mock verified job directly into job_listings.
+ * If this row appears in diagnostics, the DB layer + RLS are healthy and any
+ * "0 imports" issue is at the fetch / parse / filter layer.
+ */
+export const insertMockTestJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const stamp = Date.now();
+    const row = {
+      user_id: userId,
+      company_name: "Mock Co (debug)",
+      title: `Debug Verified Job ${stamp}`,
+      location: "Remote",
+      remote: true,
+      salary_min: 95000,
+      salary_max: 130000,
+      salary_posted_min: 95000,
+      salary_posted_max: 130000,
+      salary_estimated: false,
+      salary_source: "posted_salary",
+      salary_confidence: "high",
+      salary_gate_status: "pass",
+      salary_gate_reason: "Mock test job ($95k–$130k)",
+      salary_evidence: ["mock_debug_insert"],
+      ats: "Greenhouse",
+      source_url: `https://example.com/debug/${stamp}`,
+      description: "Mock job inserted from deep-debug panel to verify DB write path.",
+      role_category: "Operations Analyst",
+      category: "saas" as any,
+      dedupe_hash: `mock-debug-${stamp}`,
+      posted_at: new Date().toISOString(),
+      interview_probability: 80,
+      resume_match: 85,
+      legitimacy: 95,
+      final_score: 82,
+      ready_to_apply: true,
+      status: "new",
+      blockers: [],
+    };
+    const { data, error } = await supabase.from("job_listings").insert(row as any).select("id").single();
+    if (error) return { ok: false, error: error.message, code: error.code, project_ref: (process.env.SUPABASE_URL ?? "").match(/https:\/\/([^.]+)/)?.[1] ?? null };
+    return { ok: true, id: data.id, project_ref: (process.env.SUPABASE_URL ?? "").match(/https:\/\/([^.]+)/)?.[1] ?? null };
+  });
+
+
 export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -530,7 +805,7 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
     return {
       enabled_sources: active.length,
       total_sources: sources.length,
-      source_names: active.map((s: any) => ({ name: s.name, ats: s.ats, status: s.status })),
+      source_names: active.map((s: any) => ({ id: s.id, name: s.name, ats: s.ats, status: s.status })),
       total_jobs_in_db: jobsRes.count ?? 0,
       last_run_at: lastRunTs ?? null,
       last_run: totals,

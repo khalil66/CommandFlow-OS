@@ -18,6 +18,7 @@ import {
 } from "@/lib/smart-apply.functions";
 import {
   importJobsNow, seedDefaultJobSources, testSourceFetch, getSmartApplyDiagnostics,
+  deepDebugSource, insertMockTestJob,
 } from "@/lib/ingest.functions";
 import { updateSettings } from "@/lib/settings.functions";
 
@@ -65,11 +66,16 @@ function SmartApplyPage() {
   const seedFn = useServerFn(seedDefaultJobSources);
   const testFn = useServerFn(testSourceFetch);
   const diagFn = useServerFn(getSmartApplyDiagnostics);
+  const deepFn = useServerFn(deepDebugSource);
+  const mockFn = useServerFn(insertMockTestJob);
 
   const [m, setM] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [diag, setDiag] = useState<any>(null);
   const [testResults, setTestResults] = useState<any[] | null>(null);
+  const [deepResult, setDeepResult] = useState<any>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>("");
+  const [bypassFilters, setBypassFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -140,6 +146,35 @@ function SmartApplyPage() {
       const t = r.totals;
       if (r.runs.length === 0) toast.warning("No active sources — click 'Seed Default Sources' first");
       else toast.success(`Ingestion: ${t.imported} imported · ${t.manual_review} manual · ${t.duplicate} dupes · ${t.rejected} rejected · ${t.skipped} skipped (found ${t.found})`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleDeepDebug = async () => {
+    setBusy("deep");
+    setDeepResult(null);
+    try {
+      const r: any = await deepFn({
+        data: {
+          source_id: selectedSourceId || undefined,
+          bypass_filters: bypassFilters,
+        },
+      });
+      setDeepResult(r);
+      if (r.ok) toast.success(`Traced ${r.trace?.source?.name}: ${r.trace?.steps?.length ?? 0} steps`);
+      else toast.error(`Trace failed: ${r.error}`);
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
+
+  const handleMockInsert = async () => {
+    setBusy("mock");
+    try {
+      const r: any = await mockFn();
+      if (r.ok) toast.success(`✓ DB write works. Inserted mock job (project: ${r.project_ref})`);
+      else toast.error(`DB write failed: ${r.error}${r.code ? ` [${r.code}]` : ""} (project: ${r.project_ref})`);
       await refresh();
     } catch (e: any) { toast.error(e.message); }
     finally { setBusy(null); }
@@ -238,7 +273,144 @@ function SmartApplyPage() {
               {busy === "import" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
               Run Ingestion Only
             </Button>
+            <Button size="sm" variant="outline" onClick={handleMockInsert} disabled={busy !== null}>
+              {busy === "mock" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Database className="h-3.5 w-3.5 mr-1.5" />}
+              Insert Mock Test Job
+            </Button>
           </div>
+
+          {/* Single-source deep trace */}
+          <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="text-xs font-medium flex items-center gap-1.5">
+                <FlaskConical className="h-3.5 w-3.5" /> Deep Debug — Single Source Trace
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedSourceId}
+                  onChange={(e) => setSelectedSourceId(e.target.value)}
+                  className="text-xs border border-border rounded px-2 py-1 bg-background"
+                >
+                  <option value="">First active source</option>
+                  {diag?.source_names?.map((s: any, i: number) => (
+                    <option key={i} value={s.id ?? ""}>{s.name} ({s.ats})</option>
+                  ))}
+                </select>
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Switch checked={bypassFilters} onCheckedChange={setBypassFilters} />
+                  Bypass filters
+                </Label>
+                <Button size="sm" onClick={handleDeepDebug} disabled={busy !== null}>
+                  {busy === "deep" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5 mr-1.5" />}
+                  Run trace
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Runs ONE source end-to-end and shows the request URL, HTTP status, jobs returned, parse status, raw preview, filter breakdown, and exact DB insert results. Bypass mode skips salary/remote/blocker gates and imports the first 5 raw jobs to confirm DB writes.
+            </p>
+          </div>
+
+          {/* Red banner — system-level failure */}
+          {(() => {
+            const lr = diag?.last_run;
+            if (!lr) return null;
+            const allFailedFetch = (diag?.enabled_sources ?? 0) > 0 && lr.found === 0 && (lr.errors?.length ?? 0) > 0;
+            const allFiltered = lr.found > 0 && lr.imported === 0 && lr.manual_review === 0;
+            const allImportFailed = lr.found > 0 && lr.imported === 0 && lr.manual_review === 0 && (lr.errors?.length ?? 0) > 0;
+            if (!allFailedFetch && !allFiltered && !allImportFailed) return null;
+            return (
+              <div className="rounded-md border-2 border-destructive bg-destructive/10 p-3 flex items-start gap-2 text-sm">
+                <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
+                <div>
+                  <div className="font-semibold text-destructive">
+                    {allFailedFetch && "All source fetches returned empty / failed"}
+                    {allFiltered && !allFailedFetch && "All fetched jobs were filtered before insert"}
+                    {allImportFailed && !allFailedFetch && !allFiltered && "All imports failed"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Found: {lr.found} · Imported: {lr.imported} · Manual: {lr.manual_review} · Rejected: {lr.rejected} · Skipped: {lr.skipped}.
+                    Use <span className="font-medium">Deep Debug</span> on a single source for a full trace, or <span className="font-medium">Insert Mock Test Job</span> to isolate the DB layer.
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Deep debug result */}
+          {deepResult && (
+            <div className="rounded-md border border-border p-3 space-y-3 text-xs bg-background">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="font-medium flex items-center gap-2">
+                  {deepResult.ok
+                    ? <ShieldCheck className="h-4 w-4 text-success" />
+                    : <ShieldAlert className="h-4 w-4 text-destructive" />}
+                  Trace · {deepResult.trace?.source?.name ?? "(no source)"}
+                  {deepResult.trace?.bypass_filters && <Badge variant="outline" className="text-[10px]">bypass mode</Badge>}
+                </div>
+                <div className="text-[10px] text-muted-foreground font-mono">
+                  runtime: {deepResult.runtime?.location} · project: {deepResult.runtime?.project_ref ?? "?"}
+                </div>
+              </div>
+
+              {deepResult.error && (
+                <div className="text-destructive">✗ {deepResult.error}</div>
+              )}
+
+              <ol className="space-y-2">
+                {deepResult.trace?.steps?.map((s: any, i: number) => (
+                  <li key={i} className="rounded border border-border p-2">
+                    <div className="flex items-center gap-2">
+                      <span className={s.ok === false ? "text-destructive" : "text-success"}>
+                        {s.ok === false ? "✗" : "✓"}
+                      </span>
+                      <span className="font-medium">{s.step}</span>
+                      {s.http_status != null && <Badge variant="outline" className="text-[10px]">HTTP {s.http_status}</Badge>}
+                      {s.platform && <Badge variant="outline" className="text-[10px]">{s.platform}</Badge>}
+                    </div>
+                    {s.request_url && <div className="font-mono text-[10px] text-muted-foreground mt-1 break-all">{s.request_url}</div>}
+                    {s.jobs_returned != null && <div className="text-muted-foreground mt-1">jobs returned: <span className="font-mono text-foreground">{s.jobs_returned}</span> · bytes: {s.bytes ?? "—"}</div>}
+                    {s.filter_breakdown && (
+                      <div className="text-muted-foreground mt-1">
+                        filtered: <span className="font-mono">{s.filtered}</span> ({Object.entries(s.filter_breakdown).filter(([, v]: any) => v > 0).map(([k, v]) => `${k}:${v}`).join(", ") || "none"})
+                      </div>
+                    )}
+                    {s.inserted != null && (
+                      <div className="text-muted-foreground mt-1">
+                        attempted: <span className="font-mono">{s.attempted}</span> · inserted: <span className="font-mono text-success">{s.inserted}</span> · dup: <span className="font-mono">{s.duplicate}</span> · db_failed: <span className="font-mono text-destructive">{s.db_failed}</span>
+                      </div>
+                    )}
+                    {s.total_rows_for_source != null && (
+                      <div className="text-muted-foreground mt-1">DB rows for this source: <span className="font-mono text-foreground">{s.total_rows_for_source}</span></div>
+                    )}
+                    {s.failure_reason && <div className="text-destructive mt-1">reason: {s.failure_reason}</div>}
+                    {s.error && <div className="text-destructive mt-1 font-mono text-[10px]">{s.error}</div>}
+                    {s.insert_errors?.length > 0 && (
+                      <ul className="text-destructive mt-1 font-mono text-[10px] list-disc list-inside">
+                        {s.insert_errors.map((e: string, j: number) => <li key={j}>{e}</li>)}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ol>
+
+              {deepResult.trace?.raw_preview?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Raw preview (first 3 jobs, BEFORE filters)</div>
+                  <div className="space-y-1.5">
+                    {deepResult.trace.raw_preview.map((j: any, i: number) => (
+                      <div key={i} className="rounded border border-border p-2">
+                        <div className="font-medium">{j.title}</div>
+                        <div className="text-muted-foreground">{j.location ?? "—"} · posted {j.posted_at ?? "?"} · salary {j.salary_min ?? "?"}–{j.salary_max ?? "?"}</div>
+                        <div className="text-muted-foreground italic mt-1">{j.description_excerpt}…</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
 
           {diag && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
