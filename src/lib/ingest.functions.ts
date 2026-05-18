@@ -376,8 +376,14 @@ export const importJobsNow = createServerFn({ method: "POST" })
 
             if (insErr) {
               if (insErr.code === "23505") { counts.duplicate++; bumpReject("duplicate"); continue; }
-              counts.skipped++; bumpSkip("insert_error");
-              reasons.push(`err:${j.title} ${insErr.message}`); continue;
+              counts.skipped++; bumpSkip(`insert_error:${insErr.code ?? "unknown"}`);
+              reasons.push(
+                `insert_error code=${insErr.code ?? "?"} ` +
+                `title="${j.title}" company="${src.name}" ` +
+                `msg="${(insErr.message ?? "").slice(0, 240)}" ` +
+                `details="${((insErr as any).details ?? "").toString().slice(0, 160)}"`
+              );
+              continue;
             }
             if (toManualReview) {
               counts.manual_review++;

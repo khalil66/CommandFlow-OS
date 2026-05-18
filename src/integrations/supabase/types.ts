@@ -1449,6 +1449,8 @@ export type Database = {
         | "recruiter_screen"
         | "technical_interview"
         | "final_interview"
+        | "safety_blocked"
+        | "skipped_cap"
       automation_action:
         | "scrape"
         | "score"
@@ -1616,6 +1618,8 @@ export const Constants = {
         "recruiter_screen",
         "technical_interview",
         "final_interview",
+        "safety_blocked",
+        "skipped_cap",
       ],
       automation_action: [
         "scrape",
