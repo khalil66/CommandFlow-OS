@@ -455,3 +455,13 @@ function Gate({ label }: { label: string }) {
     </div>
   );
 }
+
+function DiagStat({ label, value, sub }: { label: string; value: any; sub?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold tabular-nums mt-0.5">{value}</div>
+      {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
