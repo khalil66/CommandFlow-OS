@@ -788,10 +788,13 @@ export type Database = {
           salary_estimated: boolean | null
           salary_estimated_max: number | null
           salary_estimated_min: number | null
+          salary_evidence: string[]
           salary_gate_reason: string | null
           salary_gate_status: string
           salary_max: number | null
           salary_min: number | null
+          salary_posted_max: number | null
+          salary_posted_min: number | null
           salary_source: string
           source_url: string | null
           status: string | null
@@ -823,10 +826,13 @@ export type Database = {
           salary_estimated?: boolean | null
           salary_estimated_max?: number | null
           salary_estimated_min?: number | null
+          salary_evidence?: string[]
           salary_gate_reason?: string | null
           salary_gate_status?: string
           salary_max?: number | null
           salary_min?: number | null
+          salary_posted_max?: number | null
+          salary_posted_min?: number | null
           salary_source?: string
           source_url?: string | null
           status?: string | null
@@ -858,10 +864,13 @@ export type Database = {
           salary_estimated?: boolean | null
           salary_estimated_max?: number | null
           salary_estimated_min?: number | null
+          salary_evidence?: string[]
           salary_gate_reason?: string | null
           salary_gate_status?: string
           salary_max?: number | null
           salary_min?: number | null
+          salary_posted_max?: number | null
+          salary_posted_min?: number | null
           salary_source?: string
           source_url?: string | null
           status?: string | null
