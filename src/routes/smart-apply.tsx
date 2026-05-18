@@ -295,6 +295,34 @@ function SmartApplyPage() {
             </div>
           )}
 
+          {diag?.salary && diag.salary.total > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Salary enrichment ({diag.salary.total} jobs)</div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <div className="rounded border border-border p-2">
+                  <div className="text-[10px] text-muted-foreground">Posted ≥ floor</div>
+                  <div className="font-mono text-success">{diag.salary.posted_pass}</div>
+                </div>
+                <div className="rounded border border-border p-2">
+                  <div className="text-[10px] text-muted-foreground">Estimated ≥ floor</div>
+                  <div className="font-mono text-info">{diag.salary.estimated_pass}</div>
+                </div>
+                <div className="rounded border border-border p-2">
+                  <div className="text-[10px] text-muted-foreground">Manual (low conf.)</div>
+                  <div className="font-mono text-warning-foreground">{diag.salary.manual_low_confidence}</div>
+                </div>
+                <div className="rounded border border-border p-2">
+                  <div className="text-[10px] text-muted-foreground">Rejected &lt; floor</div>
+                  <div className="font-mono text-destructive">{diag.salary.rejected_below_floor}</div>
+                </div>
+                <div className="rounded border border-border p-2">
+                  <div className="text-[10px] text-muted-foreground">Missing</div>
+                  <div className="font-mono text-muted-foreground">{diag.salary.missing}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {testResults && testResults.length > 0 && (
             <div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Test fetch results</div>
