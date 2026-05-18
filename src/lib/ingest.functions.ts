@@ -271,6 +271,8 @@ export const importJobsNow = createServerFn({ method: "POST" })
               description: j.description_text,
               remote: true,
               companyCategory: null,
+              companyName: src.name,
+              location: j.location,
               postedMin: j.salary_min,
               postedMax: j.salary_max,
             });
