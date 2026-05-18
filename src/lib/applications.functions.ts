@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const STATUSES = ["queued","manual_review","imported","reviewed","approved","submitted","submitted_manually","submitted_manual","follow_up_due","recruiter_screen","interview_requested","interview","technical_interview","final_interview","rejected","ghosted","offer","withdrawn","archived"] as const;
+const STATUSES = ["queued","manual_review","imported","reviewed","approved","submitted","submitted_manually","submitted_manual","follow_up_due","recruiter_screen","interview_requested","interview","technical_interview","final_interview","rejected","ghosted","offer","withdrawn","archived","safety_blocked","skipped_cap"] as const;
 const ACTIONS = ["save","tailor","approve","reject","submit","export","status_change","note"] as const;
 
 async function logActivity(
@@ -66,25 +66,95 @@ export const decideApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
     application_id: z.string().uuid(),
-    decision: z.enum(["approve","reject"]),
+    decision: z.enum(["approve","reject","review_anyway"]),
     note: z.string().max(1000).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // Manual Review only — approving moves to "approved" (NOT auto-submitted)
-    const status = data.decision === "approve" ? "approved" : "rejected";
+
+    // Fetch current app + job
+    const { data: current, error: fetchErr } = await supabase
+      .from("applications")
+      .select("id, job_id, status, notes")
+      .eq("id", data.application_id)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!current) throw new Error("Application not found");
+
+    // review_anyway pulls a capped/blocked item back into Manual Review
+    if (data.decision === "review_anyway") {
+      const { data: row, error } = await supabase
+        .from("applications")
+        .update({ status: "manual_review", notes: data.note ?? "Re-queued for manual review" })
+        .eq("id", data.application_id)
+        .select("*, job_listings(title, company_name)")
+        .single();
+      if (error) throw new Error(error.message);
+      await logActivity(supabase, userId, "status_change", {
+        application_id: row.id, job_id: row.job_id,
+        details: { decision: "review_anyway" },
+      });
+      return { application: row, packet_generated: false };
+    }
+
+    if (data.decision === "reject") {
+      const { data: row, error } = await supabase
+        .from("applications")
+        .update({ status: "rejected", notes: data.note ?? null, rejected_at: new Date().toISOString() })
+        .eq("id", data.application_id)
+        .select("*, job_listings(title, company_name)")
+        .single();
+      if (error) throw new Error(error.message);
+      await logActivity(supabase, userId, "reject", {
+        application_id: row.id, job_id: row.job_id, details: { note: data.note ?? null },
+      });
+      return { application: row, packet_generated: false };
+    }
+
+    // approve: attempt to generate packet. If it fails, keep in manual_review
+    // and surface the exact error so the row stays visible.
+    let packetError: string | null = null;
+    try {
+      const { generatePacket } = await import("./packet.functions");
+      await generatePacket({ data: { job_id: current.job_id } });
+    } catch (e: any) {
+      packetError = e?.message ?? String(e);
+    }
+
+    if (packetError) {
+      const { data: row, error } = await supabase
+        .from("applications")
+        .update({
+          status: "manual_review",
+          notes: `Approve blocked: packet generation failed — ${packetError.slice(0, 400)}`,
+        })
+        .eq("id", data.application_id)
+        .select("*, job_listings(title, company_name)")
+        .single();
+      if (error) throw new Error(error.message);
+      await logActivity(supabase, userId, "approve", {
+        application_id: row.id, job_id: row.job_id, status: "error",
+        details: { packet_error: packetError },
+      });
+      return { application: row, packet_generated: false, packet_error: packetError };
+    }
+
     const { data: row, error } = await supabase
       .from("applications")
-      .update({ status, notes: data.note ?? null })
+      .update({
+        status: "approved",
+        notes: data.note ?? "Approved · packet ready · manual submission required",
+        approved_at: new Date().toISOString(),
+      })
       .eq("id", data.application_id)
       .select("*, job_listings(title, company_name)")
       .single();
     if (error) throw new Error(error.message);
-    await logActivity(supabase, userId, data.decision, {
+    await logActivity(supabase, userId, "approve", {
       application_id: row.id, job_id: row.job_id, status: "success",
-      details: { note: data.note ?? null, manual_review_only: true },
+      details: { note: data.note ?? null, manual_review_only: true, packet_generated: true },
     });
-    return { application: row };
+    return { application: row, packet_generated: true };
   });
 
 export const updateApplicationStatus = createServerFn({ method: "POST" })
