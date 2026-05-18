@@ -68,6 +68,8 @@ export const updateSettings = createServerFn({ method: "POST" })
     sms_notify_safety_block: z.boolean().optional(),
     sms_notify_high_probability: z.boolean().optional(),
     sms_notify_followups: z.boolean().optional(),
+    safe_auto_submit_enabled: z.boolean().optional(),
+    safe_auto_submit_daily_cap: z.number().int().min(0).max(10).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
