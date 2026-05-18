@@ -217,6 +217,109 @@ function SmartApplyPage() {
         </div>
       </div>
 
+      {/* Diagnostics + Recovery tools */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FlaskConical className="h-4 w-4" /> Ingestion Diagnostics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={handleSeed} disabled={busy !== null}>
+              {busy === "seed" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Database className="h-3.5 w-3.5 mr-1.5" />}
+              Seed Default Sources
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleTest} disabled={busy !== null}>
+              {busy === "test" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5 mr-1.5" />}
+              Test Source Fetch
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleImportOnly} disabled={busy !== null}>
+              {busy === "import" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
+              Run Ingestion Only
+            </Button>
+          </div>
+
+          {diag && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <DiagStat label="Enabled sources" value={diag.enabled_sources} sub={`${diag.total_sources} total`} />
+              <DiagStat label="Jobs in DB" value={diag.total_jobs_in_db} />
+              <DiagStat label="Last run found" value={diag.last_run?.found ?? 0} sub={`${diag.last_run?.imported ?? 0} imported`} />
+              <DiagStat label="Last run rejected" value={diag.last_run?.rejected ?? 0} sub={`${diag.last_run?.skipped ?? 0} skipped`} />
+            </div>
+          )}
+
+          {diag?.enabled_sources === 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 flex items-start gap-2 text-sm">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+              <div>
+                <div className="font-medium text-destructive">No enabled job sources</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Smart Apply will return 0 for every metric until at least one active source exists.
+                  Click <span className="font-medium">Seed Default Sources</span> to add 10 reliable Greenhouse/Lever/Ashby boards.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {diag?.source_names?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Active sources</div>
+              <div className="flex flex-wrap gap-1.5">
+                {diag.source_names.map((s: any) => (
+                  <Badge key={s.name} variant="outline" className="text-[10px]">
+                    {s.name} · {s.ats}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {diag?.last_run?.errors?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Last-run import errors</div>
+              <ul className="space-y-1 text-xs text-destructive">
+                {diag.last_run.errors.slice(0, 5).map((e: string, i: number) => <li key={i}>• {e}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {diag?.top_rejection?.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Top rejection reasons</div>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {diag.top_rejection.map((r: any, i: number) => (
+                  <li key={i}>• <span className="font-medium text-foreground">{r.count}×</span> {r.reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {testResults && testResults.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Test fetch results</div>
+              <div className="space-y-1 text-xs">
+                {testResults.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 border-b border-border py-1">
+                    <span className="flex items-center gap-1.5">
+                      {r.ok
+                        ? <ShieldCheck className="h-3 w-3 text-success" />
+                        : <ShieldAlert className="h-3 w-3 text-destructive" />}
+                      <span className="font-medium">{r.name}</span>
+                      <Badge variant="outline" className="text-[10px]">{r.ats}</Badge>
+                    </span>
+                    <span className={r.ok ? "text-muted-foreground" : "text-destructive"}>
+                      {r.ok ? `${r.count} jobs` : (r.error ?? "fetch failed")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
       {/* Status banner */}
       {paused && (
         <div className="rounded-md border border-warning/30 bg-warning/10 p-3 flex items-center gap-2 text-sm text-warning-foreground">
