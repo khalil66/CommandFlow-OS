@@ -56,10 +56,23 @@ export const listApplications = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("applications")
-      .select("*, job_listings(title, company_name, ats, final_score, resume_match, legitimacy)")
+      .select("*, job_listings(title, company_name, ats, source_url, final_score, resume_match, legitimacy, interview_probability, salary_confidence, salary_gate_status, salary_posted_min, salary_posted_max, salary_estimated_min, salary_estimated_max)")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
     return { applications: data ?? [] };
+  });
+
+export const listApplicationActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ application_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: logs } = await context.supabase
+      .from("automation_logs")
+      .select("*")
+      .eq("application_id", data.application_id)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    return { logs: logs ?? [] };
   });
 
 export const decideApplication = createServerFn({ method: "POST" })
