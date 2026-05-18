@@ -199,8 +199,14 @@ export const runSmartApply = createServerFn({ method: "POST" })
     let approved = 0, blocked = 0, prepared = 0, skipped = 0, rejected = 0;
     let evaluated = 0; // jobs evaluated against auto-review (for pass-rate guard)
     let guardTripped = false;
+    // Detailed routing counters
+    let packet_attempted = 0, packet_failed = 0, scored = 0;
+    let rejected_by_scoring = 0, rejected_by_qc = 0;
+    let fallback_unresolved = 0;
     const rejectReasons = new Map<string, number>();
     const manualReasons = new Map<string, number>();
+    const routingFailures = new Map<string, number>();
+    const processedJobIds: string[] = [];
     const bestFit: Array<{ title: string; company: string; interview: number }> = [];
     const generateFn = (data: any) => generatePacket({ data });
 
@@ -208,6 +214,19 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const cutoffMs = Date.now() - AUTO_GATES.freshDays * 86400000;
     const freshImported = (jobs ?? []).filter((j: any) =>
       j.posted_at && new Date(j.posted_at).getTime() >= cutoffMs).length;
+
+    // Ensure an application row exists so subsequent .update() calls take effect.
+    const ensureApp = async (job: any, initialStatus = "manual_review") => {
+      const { data: exists } = await (supabase as any).from("applications")
+        .select("id").eq("user_id", userId).eq("job_id", job.id).maybeSingle();
+      if (!exists) {
+        await (supabase as any).from("applications").insert({
+          user_id: userId, job_id: job.id, status: initialStatus, priority: "manual",
+        });
+      }
+    };
+    const trackFailure = (reason: string) =>
+      routingFailures.set(reason, (routingFailures.get(reason) ?? 0) + 1);
 
     for (const j of jobs ?? []) {
       if (prepared >= packetCap) { skipped++; continue; }
