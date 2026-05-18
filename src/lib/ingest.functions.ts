@@ -204,11 +204,19 @@ export const importJobsNow = createServerFn({ method: "POST" })
 
     const totals = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
     const runs: any[] = [];
+    const STALE_DAYS = 14;
+    const staleCutoffMs = Date.now() - STALE_DAYS * 86400000;
 
     for (const src of sources) {
       const det = detectAts(src.careers_url);
       const counts = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
       const reasons: string[] = [];
+      const skipBreakdown: Record<string, number> = {};
+      const manualBreakdown: Record<string, number> = {};
+      const rejectBreakdown: Record<string, number> = {};
+      const bumpSkip = (k: string) => { skipBreakdown[k] = (skipBreakdown[k] ?? 0) + 1; };
+      const bumpManual = (k: string) => { manualBreakdown[k] = (manualBreakdown[k] ?? 0) + 1; };
+      const bumpReject = (k: string) => { rejectBreakdown[k] = (rejectBreakdown[k] ?? 0) + 1; };
       let success = true;
       let message = "";
 
@@ -216,6 +224,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
         success = false;
         message = det.reason || "Unsupported ATS";
         counts.rejected = 1;
+        bumpReject("unsupported_ats");
       } else {
         try {
           const jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
@@ -254,18 +263,39 @@ export const importJobsNow = createServerFn({ method: "POST" })
           }
 
           for (const j of jobs) {
-            // Reject jobs with login/captcha/MFA language
+            // ---- HARD REJECTS (do not insert) ----
             const blockers = hasAccessBlockers(j.description_text);
-            if (blockers.length) { counts.rejected++; reasons.push(`reject:${j.title} (${blockers.join(",")})`); continue; }
-            // Reject scam content
+            if (blockers.length) {
+              counts.rejected++; bumpReject("access_blocker");
+              reasons.push(`reject:${j.title} (${blockers.join(",")})`); continue;
+            }
             const scam = detectScamFlags(j.description_text);
-            if (scam.length) { counts.rejected++; reasons.push(`reject:${j.title} (scam)`); continue; }
+            if (scam.length) { counts.rejected++; bumpReject("scam_flag"); continue; }
 
-            // Remote-only filter
+            const titleLc = j.title.toLowerCase();
+            const descLc = j.description_text.toLowerCase();
+            if (/\b(intern|internship|unpaid|commission[- ]only)\b/.test(titleLc) ||
+                /\bcommission[- ]only\b/.test(descLc) || /\bunpaid\b/.test(descLc)) {
+              counts.rejected++; bumpReject("internship_unpaid_commission"); continue;
+            }
+
+            const postedMs = j.posted_at ? new Date(j.posted_at).getTime() : null;
+            if (postedMs != null && postedMs < staleCutoffMs) {
+              counts.rejected++; bumpReject("stale_gt_14d"); continue;
+            }
+
+            // Dedupe (hard reject — already in DB)
+            const dedupe = dedupeHash(src.name, j.title, j.location, j.url);
+            const { data: dup } = await supabase.from("job_listings")
+              .select("id").eq("user_id", userId).eq("dedupe_hash", dedupe).maybeSingle();
+            if (dup) { counts.duplicate++; bumpReject("duplicate"); continue; }
+
+            // ---- SOFT GATES (insert and route to Manual Review) ----
+            const manualReasons: string[] = [];
+
             const remote = isRemote(j.description_text, j.location);
-            if (!remote) { counts.skipped++; reasons.push(`skip:${j.title} (not remote)`); continue; }
+            if (!remote) manualReasons.push("not_remote");
 
-            // Salary enrichment + confidence-aware gate
             const enrichment = (await import("./salary-estimator")).enrichSalary({
               title: j.title,
               description: j.description_text,
@@ -276,42 +306,37 @@ export const importJobsNow = createServerFn({ method: "POST" })
               postedMin: j.salary_min,
               postedMax: j.salary_max,
             });
-            if (enrichment.gate_status === "reject") {
-              counts.skipped++;
-              reasons.push(`skip:${j.title} (${enrichment.gate_reason})`);
-              continue;
+            if (enrichment.gate_status === "reject") manualReasons.push("salary_below_floor");
+            else if (enrichment.gate_status === "manual") manualReasons.push("salary_needs_review");
+            if ((enrichment.confidence === "low" || enrichment.confidence === "unknown") &&
+                !manualReasons.includes("salary_needs_review")) {
+              manualReasons.push("low_salary_confidence");
             }
-            const toManualReview = enrichment.gate_status === "manual";
 
-            // Dedupe
-            const dedupe = dedupeHash(src.name, j.title, j.location, j.url);
-            const { data: dup } = await supabase.from("job_listings")
-              .select("id").eq("user_id", userId).eq("dedupe_hash", dedupe).maybeSingle();
-            if (dup) { counts.duplicate++; continue; }
+            if (postedMs == null) manualReasons.push("missing_posted_date");
 
             const role = inferRoleCategory(j.title);
             const portfolio = projectsForRole(role).length > 0;
+            const roleMatched = role !== "Operations Analyst" || /operations|ops/.test(titleLc);
+            if (!roleMatched) manualReasons.push("category_uncertain");
+
             const effectiveSalaryMin =
               enrichment.posted_min ?? enrichment.estimated_min ?? null;
             const interview = computeInterviewProbability({
-              resume_match: 75,
-              skills_match: 75,
+              resume_match: 75, skills_match: 75,
               salary_min: effectiveSalaryMin,
-              experience_fit: 80,
-              remote: true,
+              experience_fit: 80, remote,
               ats: det.platform,
-              has_education_match: true,
-              mba_relevant: false,
+              has_education_match: true, mba_relevant: false,
               portfolio_relevant: portfolio,
-              profile_strength: 90,
-              hiring_activity: 60,
+              profile_strength: 90, hiring_activity: 60,
             });
+            const toManualReview = manualReasons.length > 0;
             const ready = !toManualReview && isReadyToApply({
               trust_score: 90,
               interview_probability: interview.score,
               salary_min: effectiveSalaryMin,
-              remote: true,
-              ats: det.platform,
+              remote, ats: det.platform,
             });
 
             const { error: insErr } = await supabase.from("job_listings").insert({
@@ -320,7 +345,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
               company_name: src.name,
               title: j.title,
               location: j.location,
-              remote: true,
+              remote,
               salary_min: j.salary_min,
               salary_max: j.salary_max,
               salary_estimated: j.salary_estimated,
@@ -346,15 +371,20 @@ export const importJobsNow = createServerFn({ method: "POST" })
               final_score: interview.score,
               ready_to_apply: ready,
               status: toManualReview ? "manual_review" : "new",
-              blockers: toManualReview ? ["salary_needs_review"] : [],
+              blockers: manualReasons,
             } as any);
 
             if (insErr) {
-              if (insErr.code === "23505") { counts.duplicate++; continue; }
-              counts.skipped++; reasons.push(`err:${j.title} ${insErr.message}`); continue;
+              if (insErr.code === "23505") { counts.duplicate++; bumpReject("duplicate"); continue; }
+              counts.skipped++; bumpSkip("insert_error");
+              reasons.push(`err:${j.title} ${insErr.message}`); continue;
             }
-            if (toManualReview) counts.manual_review++;
-            else counts.imported++;
+            if (toManualReview) {
+              counts.manual_review++;
+              manualReasons.forEach(bumpManual);
+            } else {
+              counts.imported++;
+            }
           }
 
           await supabase.from("job_sources").update({
@@ -370,6 +400,10 @@ export const importJobsNow = createServerFn({ method: "POST" })
       // Aggregate
       (Object.keys(counts) as (keyof typeof counts)[]).forEach((k) => totals[k] += counts[k]);
 
+      if (!message && counts.found > 0 && counts.imported === 0 && counts.manual_review === 0) {
+        message = "All fetched jobs were hard-rejected or duplicates";
+      }
+
       const { data: log } = await supabase.from("import_logs").insert({
         user_id: userId,
         source_id: src.id,
@@ -378,7 +412,12 @@ export const importJobsNow = createServerFn({ method: "POST" })
         ...counts,
         success,
         message,
-        details: { reasons: reasons.slice(0, 20) },
+        details: {
+          reasons: reasons.slice(0, 20),
+          skip_breakdown: skipBreakdown,
+          manual_breakdown: manualBreakdown,
+          reject_breakdown: rejectBreakdown,
+        },
       }).select().single();
       runs.push(log);
     }
