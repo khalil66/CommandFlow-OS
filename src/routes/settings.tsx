@@ -80,6 +80,8 @@ function Settings() {
         sms_notify_safety_block: typeof s.sms_notify_safety_block === "boolean" ? s.sms_notify_safety_block : undefined,
         sms_notify_high_probability: typeof s.sms_notify_high_probability === "boolean" ? s.sms_notify_high_probability : undefined,
         sms_notify_followups: typeof s.sms_notify_followups === "boolean" ? s.sms_notify_followups : undefined,
+        safe_auto_submit_enabled: typeof s.safe_auto_submit_enabled === "boolean" ? s.safe_auto_submit_enabled : undefined,
+        safe_auto_submit_daily_cap: typeof s.safe_auto_submit_daily_cap === "number" ? s.safe_auto_submit_daily_cap : undefined,
       } }), { label: "Save settings" });
       toast.success("Settings saved");
     } catch {} finally { setSaving(false); }
