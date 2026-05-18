@@ -805,7 +805,7 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
     return {
       enabled_sources: active.length,
       total_sources: sources.length,
-      source_names: active.map((s: any) => ({ name: s.name, ats: s.ats, status: s.status })),
+      source_names: active.map((s: any) => ({ id: s.id, name: s.name, ats: s.ats, status: s.status })),
       total_jobs_in_db: jobsRes.count ?? 0,
       last_run_at: lastRunTs ?? null,
       last_run: totals,
