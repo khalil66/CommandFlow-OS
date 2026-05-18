@@ -271,6 +271,8 @@ export const importJobsNow = createServerFn({ method: "POST" })
               description: j.description_text,
               remote: true,
               companyCategory: null,
+              companyName: src.name,
+              location: j.location,
               postedMin: j.salary_min,
               postedMax: j.salary_max,
             });
@@ -322,12 +324,15 @@ export const importJobsNow = createServerFn({ method: "POST" })
               salary_min: j.salary_min,
               salary_max: j.salary_max,
               salary_estimated: j.salary_estimated,
+              salary_posted_min: enrichment.posted_min,
+              salary_posted_max: enrichment.posted_max,
               salary_source: enrichment.source,
               salary_confidence: enrichment.confidence,
               salary_estimated_min: enrichment.estimated_min,
               salary_estimated_max: enrichment.estimated_max,
               salary_gate_status: enrichment.gate_status,
               salary_gate_reason: enrichment.gate_reason,
+              salary_evidence: enrichment.evidence,
               ats: det.platform,
               source_url: j.url,
               description: j.description_text,
@@ -466,11 +471,14 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [srcRes, logsRes, jobsRes] = await Promise.all([
+    const [srcRes, logsRes, jobsRes, salaryRes] = await Promise.all([
       supabase.from("job_sources").select("*").eq("user_id", userId),
       supabase.from("import_logs").select("*").eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(20),
       supabase.from("job_listings").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      supabase.from("job_listings")
+        .select("salary_source, salary_confidence, salary_gate_status")
+        .eq("user_id", userId).limit(1000),
     ]);
     const sources = srcRes.data ?? [];
     const active = sources.filter((s: any) => s.status === "active");
@@ -508,6 +516,17 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
       .sort((a, b) => b[1] - a[1]).slice(0, 3)
       .map(([reason, count]) => ({ reason, count }));
 
+    // Salary enrichment breakdown
+    const salaryRows = salaryRes.data ?? [];
+    const salaryBreakdown = {
+      total: salaryRows.length,
+      posted_pass: salaryRows.filter((r: any) => r.salary_source === "posted_salary" && r.salary_gate_status === "pass").length,
+      estimated_pass: salaryRows.filter((r: any) => r.salary_source !== "posted_salary" && r.salary_source !== "missing" && r.salary_gate_status === "pass").length,
+      manual_low_confidence: salaryRows.filter((r: any) => r.salary_gate_status === "manual").length,
+      rejected_below_floor: salaryRows.filter((r: any) => r.salary_gate_status === "reject").length,
+      missing: salaryRows.filter((r: any) => r.salary_source === "missing").length,
+    };
+
     return {
       enabled_sources: active.length,
       total_sources: sources.length,
@@ -516,5 +535,6 @@ export const getSmartApplyDiagnostics = createServerFn({ method: "GET" })
       last_run_at: lastRunTs ?? null,
       last_run: totals,
       top_rejection: topRejection,
+      salary: salaryBreakdown,
     };
   });
