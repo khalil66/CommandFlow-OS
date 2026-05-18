@@ -9,12 +9,16 @@ import { Label } from "@/components/ui/label";
 import {
   Shield, ShieldAlert, ShieldCheck, PauseCircle, PlayCircle, Loader2,
   CalendarClock, Sparkles, AlertOctagon, Activity, ListChecks, Zap, Clock, Lock,
+  Database, Download, FlaskConical, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSmartApplyMetrics, runSmartApply, listSafetyLogs,
   setAutomationPaused, setApplicationMode, AUTO_GATES,
 } from "@/lib/smart-apply.functions";
+import {
+  importJobsNow, seedDefaultJobSources, testSourceFetch, getSmartApplyDiagnostics,
+} from "@/lib/ingest.functions";
 import { updateSettings } from "@/lib/settings.functions";
 
 export const Route = createFileRoute("/smart-apply")({ component: SmartApplyPage });
