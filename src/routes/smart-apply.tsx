@@ -18,6 +18,7 @@ import {
 } from "@/lib/smart-apply.functions";
 import {
   importJobsNow, seedDefaultJobSources, testSourceFetch, getSmartApplyDiagnostics,
+  deepDebugSource, insertMockTestJob,
 } from "@/lib/ingest.functions";
 import { updateSettings } from "@/lib/settings.functions";
 
