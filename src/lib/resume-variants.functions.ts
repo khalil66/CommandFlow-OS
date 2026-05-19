@@ -60,7 +60,7 @@ export const getVariantStats = createServerFn({ method: "GET" })
       const submitted =
         !!a.submitted_at ||
         ["submitted", "submitted_manually", "interview_requested", "interview", "rejected", "ghosted", "offer"].includes(a.status);
-      if (a.response_received_at || a.recruiter_screen_at || a.interview_requested_at || a.offer_at || a.rejected_at) {
+      if (a.response_received_at || a.interview_requested_at || a.offer_at || a.rejected_at) {
         s.recruiter_replies += 1;
       }
       if (a.interview_requested_at || a.technical_interview_at || a.final_interview_at || a.status === "interview" || a.status === "interview_requested") {
