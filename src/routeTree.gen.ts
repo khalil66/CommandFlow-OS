@@ -23,6 +23,7 @@ import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
@@ -106,6 +107,11 @@ const PipelineRoute = PipelineRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitoringRoute = MonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LegitimacyRoute = LegitimacyRouteImport.update({
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/monitoring': typeof MonitoringRoute
   '/onboarding': typeof OnboardingRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/monitoring': typeof MonitoringRoute
   '/onboarding': typeof OnboardingRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
+  '/monitoring': typeof MonitoringRoute
   '/onboarding': typeof OnboardingRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/monitoring'
     | '/onboarding'
     | '/pipeline'
     | '/queue'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/monitoring'
     | '/onboarding'
     | '/pipeline'
     | '/queue'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
+    | '/monitoring'
     | '/onboarding'
     | '/pipeline'
     | '/queue'
@@ -377,6 +389,7 @@ export interface RootRouteChildren {
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
+  MonitoringRoute: typeof MonitoringRoute
   OnboardingRoute: typeof OnboardingRoute
   PipelineRoute: typeof PipelineRoute
   QueueRoute: typeof QueueRoute
@@ -494,6 +507,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitoring': {
+      id: '/monitoring'
+      path: '/monitoring'
+      fullPath: '/monitoring'
+      preLoaderRoute: typeof MonitoringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/legitimacy': {
       id: '/legitimacy'
       path: '/legitimacy'
@@ -609,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
+  MonitoringRoute: MonitoringRoute,
   OnboardingRoute: OnboardingRoute,
   PipelineRoute: PipelineRoute,
   QueueRoute: QueueRoute,
