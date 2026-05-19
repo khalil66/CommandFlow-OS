@@ -384,7 +384,7 @@ function SmartApplyPage() {
                     {s.total_rows_for_source != null && (
                       <div className="text-muted-foreground mt-1">DB rows for this source: <span className="font-mono text-foreground">{s.total_rows_for_source}</span></div>
                     )}
-                    {s.failure_reason && <div className="text-destructive mt-1">reason: {s.failure_reason}</div>}
+                    {s.failure_reason && <div className="text-destructive mt-1">reason: {humanizeText(s.failure_reason)}</div>}
                     {s.error && <div className="text-destructive mt-1 font-mono text-[10px]">{s.error}</div>}
                     {s.insert_errors?.length > 0 && (
                       <ul className="text-destructive mt-1 font-mono text-[10px] list-disc list-inside">
