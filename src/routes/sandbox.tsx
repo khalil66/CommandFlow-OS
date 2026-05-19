@@ -233,7 +233,7 @@ function SandboxPage() {
         </section>
 
         {/* Architecture */}
-        <SystemArchitecture />
+        <div id="architecture"><Reveal><SystemArchitecture /></Reveal></div>
 
         {/* Monitoring snapshot */}
         <section className="space-y-4">
