@@ -285,16 +285,6 @@ function SandboxTrend() {
   );
 }
 
-function ArchBlock({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-semibold">{title}</p>
-      <ul className="space-y-1 text-sm text-muted-foreground">
-        {items.map((i) => <li key={i}>· {i}</li>)}
-      </ul>
-    </div>
-  );
-}
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
