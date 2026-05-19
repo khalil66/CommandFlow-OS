@@ -22,6 +22,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as OutcomesRouteImport } from './routes/outcomes'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
@@ -102,6 +103,11 @@ const QueueRoute = QueueRouteImport.update({
 const PipelineRoute = PipelineRouteImport.update({
   id: '/pipeline',
   path: '/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutcomesRoute = OutcomesRouteImport.update({
+  id: '/outcomes',
+  path: '/outcomes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/legitimacy': typeof LegitimacyRoute
   '/monitoring': typeof MonitoringRoute
   '/onboarding': typeof OnboardingRoute
+  '/outcomes': typeof OutcomesRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/legitimacy': typeof LegitimacyRoute
   '/monitoring': typeof MonitoringRoute
   '/onboarding': typeof OnboardingRoute
+  '/outcomes': typeof OutcomesRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
@@ -264,6 +272,7 @@ export interface FileRoutesById {
   '/legitimacy': typeof LegitimacyRoute
   '/monitoring': typeof MonitoringRoute
   '/onboarding': typeof OnboardingRoute
+  '/outcomes': typeof OutcomesRoute
   '/pipeline': typeof PipelineRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
@@ -297,6 +306,7 @@ export interface FileRouteTypes {
     | '/legitimacy'
     | '/monitoring'
     | '/onboarding'
+    | '/outcomes'
     | '/pipeline'
     | '/queue'
     | '/recruiters'
@@ -328,6 +338,7 @@ export interface FileRouteTypes {
     | '/legitimacy'
     | '/monitoring'
     | '/onboarding'
+    | '/outcomes'
     | '/pipeline'
     | '/queue'
     | '/recruiters'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/legitimacy'
     | '/monitoring'
     | '/onboarding'
+    | '/outcomes'
     | '/pipeline'
     | '/queue'
     | '/recruiters'
@@ -391,6 +403,7 @@ export interface RootRouteChildren {
   LegitimacyRoute: typeof LegitimacyRoute
   MonitoringRoute: typeof MonitoringRoute
   OnboardingRoute: typeof OnboardingRoute
+  OutcomesRoute: typeof OutcomesRoute
   PipelineRoute: typeof PipelineRoute
   QueueRoute: typeof QueueRoute
   RecruitersRoute: typeof RecruitersRoute
@@ -498,6 +511,13 @@ declare module '@tanstack/react-router' {
       path: '/pipeline'
       fullPath: '/pipeline'
       preLoaderRoute: typeof PipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/outcomes': {
+      id: '/outcomes'
+      path: '/outcomes'
+      fullPath: '/outcomes'
+      preLoaderRoute: typeof OutcomesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -631,6 +651,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegitimacyRoute: LegitimacyRoute,
   MonitoringRoute: MonitoringRoute,
   OnboardingRoute: OnboardingRoute,
+  OutcomesRoute: OutcomesRoute,
   PipelineRoute: PipelineRoute,
   QueueRoute: QueueRoute,
   RecruitersRoute: RecruitersRoute,
