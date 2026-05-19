@@ -56,6 +56,10 @@ function CaseStudy() {
 
       <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
 
+        <SystemArchitecture />
+
+
+
         {/* EXEC SUMMARY */}
         <Section id="summary" eyebrow="01" title="Executive Summary">
           <p className="text-lg text-muted-foreground leading-relaxed">
