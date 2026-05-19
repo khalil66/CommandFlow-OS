@@ -8,6 +8,7 @@ import {
   TrendingUp, Layers, Cpu, Cloud, XCircle,
 } from "lucide-react";
 import { SystemArchitecture } from "@/components/system-architecture";
+import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 
 export const Route = createFileRoute("/case-study")({
   head: () => ({
