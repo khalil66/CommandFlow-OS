@@ -14,6 +14,7 @@ import { Route as SystemRouteImport } from './routes/system'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as SafeAutoSubmitRouteImport } from './routes/safe-auto-submit'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeVariantsRouteImport } from './routes/resume-variants'
@@ -65,6 +66,11 @@ const SmartApplyRoute = SmartApplyRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxRoute = SandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SafeAutoSubmitRoute = SafeAutoSubmitRouteImport.update({
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
+  '/sandbox': typeof SandboxRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
+  '/sandbox': typeof SandboxRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
+  '/sandbox': typeof SandboxRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
+    | '/sandbox'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -369,6 +379,7 @@ export interface FileRouteTypes {
     | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
+    | '/sandbox'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
+    | '/sandbox'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -438,6 +450,7 @@ export interface RootRouteChildren {
   ResumeVariantsRoute: typeof ResumeVariantsRoute
   ReviewRoute: typeof ReviewRoute
   SafeAutoSubmitRoute: typeof SafeAutoSubmitRoute
+  SandboxRoute: typeof SandboxRoute
   SettingsRoute: typeof SettingsRoute
   SmartApplyRoute: typeof SmartApplyRoute
   SourcesRoute: typeof SourcesRoute
@@ -481,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox': {
+      id: '/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof SandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/safe-auto-submit': {
@@ -702,6 +722,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResumeVariantsRoute: ResumeVariantsRoute,
   ReviewRoute: ReviewRoute,
   SafeAutoSubmitRoute: SafeAutoSubmitRoute,
+  SandboxRoute: SandboxRoute,
   SettingsRoute: SettingsRoute,
   SmartApplyRoute: SmartApplyRoute,
   SourcesRoute: SourcesRoute,
@@ -712,3 +733,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
