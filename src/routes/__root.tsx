@@ -20,18 +20,34 @@ import appCss from "../styles.css?url";
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+      <div className="max-w-lg text-center">
+        <div className="text-[88px] font-bold leading-none bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">
+          404
+        </div>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+          This page doesn't exist
+        </h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          The page you're looking for has moved or was never published. Explore the platform from one of the entry points below.
         </p>
-        <div className="mt-6">
+        <div className="mt-7 flex flex-wrap justify-center gap-2">
           <Link
-            to="/"
+            to="/portfolio"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Back to Portfolio
+          </Link>
+          <Link
+            to="/sandbox"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            View Sandbox
+          </Link>
+          <Link
+            to="/case-study"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Read Case Study
           </Link>
         </div>
       </div>
