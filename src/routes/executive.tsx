@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Activity, Sparkles, TrendingUp, Trophy, Users, Layers, ListChecks, Target, Play, Pause,
 } from "lucide-react";
+import { ChartCard, TrendBadge, EmptyChart, AnimatedBar, humanizeText } from "@/components/chart-card";
 
 export const Route = createFileRoute("/executive")({
   head: () => ({ meta: [{ title: "Executive Command Center" }] }),
