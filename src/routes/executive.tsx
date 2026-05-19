@@ -130,7 +130,7 @@ function ExecutivePage() {
         </ChartCard>
       </div>
 
-      <div ref={(el) => { stepRefs.current[2] = el; }} className={`grid gap-6 lg:grid-cols-2 ${transitionRing(demoMode && tourStep === 2)}`}>
+      <div id="exec-ats" ref={(el) => { stepRefs.current[2] = el; }} className={`grid gap-6 lg:grid-cols-2 scroll-mt-24 ${transitionRing(demoMode && tourStep === 2)}`}>
         <ChartCard
           title="ATS performance"
           description="Active jobs by ATS platform."
