@@ -20,18 +20,34 @@ import appCss from "../styles.css?url";
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+      <div className="max-w-lg text-center">
+        <div className="text-[88px] font-bold leading-none bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">
+          404
+        </div>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+          This page doesn't exist
+        </h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          The page you're looking for has moved or was never published. Explore the platform from one of the entry points below.
         </p>
-        <div className="mt-6">
+        <div className="mt-7 flex flex-wrap justify-center gap-2">
           <Link
-            to="/"
+            to="/portfolio"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Back to Portfolio
+          </Link>
+          <Link
+            to="/sandbox"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            View Sandbox
+          </Link>
+          <Link
+            to="/case-study"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Read Case Study
           </Link>
         </div>
       </div>
@@ -104,16 +120,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Job App" },
-      { name: "description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Job App" },
-      { property: "og:description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
+      { title: "CommandFlowOS — AI-Powered Career Operating System" },
+      {
+        name: "description",
+        content:
+          "CommandFlowOS combines verified job intelligence, resume optimization, recruiter CRM workflows, outcome learning, and safe automation into one career operations platform.",
+      },
+      {
+        name: "keywords",
+        content:
+          "AI recruiting, applicant tracking, resume intelligence, recruiter CRM, ATS analytics, job search automation, interview probability, career operations",
+      },
+      { name: "author", content: "Khalil Hickson" },
+      { name: "theme-color", content: "#0f172a" },
+      { property: "og:site_name", content: "CommandFlowOS" },
+      { property: "og:title", content: "CommandFlowOS — AI-Powered Career Operating System" },
+      {
+        property: "og:description",
+        content:
+          "Verified ATS intelligence, resume optimization, recruiter CRM, and outcome learning in one operator-grade platform.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Job App" },
-      { name: "twitter:description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "CommandFlowOS — AI-Powered Career Operating System" },
+      {
+        name: "twitter:description",
+        content:
+          "Verified ATS intelligence, resume optimization, recruiter CRM, and outcome learning in one operator-grade platform.",
+      },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
     ],

@@ -14,10 +14,15 @@ import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 export const Route = createFileRoute("/demo")({
   head: () => ({
     meta: [
-      { title: "Apply Command — Recruiter Demo (Khalil Hickson)" },
-      { name: "description", content: "Public demo of Apply Command: smart job apply, recruiter pipeline, analytics, resume diff, and company intelligence — built by Khalil Hickson." },
-      { property: "og:title", content: "Apply Command — Recruiter Demo" },
+      { title: "Recruiter Demo — CommandFlowOS" },
+      { name: "description", content: "Public demo of CommandFlowOS: smart job apply, recruiter pipeline, analytics, resume diff, and company intelligence." },
+      { property: "og:title", content: "CommandFlowOS — Recruiter Demo" },
       { property: "og:description", content: "Mock-data tour of an AI-assisted job-application command center. No production data, no real submissions." },
+      { property: "og:url", content: "https://commandflowos.online/demo" },
+      { property: "og:type", content: "website" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://commandflowos.online/demo" },
     ],
   }),
   component: DemoPage,
