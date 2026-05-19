@@ -323,12 +323,21 @@ export const importJobsNow = createServerFn({ method: "POST" })
             const roleMatched = role !== "Operations Analyst" || /operations|ops/.test(titleLc);
             if (!roleMatched) manualReasons.push("category_uncertain");
 
+            // Resume ↔ role fit (years, seniority, domain, specialty blocks).
+            const fit = evaluateResumeFit({
+              title: j.title, description: j.description_text, role_category: role,
+            });
+            if (fit.realism === "unrealistic") manualReasons.push("unrealistic_career_fit");
+            else if (fit.realism === "stretch") manualReasons.push("stretch_role_fit");
+            if (fit.role_fit_tier === "weak") manualReasons.push("weak_role_fit");
+            fit.blockers.forEach((b) => manualReasons.push(b));
+
             const effectiveSalaryMin =
               enrichment.posted_min ?? enrichment.estimated_min ?? null;
             const interview = computeInterviewProbability({
-              resume_match: 75, skills_match: 75,
+              resume_match: fit.resume_match, skills_match: fit.role_fit_score,
               salary_min: effectiveSalaryMin,
-              experience_fit: 80, remote,
+              experience_fit: Math.max(0, 100 - fit.seniority_gap * 20), remote,
               ats: det.platform,
               has_education_match: true, mba_relevant: false,
               portfolio_relevant: portfolio,
