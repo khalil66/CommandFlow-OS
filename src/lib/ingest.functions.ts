@@ -394,7 +394,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
               dedupe_hash: dedupe,
               posted_at: j.posted_at,
               interview_probability: interview.score,
-              resume_match: 75,
+              resume_match: fit.resume_match,
               legitimacy: 90,
               final_score: interview.score,
               ready_to_apply: finalReady,
