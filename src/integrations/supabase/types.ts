@@ -1239,6 +1239,9 @@ export type Database = {
           remote_only: boolean
           role_categories: string[]
           safe_auto_submit_daily_cap: number
+          safe_auto_submit_dry_run: boolean
+          safe_auto_submit_dry_run_passed_at: string | null
+          safe_auto_submit_dry_run_report: Json | null
           safe_auto_submit_enabled: boolean
           salary_min: number
           schedule_hour: number
@@ -1283,6 +1286,9 @@ export type Database = {
           remote_only?: boolean
           role_categories?: string[]
           safe_auto_submit_daily_cap?: number
+          safe_auto_submit_dry_run?: boolean
+          safe_auto_submit_dry_run_passed_at?: string | null
+          safe_auto_submit_dry_run_report?: Json | null
           safe_auto_submit_enabled?: boolean
           salary_min?: number
           schedule_hour?: number
@@ -1327,6 +1333,9 @@ export type Database = {
           remote_only?: boolean
           role_categories?: string[]
           safe_auto_submit_daily_cap?: number
+          safe_auto_submit_dry_run?: boolean
+          safe_auto_submit_dry_run_passed_at?: string | null
+          safe_auto_submit_dry_run_report?: Json | null
           safe_auto_submit_enabled?: boolean
           salary_min?: number
           schedule_hour?: number
