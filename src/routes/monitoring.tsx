@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getMonitoringDashboard, evaluateAndAlert } from "@/lib/monitoring.functions";
 import { getOpenAiHealth, validateOpenAi } from "@/lib/openai-validate.functions";
+import { humanizeReason, EmptyChart } from "@/components/chart-card";
 
 export const Route = createFileRoute("/monitoring")({
   beforeLoad: async () => {
