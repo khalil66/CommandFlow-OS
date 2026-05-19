@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDown, ArrowUp, Minus, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, Minus, BarChart3, Sparkles, Lightbulb, type LucideIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 /**
  * Humanizes technical status/reason keys into executive-friendly labels.
