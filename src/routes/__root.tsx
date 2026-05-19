@@ -14,6 +14,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
+import { InstallAppButton } from "@/components/install-app-button";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
