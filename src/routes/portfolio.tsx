@@ -8,6 +8,7 @@ import {
   Activity, Target, Workflow, Brain, Trophy, Gauge, Eye, PlayCircle, FileText, LineChart,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 
 export const Route = createFileRoute("/portfolio")({
   head: () => ({
