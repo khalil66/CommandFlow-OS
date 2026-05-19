@@ -49,9 +49,11 @@ function Settings() {
       usageFn().catch(() => null),
       analyticsFn().catch(() => null),
       getFn().catch(() => null),
-    ]).then(([u, a, st]: any) => {
+      getDryRunFn().catch(() => null),
+    ]).then(([u, a, st, dr]: any) => {
       setUsage(u); setAnalytics(a);
       setS(st?.settings ?? {});
+      setDryRun(dr ?? null);
       setLoading(false);
     });
   }, []);
