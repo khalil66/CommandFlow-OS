@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { humanizeText } from "@/components/chart-card";
 import {
   Shield, ShieldAlert, ShieldCheck, PauseCircle, PlayCircle, Loader2,
   CalendarClock, Sparkles, AlertOctagon, Activity, ListChecks, Zap, Clock, Lock,
