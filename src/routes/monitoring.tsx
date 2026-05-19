@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMonitoringDashboard, evaluateAndAlert } from "@/lib/monitoring.functions";
+import { getOpenAiHealth, validateOpenAi } from "@/lib/openai-validate.functions";
 
 export const Route = createFileRoute("/monitoring")({
   beforeLoad: async () => {
