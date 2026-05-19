@@ -626,7 +626,7 @@ function SmartApplyPage() {
                       {l.company_name && <span className="text-xs text-muted-foreground">@ {l.company_name}</span>}
                       {l.ats && <Badge variant="outline" className="text-[10px]">{l.ats}</Badge>}
                     </div>
-                    {l.reason && <div className="text-xs text-muted-foreground mt-1">{l.reason}</div>}
+                    {l.reason && <div className="text-xs text-muted-foreground mt-1">{humanizeText(l.reason)}</div>}
                     {l.gates?.failed?.length > 0 && (
                       <div className="text-[11px] text-destructive mt-1">Failed gates: {l.gates.failed.join(" · ")}</div>
                     )}
