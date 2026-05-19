@@ -28,6 +28,7 @@ const nav = [
   { title: "CRM Pipeline", url: "/pipeline", icon: KanbanSquare },
   { title: "Recruiters", url: "/recruiters", icon: Users },
   { title: "Manual Review", url: "/review", icon: AlertTriangle },
+  { title: "Safe Auto-Submit", url: "/safe-auto-submit", icon: ShieldCheck },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "System Health", url: "/system", icon: Activity },
   { title: "Onboarding", url: "/onboarding", icon: Compass },

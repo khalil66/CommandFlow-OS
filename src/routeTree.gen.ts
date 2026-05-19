@@ -14,6 +14,7 @@ import { Route as SystemRouteImport } from './routes/system'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SafeAutoSubmitRouteImport } from './routes/safe-auto-submit'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
 import { Route as ResumeRouteImport } from './routes/resume'
@@ -60,6 +61,11 @@ const SmartApplyRoute = SmartApplyRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SafeAutoSubmitRoute = SafeAutoSubmitRouteImport.update({
+  id: '/safe-auto-submit',
+  path: '/safe-auto-submit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRoute = ReviewRouteImport.update({
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
+  '/safe-auto-submit': typeof SafeAutoSubmitRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
+  '/safe-auto-submit': typeof SafeAutoSubmitRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
   '/review': typeof ReviewRoute
+  '/safe-auto-submit': typeof SafeAutoSubmitRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/resume-diff'
     | '/review'
+    | '/safe-auto-submit'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -314,6 +324,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/resume-diff'
     | '/review'
+    | '/safe-auto-submit'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/resume-diff'
     | '/review'
+    | '/safe-auto-submit'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -373,6 +385,7 @@ export interface RootRouteChildren {
   ResumeRoute: typeof ResumeRoute
   ResumeDiffRoute: typeof ResumeDiffRoute
   ReviewRoute: typeof ReviewRoute
+  SafeAutoSubmitRoute: typeof SafeAutoSubmitRoute
   SettingsRoute: typeof SettingsRoute
   SmartApplyRoute: typeof SmartApplyRoute
   SourcesRoute: typeof SourcesRoute
@@ -416,6 +429,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/safe-auto-submit': {
+      id: '/safe-auto-submit'
+      path: '/safe-auto-submit'
+      fullPath: '/safe-auto-submit'
+      preLoaderRoute: typeof SafeAutoSubmitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -597,6 +617,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResumeRoute: ResumeRoute,
   ResumeDiffRoute: ResumeDiffRoute,
   ReviewRoute: ReviewRoute,
+  SafeAutoSubmitRoute: SafeAutoSubmitRoute,
   SettingsRoute: SettingsRoute,
   SmartApplyRoute: SmartApplyRoute,
   SourcesRoute: SourcesRoute,
