@@ -162,18 +162,18 @@ function PortfolioPage() {
                   packets, tracks recruiter pipelines, learns from outcomes, and presents
                   executive-level hiring analytics.
                 </p>
-                <div className="flex flex-wrap gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-2" data-track-section="portfolio-hero-ctas">
                   <Button asChild size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                    <Link to="/sandbox"><Eye className="h-3.5 w-3.5 mr-1.5" /> View Sandbox</Link>
+                    <Link to="/sandbox" data-track-cta="View Sandbox"><Eye className="h-3.5 w-3.5 mr-1.5" /> View Sandbox</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link to="/executive"><LineChart className="h-3.5 w-3.5 mr-1.5" /> Executive Dashboard</Link>
+                    <Link to="/executive" data-track-cta="Executive Dashboard"><LineChart className="h-3.5 w-3.5 mr-1.5" /> Executive Dashboard</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link to="/case-study"><FileText className="h-3.5 w-3.5 mr-1.5" /> Read Case Study</Link>
+                    <Link to="/case-study" data-track-cta="Read Case Study"><FileText className="h-3.5 w-3.5 mr-1.5" /> Read Case Study</Link>
                   </Button>
                   <Button asChild size="sm" variant="ghost">
-                    <Link to="/demo"><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Public Demo</Link>
+                    <Link to="/demo" data-track-cta="Public Demo"><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Public Demo</Link>
                   </Button>
                 </div>
               </div>

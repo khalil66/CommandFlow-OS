@@ -32,6 +32,7 @@ const NAV: ActionItem[] = [
   { id: "nav-outcomes", label: "Open Outcomes", hint: "Recruiter replies · interviews", icon: BarChart3, keywords: "outcomes learning conversion", run: ({ navigate }) => navigate({ to: "/outcomes" }) },
   { id: "nav-variants", label: "Open Resume Variants", hint: "A/B resume tracking", icon: Layers, keywords: "resume variants ab test", run: ({ navigate }) => navigate({ to: "/resume-variants" }) },
   { id: "nav-analytics", label: "Open Analytics", hint: "Funnel · ATS · categories", icon: BarChart3, keywords: "analytics charts funnel", run: ({ navigate }) => navigate({ to: "/analytics" }) },
+  { id: "nav-engagement", label: "Open Recruiter Engagement", hint: "Visits · CTAs · tour completion", icon: Activity, keywords: "engagement recruiter visits cta tour analytics privacy", run: ({ navigate }) => navigate({ to: "/engagement" }) },
 ];
 
 const QUICK: ActionItem[] = [

@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
 import { InstallAppButton } from "@/components/install-app-button";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { PageTracker } from "@/components/page-tracker";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
@@ -224,7 +225,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [path, nav, isPublic]);
-  if (isPublic) return <>{children}</>;
+  if (isPublic) return <><PageTracker path={path} key={path} />{children}</>;
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   return <>{children}</>;
 }

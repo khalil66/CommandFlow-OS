@@ -32,6 +32,7 @@ import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
 import { Route as ExecutiveRouteImport } from './routes/executive'
+import { Route as EngagementRouteImport } from './routes/engagement'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
 import { Route as CompaniesRouteImport } from './routes/companies'
@@ -159,6 +160,11 @@ const ExecutiveRoute = ExecutiveRouteImport.update({
   path: '/executive',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EngagementRoute = EngagementRouteImport.update({
+  id: '/engagement',
+  path: '/engagement',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/engagement': typeof EngagementRoute
   '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/engagement': typeof EngagementRoute
   '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/engagement': typeof EngagementRoute
   '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/engagement'
     | '/executive'
     | '/follow-ups'
     | '/high-probability'
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/engagement'
     | '/executive'
     | '/follow-ups'
     | '/high-probability'
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/engagement'
     | '/executive'
     | '/follow-ups'
     | '/high-probability'
@@ -446,6 +458,7 @@ export interface RootRouteChildren {
   CompaniesRoute: typeof CompaniesRoute
   CompanyIntelligenceRoute: typeof CompanyIntelligenceRoute
   DemoRoute: typeof DemoRoute
+  EngagementRoute: typeof EngagementRoute
   ExecutiveRoute: typeof ExecutiveRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
@@ -635,6 +648,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/engagement': {
+      id: '/engagement'
+      path: '/engagement'
+      fullPath: '/engagement'
+      preLoaderRoute: typeof EngagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo': {
       id: '/demo'
       path: '/demo'
@@ -726,6 +746,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompaniesRoute: CompaniesRoute,
   CompanyIntelligenceRoute: CompanyIntelligenceRoute,
   DemoRoute: DemoRoute,
+  EngagementRoute: EngagementRoute,
   ExecutiveRoute: ExecutiveRoute,
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
