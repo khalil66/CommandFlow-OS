@@ -36,6 +36,30 @@ export function humanizeText(text: string): string {
   return out;
 }
 
+/** Shared recharts tooltip styling. */
+export const chartTooltipStyle = {
+  background: "var(--color-card)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 10,
+  fontSize: 12,
+  boxShadow: "0 8px 24px -12px rgb(0 0 0 / 0.18)",
+  padding: "8px 12px",
+};
+
+export const chartAxisProps = {
+  stroke: "var(--color-muted-foreground)",
+  fontSize: 11,
+  tickLine: false,
+  axisLine: false,
+};
+
+/** Tooltip formatter that humanizes label and appends optional suffix. */
+export const humanizedTooltipFormatter = (suffix = "") =>
+  ((value: any, name: any) => [
+    typeof value === "number" ? `${value.toLocaleString()}${suffix}` : value,
+    humanizeReason(String(name)),
+  ]) as any;
+
 /** Polished card wrapper for any chart/visualization. */
 export function ChartCard({
   title,
