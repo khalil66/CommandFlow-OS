@@ -34,6 +34,7 @@ const nav = [
   { title: "Outcome Learning", url: "/outcomes", icon: LineChart },
   { title: "Resume Variants", url: "/resume-variants", icon: FileDiff },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Recruiter Engagement", url: "/engagement", icon: Activity },
   { title: "System Health", url: "/system", icon: Activity },
   { title: "Monitoring", url: "/monitoring", icon: Activity },
   { title: "Onboarding", url: "/onboarding", icon: Compass },
