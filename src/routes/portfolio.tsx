@@ -116,31 +116,18 @@ function PortfolioPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 animate-fade-in">
-        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
-          Featured Project · 2026
-        </Badge>
-        <h1 className="mt-4 text-5xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
-          AI-Powered Career
-          <br />
-          <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent">
-            Operating System
-          </span>
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-          An enterprise-style recruiting intelligence platform combining AI workflow automation,
-          ATS analytics, outcome learning, recruiter CRM pipelines, and executive-level monitoring.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button asChild size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-            <Link to="/sandbox"><PlayCircle className="h-4 w-4 mr-2" /> Launch Public Sandbox</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a href="#architecture"><Workflow className="h-4 w-4 mr-2" /> Explore Architecture</a>
-          </Button>
+      <CinematicHero
+        eyebrow="Featured Project · 2026"
+        headline="AI-Powered Career Operating System"
+        subheadline="CommandFlowOS combines verified job intelligence, resume optimization, recruiter CRM workflows, outcome learning, and safe automation into one career operations platform."
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <GlassStat value="1,441+" label="Raw jobs tested" />
+          <GlassStat value="11-factor" label="Trust scoring" />
+          <GlassStat value="5" label="Resume variants" />
+          <GlassStat value="Live" label="Outcome learning" />
         </div>
-      </section>
+      </CinematicHero>
 
       {/* Featured projects */}
       <section id="featured" className="max-w-6xl mx-auto px-6 py-12 space-y-6">
