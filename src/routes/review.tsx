@@ -195,9 +195,17 @@ function Review() {
                 <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
               </div>
             ) : visibleItems.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-12 border border-dashed rounded-md">
-                Nothing here yet.
-              </div>
+              <EmptyChart
+                title={`No packets in "${TAB_META[k].label}"`}
+                hint="Run Smart Apply to generate a fresh batch of packets, or load sandbox data to preview the workflow end-to-end."
+                why="The review queue is the human-in-the-loop checkpoint — every approved packet has been seen by you before it goes out."
+                sample="none"
+                icon={TAB_META[k].icon}
+                ctas={[
+                  { label: "Run Smart Apply", to: "/smart-apply" },
+                  { label: "Explore Sandbox", to: "/sandbox", variant: "outline" },
+                ]}
+              />
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {visibleItems.map((app) => {
