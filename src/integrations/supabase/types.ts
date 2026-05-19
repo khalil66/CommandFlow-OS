@@ -505,6 +505,45 @@ export type Database = {
         }
         Relationships: []
       }
+      engagement_events: {
+        Row: {
+          created_at: string
+          device: string | null
+          duration_ms: number | null
+          event_name: string
+          id: string
+          label: string | null
+          path: string | null
+          referrer_host: string | null
+          section: string | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          device?: string | null
+          duration_ms?: number | null
+          event_name: string
+          id?: string
+          label?: string | null
+          path?: string | null
+          referrer_host?: string | null
+          section?: string | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          device?: string | null
+          duration_ms?: number | null
+          event_name?: string
+          id?: string
+          label?: string | null
+          path?: string | null
+          referrer_host?: string | null
+          section?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
       follow_up_messages: {
         Row: {
           application_id: string
