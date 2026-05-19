@@ -55,7 +55,13 @@ function CaseStudy() {
         </div>
       </CinematicHero>
 
+      <GuidedTour steps={CASE_STUDY_TOUR} eyebrow="Case study tour" />
+
       <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">Prefer a guided walkthrough? Use ←/→ to navigate, Esc to exit.</p>
+          <StartTourButton label="Start guided tour" className="cta-gradient" />
+        </div>
 
         <SystemArchitecture />
 
