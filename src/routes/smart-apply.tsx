@@ -462,7 +462,7 @@ function SmartApplyPage() {
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Top rejection reasons</div>
               <ul className="space-y-1 text-xs text-muted-foreground">
                 {diag.top_rejection.map((r: any, i: number) => (
-                  <li key={i}>• <span className="font-medium text-foreground">{r.count}×</span> {r.reason}</li>
+                  <li key={i}>• <span className="font-medium text-foreground">{r.count}×</span> {humanizeText(r.reason)}</li>
                 ))}
               </ul>
             </div>
