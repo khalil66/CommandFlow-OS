@@ -69,7 +69,7 @@ function ExecutivePage() {
         </div>
       </header>
 
-      <section ref={(el) => { stepRefs.current[0] = el; }} className={transitionRing(demoMode && tourStep === 0)}>
+      <section ref={(el: HTMLElement | null) => { stepRefs.current[0] = el as HTMLDivElement | null; }} className={transitionRing(demoMode && tourStep === 0)}>
         <div className="grid gap-4 md:grid-cols-4">
           <Kpi icon={<TrendingUp className="h-4 w-4" />} title="Applications today" value={data?.kpis.applications_today ?? 0} />
           <Kpi icon={<Target className="h-4 w-4" />} title="Interview probability avg" value={data?.kpis.interview_probability_avg ?? 0} suffix="%" />
