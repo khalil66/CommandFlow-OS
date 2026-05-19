@@ -179,6 +179,10 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const cooldownCutoff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
 
     // Safe Auto-Submit configuration (OFF by default)
+    // Real submission requires: enabled AND dry-run mode OFF AND a prior passing dry run.
+    const dryRunMode = s.safe_auto_submit_dry_run !== false;
+    const dryRunPassedAt = s.safe_auto_submit_dry_run_passed_at;
+    const realSubmitAllowed = !!s.safe_auto_submit_enabled && !dryRunMode && !!dryRunPassedAt;
     const safeSubmitEnabled = !!s.safe_auto_submit_enabled;
     const safeSubmitDailyCap = s.safe_auto_submit_daily_cap ?? 3;
     const safeSubmitPerAtsCap = 2;
