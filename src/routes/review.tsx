@@ -235,6 +235,29 @@ function Review() {
                           </div>
                         )}
 
+                        {Array.isArray(j.blockers) && j.blockers.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {j.blockers.map((b: string) => {
+                              const isAi = b === "invalid_openai_key" || b === "packet_generation_disabled";
+                              return (
+                                <Badge
+                                  key={b}
+                                  variant={isAi ? "destructive" : "outline"}
+                                  className="text-[10px] font-normal"
+                                  title={
+                                    b === "invalid_openai_key" ? "OpenAI key invalid — packet generation unavailable" :
+                                    b === "packet_generation_disabled" ? "Packet generation was skipped for this job" :
+                                    b.startsWith("mapped_salary_source:") ? `Salary source remapped from ${b.split(":")[1]} → unknown` :
+                                    b
+                                  }
+                                >
+                                  {b}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+
                         {isApproved && (
                           <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs space-y-2">
                             <div className="font-medium flex items-center gap-1.5">

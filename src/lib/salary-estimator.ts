@@ -301,3 +301,22 @@ export function enrichSalary(args: {
 export function salaryStatusLabel(s: SalaryGateStatus): string {
   return s === "pass" ? "Salary gate ✓" : s === "reject" ? "Below floor / disqualified" : "Salary needs review";
 }
+
+// DB-allowed salary_source values (must mirror the check constraint on job_listings).
+// Any unknown / unsupported incoming value is mapped to "unknown" so inserts never fail.
+const ALLOWED_SALARY_SOURCES = new Set<string>([
+  "posted_salary", "estimated_from_title", "estimated_from_market", "missing",
+  "company_careers_page", "verified_market_estimate", "salary_review_sources", "title_based_estimate",
+  "posted", "estimated", "recruiter", "glassdoor", "levelsfyi", "inferred", "unknown",
+]);
+
+export function mapSalarySource(input: string | null | undefined): {
+  value: string;
+  mapped: boolean;
+  original: string | null;
+} {
+  if (input == null || input === "") return { value: "unknown", mapped: true, original: null };
+  if (ALLOWED_SALARY_SOURCES.has(input)) return { value: input, mapped: false, original: input };
+  return { value: "unknown", mapped: true, original: input };
+}
+

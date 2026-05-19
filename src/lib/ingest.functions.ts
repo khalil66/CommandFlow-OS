@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { detectAts, parseSalary, stripHtml, hasAccessBlockers, isRemote, type SupportedAts } from "./ats-detect";
+import { mapSalarySource } from "./salary-estimator";
+import { isOpenAiHealthy } from "./openai-validate.functions";
 import { computeTrustScore, computeInterviewProbability, isReadyToApply, SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
 import { detectScamFlags } from "./scam-signals";
 import { projectsForRole } from "./portfolio";
@@ -339,6 +341,22 @@ export const importJobsNow = createServerFn({ method: "POST" })
               remote, ats: det.platform,
             });
 
+            // Map salary_source to a DB-allowed value (never let constraint kill an insert).
+            const mappedSource = mapSalarySource(enrichment.source);
+            if (mappedSource.mapped) {
+              manualReasons.push(`mapped_salary_source:${mappedSource.original ?? "null"}`);
+            }
+
+            // OpenAI health -> packet generation gating
+            const aiHealth = await isOpenAiHealthy();
+            if (!aiHealth.ok) {
+              manualReasons.push("invalid_openai_key");
+              manualReasons.push("packet_generation_disabled");
+            }
+
+            const toManualReviewFinal = manualReasons.length > 0;
+            const finalReady = !toManualReviewFinal && ready;
+
             const { error: insErr } = await supabase.from("job_listings").insert({
               user_id: userId,
               company_id: companyId,
@@ -351,7 +369,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
               salary_estimated: j.salary_estimated,
               salary_posted_min: enrichment.posted_min,
               salary_posted_max: enrichment.posted_max,
-              salary_source: enrichment.source,
+              salary_source: mappedSource.value,
               salary_confidence: enrichment.confidence,
               salary_estimated_min: enrichment.estimated_min,
               salary_estimated_max: enrichment.estimated_max,
@@ -369,8 +387,8 @@ export const importJobsNow = createServerFn({ method: "POST" })
               resume_match: 75,
               legitimacy: 90,
               final_score: interview.score,
-              ready_to_apply: ready,
-              status: toManualReview ? "manual_review" : "new",
+              ready_to_apply: finalReady,
+              status: toManualReviewFinal ? "manual_review" : "new",
               blockers: manualReasons,
             } as any);
 
@@ -385,17 +403,17 @@ export const importJobsNow = createServerFn({ method: "POST" })
               );
               continue;
             }
-            if (toManualReview) {
+            // Count every successful insert as imported (manual_review still tracked separately).
+            counts.imported++;
+            if (toManualReviewFinal) {
               counts.manual_review++;
               manualReasons.forEach(bumpManual);
-            } else {
-              counts.imported++;
             }
           }
 
           await supabase.from("job_sources").update({
             last_imported_at: new Date().toISOString(),
-            last_import_count: counts.imported + counts.manual_review,
+            last_import_count: counts.imported,
           }).eq("id", src.id);
         } catch (e: any) {
           success = false;

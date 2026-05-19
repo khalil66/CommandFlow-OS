@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMonitoringDashboard, evaluateAndAlert } from "@/lib/monitoring.functions";
+import { getOpenAiHealth, validateOpenAi } from "@/lib/openai-validate.functions";
 
 export const Route = createFileRoute("/monitoring")({
   beforeLoad: async () => {
@@ -36,7 +37,11 @@ function fmtAgo(iso: string | null) {
 function MonitoringPage() {
   const dashFn = useServerFn(getMonitoringDashboard);
   const alertFn = useServerFn(evaluateAndAlert);
+  const openAiHealthFn = useServerFn(getOpenAiHealth);
+  const openAiValidateFn = useServerFn(validateOpenAi);
   const [data, setData] = useState<any>(null);
+  const [openAi, setOpenAi] = useState<any>(null);
+  const [validating, setValidating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [win, setWin] = useState<Win>("24h");
   const [alerting, setAlerting] = useState(false);
@@ -44,7 +49,10 @@ function MonitoringPage() {
 
   const load = async (w: Win = win) => {
     setLoading(true);
-    try { setData(await dashFn({ data: { window: w } })); }
+    try {
+      const [d, ai] = await Promise.all([dashFn({ data: { window: w } }), openAiHealthFn().catch(() => null)]);
+      setData(d); setOpenAi(ai);
+    }
     catch (e: any) { toast.error(e?.message ?? "Failed to load monitoring"); }
     finally { setLoading(false); }
   };
@@ -58,6 +66,16 @@ function MonitoringPage() {
       else toast.warning(`${r.alerts.length} alert(s) evaluated, ${r.sent?.filter((s: any) => s.sms?.ok).length ?? 0} SMS sent`);
     } catch (e: any) { toast.error(e?.message ?? "Alert eval failed"); }
     finally { setAlerting(false); }
+  };
+
+  const validateAi = async () => {
+    setValidating(true);
+    try {
+      const r: any = await openAiValidateFn();
+      setOpenAi(r);
+      r.ok ? toast.success("OpenAI key valid") : toast.error(`OpenAI: ${r.message ?? "invalid"}`);
+    } catch (e: any) { toast.error(e?.message ?? "Validation failed"); }
+    finally { setValidating(false); }
   };
 
   const filteredLogs = useMemo(() => {
@@ -117,6 +135,35 @@ function MonitoringPage() {
                 value={fmtAgo(data.health.last_successful_packet_at)} sub="" icon={<Zap className="h-4 w-4" />} />
               <HealthTile ok={!!data.health.last_successful_sms_at} label="Last SMS sent"
                 value={fmtAgo(data.health.last_successful_sms_at)} sub="" icon={<BellRing className="h-4 w-4" />} />
+            </CardContent>
+          </Card>
+
+          {/* OpenAI key health */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldAlert className={`h-4 w-4 ${openAi?.ok ? "text-success" : "text-destructive"}`} />
+                OpenAI key
+                {openAi && (
+                  <Badge variant={openAi.ok ? "default" : "destructive"} className="text-[10px]">
+                    {openAi.ok ? "valid" : openAi.configured ? `invalid (${openAi.status ?? "err"})` : "not configured"}
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={validateAi} disabled={validating}>
+                {validating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                Validate now
+              </Button>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground space-y-1">
+              <div>Env var read: <code className="text-foreground">{openAi?.env_var ?? "OPENAI_API_KEY"}</code></div>
+              {openAi?.message && <div className="text-destructive">{openAi.message}</div>}
+              <div>Checked {openAi?.checked_at ? fmtAgo(openAi.checked_at) : "never"} {openAi?.cached ? "(cached)" : ""}</div>
+              {!openAi?.ok && (
+                <div className="pt-1 text-warning-foreground">
+                  Packet generation is disabled. New imports are routed to Manual Review with reason <code>invalid_openai_key</code>.
+                </div>
+              )}
             </CardContent>
           </Card>
 
