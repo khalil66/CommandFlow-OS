@@ -194,7 +194,7 @@ export const recalibrateInterviewProbabilities = createServerFn({ method: "POST"
       .select("status, response_received_at, interview_requested_at, offer_at, " +
               "job_listings(role_category, ats)")
       .eq("user_id", userId);
-    const rows = apps ?? [];
+    const rows: any[] = (apps as any[]) ?? [];
 
     // Compute reply rate per role_category and ats
     const stats = (key: (a: any) => string | undefined) => {
@@ -262,7 +262,7 @@ export const generateWeeklyRecommendations = createServerFn({ method: "POST" })
       "interview_requested_at, rejected_at, ghosted_at, offer_at, " +
       "job_listings(category, role_category, ats, company_name)"
     ).eq("user_id", userId);
-    const apps = dashRes.data ?? [];
+    const apps: any[] = (dashRes.data as any[]) ?? [];
 
     const funnel = funnelOf(apps);
     const byRole = segment(apps, (a) => a.job_listings?.role_category);
