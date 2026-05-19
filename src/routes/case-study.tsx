@@ -9,6 +9,18 @@ import {
 } from "lucide-react";
 import { SystemArchitecture } from "@/components/system-architecture";
 import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
+import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-tour";
+
+const CASE_STUDY_TOUR: TourStep[] = [
+  { id: "summary", title: "Executive summary", body: "The 30-second elevator pitch — what CommandFlowOS is, who it's for, and the problem it inverts in the recruiting market." },
+  { id: "ats", title: "ATS ingestion engine", body: "Verified ingestion from Greenhouse, Lever, Ashby, and Workday. Deduplicated, normalized, and freshness-stamped before scoring." },
+  { id: "trust", title: "Company trust scoring", body: "11-factor trust score combining hiring signals, salary disclosure, scam markers, and recruiter activity — quarantines low-trust postings automatically." },
+  { id: "resume", title: "Resume optimization", body: "Master profile + per-role tailoring. Bullets rewritten, keywords injected, ATS readability scored. Variants A/B-tracked against recruiter outcomes." },
+  { id: "interview", title: "Interview probability scoring", body: "Per-application probability with confidence labels, talking points, and likely recruiter questions — only high-probability roles surface for manual review." },
+  { id: "analytics", title: "Outcome learning loop", body: "Recruiter replies and interview outcomes feed back weekly into variant scoring, category targeting, and trust weights." },
+  { id: "security", title: "Safety & compliance systems", body: "No auto-submit, no login-wall evasion, no PII storage on public surfaces. Manual review is the gate — by design, not by accident." },
+  { id: "metrics", title: "Executive analytics & metrics", body: "Real numbers from testing: throughput, recruiter response rate, interview conversion, and best-performing variant — all recruiter-safe." },
+];
 
 export const Route = createFileRoute("/case-study")({
   head: () => ({
