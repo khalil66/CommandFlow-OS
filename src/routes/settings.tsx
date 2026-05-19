@@ -31,10 +31,15 @@ function Settings() {
   const getFn = useServerFn(getSettings);
   const saveFn = useServerFn(updateSettings);
   const testSmsFn = useServerFn(sendTestSms);
+  const dryRunFn = useServerFn(runSafeAutoSubmitDryRun);
+  const getDryRunFn = useServerFn(getDryRunReport);
 
   const [usage, setUsage] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [s, setS] = useState<any>(null);
+  const [dryRun, setDryRun] = useState<any>(null);
+  const [runningDry, setRunningDry] = useState(false);
+  const [confirmRealOpen, setConfirmRealOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingSms, setTestingSms] = useState(false);
