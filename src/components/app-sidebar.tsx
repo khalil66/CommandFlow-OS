@@ -29,6 +29,7 @@ const nav = [
   { title: "Recruiters", url: "/recruiters", icon: Users },
   { title: "Manual Review", url: "/review", icon: AlertTriangle },
   { title: "Safe Auto-Submit", url: "/safe-auto-submit", icon: ShieldCheck },
+  { title: "Outcome Learning", url: "/outcomes", icon: LineChart },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "System Health", url: "/system", icon: Activity },
   { title: "Monitoring", url: "/monitoring", icon: Activity },
