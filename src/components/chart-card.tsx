@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDown, ArrowUp, Minus, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, Minus, BarChart3, Sparkles, Lightbulb, type LucideIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 /**
  * Humanizes technical status/reason keys into executive-friendly labels.
@@ -130,23 +133,115 @@ export function TrendBadge({ value, label }: { value: number; label?: string }) 
 }
 
 /** Polished empty state for charts. */
+export type EmptyCTA = { label: string; to: string; icon?: LucideIcon; variant?: "default" | "outline" | "ghost" };
+
+/** Premium storytelling empty state. Backward compatible with title/hint/action. */
 export function EmptyChart({
   title = "No data yet",
   hint = "Run today's batch or seed sample data to populate this chart.",
+  why,
+  sample = "bars",
+  ctas,
+  icon: Icon = BarChart3,
   action,
+  compact = false,
 }: {
   title?: string;
   hint?: string;
-  action?: React.ReactNode;
+  why?: string;
+  sample?: "bars" | "line" | "funnel" | "none" | ReactNode;
+  ctas?: EmptyCTA[];
+  icon?: LucideIcon;
+  action?: ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-10 px-4 rounded-xl border border-dashed bg-muted/30">
-      <div className="h-10 w-10 rounded-full bg-muted grid place-items-center mb-3">
-        <BarChart3 className="h-5 w-5 text-muted-foreground" />
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-xl border border-dashed bg-gradient-to-br from-muted/40 via-background to-muted/20",
+        "flex flex-col items-center justify-center text-center px-4",
+        compact ? "py-8" : "py-10",
+      )}
+    >
+      {/* shimmer */}
+      <div className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_2.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-foreground/[0.04] to-transparent" />
+
+      {/* illustration */}
+      {sample !== "none" && (
+        <div className="w-full max-w-[220px] mb-4 opacity-80">
+          {typeof sample === "string" ? <SampleViz kind={sample as "bars" | "line" | "funnel"} /> : sample}
+        </div>
+      )}
+
+      <div className="relative h-10 w-10 rounded-full bg-primary/10 grid place-items-center mb-3 ring-1 ring-primary/20">
+        <Icon className="h-5 w-5 text-primary" />
+        <span className="absolute inset-0 rounded-full ring-2 ring-primary/30 animate-ping opacity-40" />
       </div>
-      <p className="text-sm font-medium">{title}</p>
-      <p className="text-xs text-muted-foreground mt-1 max-w-xs">{hint}</p>
-      {action && <div className="mt-3">{action}</div>}
+
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="text-xs text-muted-foreground mt-1 max-w-sm leading-relaxed">{hint}</p>
+
+      {why && (
+        <div className="mt-3 inline-flex items-start gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-left max-w-sm">
+          <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+          <span className="text-[11px] text-muted-foreground">
+            <span className="font-medium text-foreground">Why this matters: </span>{why}
+          </span>
+        </div>
+      )}
+
+      {(ctas?.length || action) && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {ctas?.map((c, i) => {
+            const CtaIcon = c.icon ?? Sparkles;
+            return (
+              <Button key={i} asChild size="sm" variant={c.variant ?? (i === 0 ? "default" : "outline")}>
+                <Link to={c.to}><CtaIcon className="h-3.5 w-3.5 mr-1.5" />{c.label}</Link>
+              </Button>
+            );
+          })}
+          {action}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Minimal animated sample visualization for empty states. */
+function SampleViz({ kind }: { kind: "bars" | "line" | "funnel" }) {
+  if (kind === "line") {
+    return (
+      <svg viewBox="0 0 200 60" className="w-full h-auto text-primary/60">
+        <defs>
+          <linearGradient id="ec-line" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M0,45 L30,38 L60,42 L90,28 L120,32 L150,18 L180,22 L200,10 L200,60 L0,60 Z" fill="url(#ec-line)" />
+        <path d="M0,45 L30,38 L60,42 L90,28 L120,32 L150,18 L180,22 L200,10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (kind === "funnel") {
+    return (
+      <div className="space-y-1.5">
+        {[100, 72, 48, 28, 14].map((w, i) => (
+          <div key={i} className="mx-auto h-2.5 rounded-full bg-primary/30" style={{ width: `${w}%`, opacity: 0.4 + i * 0.1 }} />
+        ))}
+      </div>
+    );
+  }
+  // bars (default)
+  return (
+    <div className="flex items-end justify-center gap-1.5 h-14">
+      {[40, 65, 35, 80, 55, 70, 45].map((h, i) => (
+        <div
+          key={i}
+          className="w-3 rounded-t bg-primary/40"
+          style={{ height: `${h}%`, animation: `pulse 2.2s ease-in-out ${i * 0.15}s infinite` }}
+        />
+      ))}
     </div>
   );
 }

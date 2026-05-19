@@ -55,7 +55,17 @@ function Analytics() {
       </div>
 
       {empty ? (
-        <EmptyChart title="No analytics yet" hint="Run today's batch or seed sandbox data to see conversion, ATS, and resume performance." />
+        <EmptyChart
+          title="Your analytics will tell the whole story"
+          hint="Once jobs flow through Smart Apply, this view shows conversion, ATS performance, resume variant winners, and category trends."
+          why="Analytics is how you turn 'I applied to a lot of jobs' into 'these resumes + these ATSs + these companies actually convert.'"
+          sample="bars"
+          ctas={[
+            { label: "Run Smart Apply", to: "/smart-apply" },
+            { label: "Explore Sandbox", to: "/sandbox", variant: "outline" },
+            { label: "Start Demo", to: "/demo", variant: "ghost" },
+          ]}
+        />
       ) : (
         <>
           {/* KPI strip */}

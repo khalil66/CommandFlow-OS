@@ -103,7 +103,16 @@ function ExecutivePage() {
             icon={<Target className="h-4 w-4 text-emerald-500" />}
           >
             {(data?.funnel ?? []).length === 0
-              ? <EmptyChart title="No funnel data yet" hint="Once jobs flow through Smart Apply the conversion funnel populates here." />
+              ? <EmptyChart
+                  title="Your conversion funnel will live here"
+                  hint="As soon as Smart Apply submits packets, you'll see each stage — imports → review → submitted → recruiter reply → interview → offer."
+                  why="The funnel is how you spot where deals stall. A weak top means more sourcing; a weak bottom means rework the resume + outreach."
+                  sample="funnel"
+                  ctas={[
+                    { label: "Run Smart Apply", to: "/smart-apply" },
+                    { label: "Explore Sandbox", to: "/sandbox", variant: "outline" },
+                  ]}
+                />
               : <Funnel rows={data?.funnel ?? []} />}
           </ChartCard>
         </div>
@@ -123,7 +132,14 @@ function ExecutivePage() {
             {(data?.recommendations ?? []).length === 0 && (
               <EmptyChart
                 title="Recommendations unlock with outcomes"
-                hint="Track a few recruiter replies and interview outcomes — recommendations will appear here automatically."
+                hint="Track a few recruiter replies and interviews and the engine will start suggesting which sources, ATSs, and resume variants to lean into."
+                why="Outcome-driven recommendations turn the platform from a job firehose into an actual learning loop."
+                sample="bars"
+                icon={Sparkles}
+                ctas={[
+                  { label: "Start Demo", to: "/demo" },
+                  { label: "View Architecture", to: "/case-study", variant: "outline" },
+                ]}
               />
             )}
           </div>
@@ -158,7 +174,13 @@ function ExecutivePage() {
             icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
           >
             {(data?.trends ?? []).length === 0
-              ? <EmptyChart title="No trend data yet" hint="Trends appear after a week of recruiter activity." />
+              ? <EmptyChart
+                  title="Weekly trend chart waiting for activity"
+                  hint="After a few days of replies and interviews, you'll see momentum and week-over-week deltas here."
+                  why="A flat reply line means the funnel needs more top-of-pipeline — a rising interview line means the resume is landing."
+                  sample="line"
+                  ctas={[{ label: "Run Smart Apply", to: "/smart-apply" }]}
+                />
               : <TrendChart data={data?.trends ?? []} />}
           </ChartCard>
         </div>
@@ -175,7 +197,15 @@ function ExecutivePage() {
               </li>
             ))}
             {(data?.activity ?? []).length === 0 && (
-              <EmptyChart title="No recent events" hint="Automation events stream in here as Smart Apply runs." />
+              <EmptyChart
+                title="Live activity will stream in here"
+                hint="Each Smart Apply run posts events — imports, packet generation, approvals, recruiter replies."
+                why="The activity feed is the recruiter-safe audit log — proof that the system is acting responsibly."
+                sample="none"
+                icon={Activity}
+                compact
+                ctas={[{ label: "Run Smart Apply", to: "/smart-apply" }]}
+              />
             )}
           </ul>
         </ChartCard>
