@@ -246,6 +246,10 @@ function RootComponent() {
       <QueryClientProvider client={queryClient}>
         <AuthGate><Outlet /></AuthGate>
         <CommandPalette />
+        {/* Public Install App CTA — floating on small screens */}
+        <div className="fixed bottom-4 right-4 z-40 md:bottom-6 md:right-6">
+          <InstallAppButton className="cta-gradient shadow-2xl" />
+        </div>
         <Toaster />
       </QueryClientProvider>
     );
@@ -255,10 +259,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthGate>
         <SidebarProvider>
-          <div className="min-h-screen flex w-full bg-background">
+          <div className="min-h-dvh flex w-full bg-background">
             <AppSidebar />
             <div className="flex-1 flex flex-col min-w-0">
-              <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
+              <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
                 <SidebarTrigger />
                 <div className="flex-1" />
                 <button
@@ -269,13 +273,15 @@ function RootComponent() {
                   <span>Search…</span>
                   <kbd className="text-[10px] border rounded px-1 py-0.5">⌘K</kbd>
                 </button>
+                <InstallAppButton variant="ghost" />
                 <div className="text-xs text-muted-foreground hidden sm:block">
                   khalilhickson.com · Remote-first
                 </div>
               </header>
-              <main className="flex-1 min-w-0">
+              <main className="flex-1 min-w-0 pb-20 md:pb-0">
                 <Outlet />
               </main>
+              <MobileBottomNav />
             </div>
           </div>
           <CommandPalette />
