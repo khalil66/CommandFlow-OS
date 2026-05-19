@@ -15,6 +15,7 @@ const SETTINGS_FIELDS = [
   "sms_notify_auto_mode","sms_notify_safety_block","sms_notify_high_probability",
   "sms_notify_followups",
   "safe_auto_submit_enabled","safe_auto_submit_daily_cap",
+  "safe_auto_submit_dry_run","safe_auto_submit_dry_run_passed_at","safe_auto_submit_dry_run_report",
 ].join(",");
 
 export const getSettings = createServerFn({ method: "GET" })
