@@ -12,6 +12,8 @@ import {
 
 const nav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Executive Center", url: "/executive", icon: Sparkles },
+  { title: "Public Sandbox", url: "/sandbox", icon: Compass },
   { title: "Smart Apply", url: "/smart-apply", icon: Zap },
   { title: "High-Probability", url: "/high-probability", icon: Sparkles },
   { title: "Job Queue", url: "/queue", icon: Search },
