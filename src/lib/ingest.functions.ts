@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { detectAts, parseSalary, stripHtml, hasAccessBlockers, isRemote, type SupportedAts } from "./ats-detect";
+import { mapSalarySource } from "./salary-estimator";
+import { isOpenAiHealthy } from "./openai-validate.functions";
 import { computeTrustScore, computeInterviewProbability, isReadyToApply, SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
 import { detectScamFlags } from "./scam-signals";
 import { projectsForRole } from "./portfolio";
