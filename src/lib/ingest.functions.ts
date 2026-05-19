@@ -7,6 +7,7 @@ import { isOpenAiHealthy } from "./openai-validate.functions";
 import { computeTrustScore, computeInterviewProbability, isReadyToApply, SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
 import { detectScamFlags } from "./scam-signals";
 import { projectsForRole } from "./portfolio";
+import { evaluateResumeFit } from "./resume-fit";
 
 interface NormJob {
   external_id: string;
