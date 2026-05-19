@@ -13,6 +13,17 @@ import {
 } from "lucide-react";
 import { SystemArchitecture } from "@/components/system-architecture";
 import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
+import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-tour";
+
+const SANDBOX_TOUR: TourStep[] = [
+  { id: "kpis", title: "ATS ingestion · pipeline at a glance", body: "Verified roles flow in from supported ATS platforms (Greenhouse, Lever, Ashby, Workday). The KPI strip is the recruiter's morning briefing — applications, interview probability, response rates." },
+  { id: "tour-flow", title: "Trust scoring & decision engine", body: "Every imported role passes an 11-factor company trust check and a fit/realism/salary score before it can advance. Low-trust postings are quarantined automatically." },
+  { id: "funnel", title: "Resume optimization & funnel conversion", body: "Tailored resume variants are A/B-tracked through the funnel — imported → reviewed → applied → recruiter reply → interview → offer. Best-performing variant surfaces in the KPI row." },
+  { id: "variants", title: "Outcome learning loop", body: "Recruiter responses and interview outcomes feed back into variant scoring and category targeting weekly — the system gets sharper with every reply." },
+  { id: "activity", title: "Executive analytics & live activity", body: "Recruiter-safe activity stream shows what shipped, what auto-paused, and what's waiting for manual review. No PII, no API keys." },
+  { id: "architecture", title: "System architecture", body: "Edge-deployed TanStack Start + Supabase backbone with isolated AI generation, manual-review gate, and rate-limited safe auto-submit. Built for one-operator throughput." },
+  { id: "tour-monitoring", title: "Monitoring & safety systems", body: "Production monitoring tracks import health, packet generation, OpenAI status, and every blocked auto-submit. Anything ambiguous routes to manual review by design." },
+];
 
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
