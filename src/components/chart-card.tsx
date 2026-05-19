@@ -169,7 +169,7 @@ export function EmptyChart({
       {/* illustration */}
       {sample !== "none" && (
         <div className="w-full max-w-[220px] mb-4 opacity-80">
-          {typeof sample === "string" ? <SampleViz kind={sample} /> : sample}
+          {typeof sample === "string" ? <SampleViz kind={sample as "bars" | "line" | "funnel"} /> : sample}
         </div>
       )}
 
