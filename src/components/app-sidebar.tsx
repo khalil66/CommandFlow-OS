@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Search, ShieldCheck, Filter, FileText,
   ListChecks, AlertTriangle, BarChart3, Settings, Briefcase,
   Building2, CalendarDays, Sparkles, BellRing, Download, Activity, Compass, BookOpen, Zap,
-  KanbanSquare, Users, FileDiff, Brain,
+  KanbanSquare, Users, FileDiff, Brain, LineChart,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
