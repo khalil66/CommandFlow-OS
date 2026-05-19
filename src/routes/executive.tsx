@@ -70,15 +70,18 @@ function ExecutivePage() {
           <p className="text-muted-foreground mt-1">Polished, recruiter-safe snapshot. No PII surfaces here.</p>
         </div>
         <div className="flex items-center gap-2">
+          <StartTourButton label="Start guided tour" className="cta-gradient" />
           <Button variant={demoMode ? "default" : "outline"} size="sm" onClick={() => setDemoMode((v) => !v)}>
             {demoMode ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-            {demoMode ? "Pause tour" : "Guided demo"}
+            {demoMode ? "Pause auto" : "Auto-cycle"}
           </Button>
           <Link to="/sandbox"><Button variant="outline" size="sm">Open sandbox</Button></Link>
         </div>
       </header>
 
-      <section ref={(el: HTMLElement | null) => { stepRefs.current[0] = el as HTMLDivElement | null; }} className={transitionRing(demoMode && tourStep === 0)}>
+      <GuidedTour steps={EXEC_TOUR} eyebrow="Executive tour" />
+
+      <section id="exec-kpis" ref={(el: HTMLElement | null) => { stepRefs.current[0] = el as HTMLDivElement | null; }} className={`scroll-mt-24 ${transitionRing(demoMode && tourStep === 0)}`}>
         <div className="grid gap-4 md:grid-cols-4">
           <Kpi icon={<TrendingUp className="h-4 w-4" />} title="Applications today" value={data?.kpis.applications_today ?? 0} trend={4.2} />
           <Kpi icon={<Target className="h-4 w-4" />} title="Interview probability avg" value={data?.kpis.interview_probability_avg ?? 0} suffix="%" trend={1.6} />
