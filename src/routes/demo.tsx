@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,6 @@ import {
   Briefcase, LayoutDashboard, KanbanSquare, BarChart3, FileDiff,
   Building2, FileText, ShieldCheck, Sparkles, ArrowRight, CheckCircle2,
   AlertTriangle, TrendingUp, Users2, Globe2, MapPin, BellRing, Zap,
-  PlayCircle, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-tour";
