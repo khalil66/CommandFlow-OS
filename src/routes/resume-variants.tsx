@@ -79,38 +79,52 @@ function ResumeVariantsPage() {
           <CardDescription>Apps sent, recruiter replies, interviews, rejections, ghosting, and offers per variant.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Variant</TableHead>
-                <TableHead className="text-right">Apps</TableHead>
-                <TableHead className="text-right">Replies</TableHead>
-                <TableHead className="text-right">Interviews</TableHead>
-                <TableHead className="text-right">Rejected</TableHead>
-                <TableHead className="text-right">Ghosted</TableHead>
-                <TableHead className="text-right">Offers</TableHead>
-                <TableHead className="text-right">Reply %</TableHead>
-                <TableHead className="text-right">Interview %</TableHead>
-                <TableHead className="text-right">Reply→Interview %</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {variants.map((v) => (
-                <TableRow key={v.variant_key}>
-                  <TableCell className="font-medium">{v.label}</TableCell>
-                  <TableCell className="text-right">{v.applications}</TableCell>
-                  <TableCell className="text-right">{v.recruiter_replies}</TableCell>
-                  <TableCell className="text-right">{v.interviews}</TableCell>
-                  <TableCell className="text-right">{v.rejections}</TableCell>
-                  <TableCell className="text-right">{v.ghosted}</TableCell>
-                  <TableCell className="text-right">{v.offers}</TableCell>
-                  <TableCell className="text-right">{v.response_rate}%</TableCell>
-                  <TableCell className="text-right">{v.interview_rate}%</TableCell>
-                  <TableCell className="text-right">{v.interview_conversion}%</TableCell>
+          {variants.length === 0 ? (
+            <EmptyChart
+              title="Resume variants haven't been seeded yet"
+              hint="Seed the canonical variants (CSM, RevOps, PM, AI/Automation, Data) to start tracking which resume wins per role."
+              why="Variant tracking is what lets the platform say 'use the RevOps resume for Salesforce-ATS jobs' instead of guessing."
+              sample="bars"
+              icon={Layers}
+              ctas={[
+                { label: "Start Demo", to: "/demo" },
+                { label: "Explore Sandbox", to: "/sandbox", variant: "outline" },
+              ]}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Variant</TableHead>
+                  <TableHead className="text-right">Apps</TableHead>
+                  <TableHead className="text-right">Replies</TableHead>
+                  <TableHead className="text-right">Interviews</TableHead>
+                  <TableHead className="text-right">Rejected</TableHead>
+                  <TableHead className="text-right">Ghosted</TableHead>
+                  <TableHead className="text-right">Offers</TableHead>
+                  <TableHead className="text-right">Reply %</TableHead>
+                  <TableHead className="text-right">Interview %</TableHead>
+                  <TableHead className="text-right">Reply→Interview %</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {variants.map((v) => (
+                  <TableRow key={v.variant_key}>
+                    <TableCell className="font-medium">{v.label}</TableCell>
+                    <TableCell className="text-right">{v.applications}</TableCell>
+                    <TableCell className="text-right">{v.recruiter_replies}</TableCell>
+                    <TableCell className="text-right">{v.interviews}</TableCell>
+                    <TableCell className="text-right">{v.rejections}</TableCell>
+                    <TableCell className="text-right">{v.ghosted}</TableCell>
+                    <TableCell className="text-right">{v.offers}</TableCell>
+                    <TableCell className="text-right">{v.response_rate}%</TableCell>
+                    <TableCell className="text-right">{v.interview_rate}%</TableCell>
+                    <TableCell className="text-right">{v.interview_conversion}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
