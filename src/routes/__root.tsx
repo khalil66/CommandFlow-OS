@@ -151,6 +151,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   const isPublic =
     path === "/auth" ||
     path === "/demo" ||
+    path === "/sandbox" ||
     path === "/reset-password" ||
     path === "/admin-recovery" ||
     path === "/case-study";
@@ -190,6 +191,7 @@ function RootComponent() {
   if (
     path === "/auth" ||
     path === "/demo" ||
+    path === "/sandbox" ||
     path === "/reset-password" ||
     path === "/admin-recovery" ||
     path === "/case-study"

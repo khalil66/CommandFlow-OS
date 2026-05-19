@@ -14,6 +14,7 @@ import { Route as SystemRouteImport } from './routes/system'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as SafeAutoSubmitRouteImport } from './routes/safe-auto-submit'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResumeVariantsRouteImport } from './routes/resume-variants'
@@ -29,6 +30,7 @@ import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
+import { Route as ExecutiveRouteImport } from './routes/executive'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
 import { Route as CompaniesRouteImport } from './routes/companies'
@@ -64,6 +66,11 @@ const SmartApplyRoute = SmartApplyRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxRoute = SandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SafeAutoSubmitRoute = SafeAutoSubmitRouteImport.update({
@@ -141,6 +148,11 @@ const FollowUpsRoute = FollowUpsRouteImport.update({
   path: '/follow-ups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutiveRoute = ExecutiveRouteImport.update({
+  id: '/executive',
+  path: '/executive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
@@ -208,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -223,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
+  '/sandbox': typeof SandboxRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -241,6 +255,7 @@ export interface FileRoutesByTo {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -256,6 +271,7 @@ export interface FileRoutesByTo {
   '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
+  '/sandbox': typeof SandboxRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -275,6 +291,7 @@ export interface FileRoutesById {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -290,6 +307,7 @@ export interface FileRoutesById {
   '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
+  '/sandbox': typeof SandboxRoute
   '/settings': typeof SettingsRoute
   '/smart-apply': typeof SmartApplyRoute
   '/sources': typeof SourcesRoute
@@ -310,6 +328,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/executive'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -325,6 +344,7 @@ export interface FileRouteTypes {
     | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
+    | '/sandbox'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -343,6 +363,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/executive'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -358,6 +379,7 @@ export interface FileRouteTypes {
     | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
+    | '/sandbox'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -376,6 +398,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/executive'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -391,6 +414,7 @@ export interface FileRouteTypes {
     | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
+    | '/sandbox'
     | '/settings'
     | '/smart-apply'
     | '/sources'
@@ -410,6 +434,7 @@ export interface RootRouteChildren {
   CompaniesRoute: typeof CompaniesRoute
   CompanyIntelligenceRoute: typeof CompanyIntelligenceRoute
   DemoRoute: typeof DemoRoute
+  ExecutiveRoute: typeof ExecutiveRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
@@ -425,6 +450,7 @@ export interface RootRouteChildren {
   ResumeVariantsRoute: typeof ResumeVariantsRoute
   ReviewRoute: typeof ReviewRoute
   SafeAutoSubmitRoute: typeof SafeAutoSubmitRoute
+  SandboxRoute: typeof SandboxRoute
   SettingsRoute: typeof SettingsRoute
   SmartApplyRoute: typeof SmartApplyRoute
   SourcesRoute: typeof SourcesRoute
@@ -468,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox': {
+      id: '/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof SandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/safe-auto-submit': {
@@ -575,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FollowUpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executive': {
+      id: '/executive'
+      path: '/executive'
+      fullPath: '/executive'
+      preLoaderRoute: typeof ExecutiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo': {
       id: '/demo'
       path: '/demo'
@@ -666,6 +706,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompaniesRoute: CompaniesRoute,
   CompanyIntelligenceRoute: CompanyIntelligenceRoute,
   DemoRoute: DemoRoute,
+  ExecutiveRoute: ExecutiveRoute,
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
@@ -681,6 +722,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResumeVariantsRoute: ResumeVariantsRoute,
   ReviewRoute: ReviewRoute,
   SafeAutoSubmitRoute: SafeAutoSubmitRoute,
+  SandboxRoute: SandboxRoute,
   SettingsRoute: SettingsRoute,
   SmartApplyRoute: SmartApplyRoute,
   SourcesRoute: SourcesRoute,
