@@ -17,10 +17,15 @@ import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
     meta: [
-      { title: "Public Sandbox — Apply Command Demo" },
-      { name: "description", content: "Interactive recruiter-safe demo of the Apply Command pipeline. Fully simulated data, no production access." },
-      { property: "og:title", content: "Apply Command — Live Demo" },
+      { title: "Public Sandbox — CommandFlowOS Demo" },
+      { name: "description", content: "Interactive recruiter-safe demo of the CommandFlowOS pipeline. Fully simulated data, no production access." },
+      { property: "og:title", content: "CommandFlowOS — Live Sandbox" },
       { property: "og:description", content: "Walkthrough of an AI-driven job-application command center, with simulated jobs, recruiters, and analytics." },
+      { property: "og:url", content: "https://commandflowos.online/sandbox" },
+      { property: "og:type", content: "website" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://commandflowos.online/sandbox" },
     ],
   }),
   component: SandboxPage,
