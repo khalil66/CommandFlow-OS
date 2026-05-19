@@ -37,7 +37,11 @@ function fmtAgo(iso: string | null) {
 function MonitoringPage() {
   const dashFn = useServerFn(getMonitoringDashboard);
   const alertFn = useServerFn(evaluateAndAlert);
+  const openAiHealthFn = useServerFn(getOpenAiHealth);
+  const openAiValidateFn = useServerFn(validateOpenAi);
   const [data, setData] = useState<any>(null);
+  const [openAi, setOpenAi] = useState<any>(null);
+  const [validating, setValidating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [win, setWin] = useState<Win>("24h");
   const [alerting, setAlerting] = useState(false);
@@ -45,7 +49,10 @@ function MonitoringPage() {
 
   const load = async (w: Win = win) => {
     setLoading(true);
-    try { setData(await dashFn({ data: { window: w } })); }
+    try {
+      const [d, ai] = await Promise.all([dashFn({ data: { window: w } }), openAiHealthFn().catch(() => null)]);
+      setData(d); setOpenAi(ai);
+    }
     catch (e: any) { toast.error(e?.message ?? "Failed to load monitoring"); }
     finally { setLoading(false); }
   };
