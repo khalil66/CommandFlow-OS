@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { humanizeText } from "@/components/chart-card";
 import {
   Shield, ShieldAlert, ShieldCheck, PauseCircle, PlayCircle, Loader2,
   CalendarClock, Sparkles, AlertOctagon, Activity, ListChecks, Zap, Clock, Lock,
@@ -383,7 +384,7 @@ function SmartApplyPage() {
                     {s.total_rows_for_source != null && (
                       <div className="text-muted-foreground mt-1">DB rows for this source: <span className="font-mono text-foreground">{s.total_rows_for_source}</span></div>
                     )}
-                    {s.failure_reason && <div className="text-destructive mt-1">reason: {s.failure_reason}</div>}
+                    {s.failure_reason && <div className="text-destructive mt-1">reason: {humanizeText(s.failure_reason)}</div>}
                     {s.error && <div className="text-destructive mt-1 font-mono text-[10px]">{s.error}</div>}
                     {s.insert_errors?.length > 0 && (
                       <ul className="text-destructive mt-1 font-mono text-[10px] list-disc list-inside">
@@ -461,7 +462,7 @@ function SmartApplyPage() {
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Top rejection reasons</div>
               <ul className="space-y-1 text-xs text-muted-foreground">
                 {diag.top_rejection.map((r: any, i: number) => (
-                  <li key={i}>• <span className="font-medium text-foreground">{r.count}×</span> {r.reason}</li>
+                  <li key={i}>• <span className="font-medium text-foreground">{r.count}×</span> {humanizeText(r.reason)}</li>
                 ))}
               </ul>
             </div>
@@ -625,7 +626,7 @@ function SmartApplyPage() {
                       {l.company_name && <span className="text-xs text-muted-foreground">@ {l.company_name}</span>}
                       {l.ats && <Badge variant="outline" className="text-[10px]">{l.ats}</Badge>}
                     </div>
-                    {l.reason && <div className="text-xs text-muted-foreground mt-1">{l.reason}</div>}
+                    {l.reason && <div className="text-xs text-muted-foreground mt-1">{humanizeText(l.reason)}</div>}
                     {l.gates?.failed?.length > 0 && (
                       <div className="text-[11px] text-destructive mt-1">Failed gates: {l.gates.failed.join(" · ")}</div>
                     )}

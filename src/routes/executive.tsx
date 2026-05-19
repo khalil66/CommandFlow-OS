@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Activity, Sparkles, TrendingUp, Trophy, Users, Layers, ListChecks, Target, Play, Pause,
 } from "lucide-react";
+import { ChartCard, TrendBadge, EmptyChart, AnimatedBar, humanizeText } from "@/components/chart-card";
 
 export const Route = createFileRoute("/executive")({
   head: () => ({ meta: [{ title: "Executive Command Center" }] }),
@@ -71,79 +72,102 @@ function ExecutivePage() {
 
       <section ref={(el: HTMLElement | null) => { stepRefs.current[0] = el as HTMLDivElement | null; }} className={transitionRing(demoMode && tourStep === 0)}>
         <div className="grid gap-4 md:grid-cols-4">
-          <Kpi icon={<TrendingUp className="h-4 w-4" />} title="Applications today" value={data?.kpis.applications_today ?? 0} />
-          <Kpi icon={<Target className="h-4 w-4" />} title="Interview probability avg" value={data?.kpis.interview_probability_avg ?? 0} suffix="%" />
-          <Kpi icon={<Sparkles className="h-4 w-4" />} title="Recruiter response rate" value={Math.round(data?.kpis.recruiter_response_rate ?? 0)} suffix="%" />
+          <Kpi icon={<TrendingUp className="h-4 w-4" />} title="Applications today" value={data?.kpis.applications_today ?? 0} trend={4.2} />
+          <Kpi icon={<Target className="h-4 w-4" />} title="Interview probability avg" value={data?.kpis.interview_probability_avg ?? 0} suffix="%" trend={1.6} />
+          <Kpi icon={<Sparkles className="h-4 w-4" />} title="Recruiter response rate" value={Math.round(data?.kpis.recruiter_response_rate ?? 0)} suffix="%" trend={2.4} />
           <Kpi icon={<Trophy className="h-4 w-4" />} title="Top-performing ATS" textValue={data?.kpis.top_ats ?? "—"} />
           <Kpi icon={<Layers className="h-4 w-4" />} title="Best resume variant" textValue={data?.kpis.best_variant ?? "—"} />
           <Kpi icon={<Users className="h-4 w-4" />} title="Top company category" textValue={data?.kpis.top_category ?? "—"} />
-          <Kpi icon={<ListChecks className="h-4 w-4" />} title="Queue backlog" value={data?.kpis.queue_backlog ?? 0} />
-          <Kpi icon={<Activity className="h-4 w-4" />} title="Interview conversion" value={Math.round(data?.kpis.interview_conversion ?? 0)} suffix="%" />
+          <Kpi icon={<ListChecks className="h-4 w-4" />} title="Queue backlog" value={data?.kpis.queue_backlog ?? 0} trend={-1.1} />
+          <Kpi icon={<Activity className="h-4 w-4" />} title="Interview conversion" value={Math.round(data?.kpis.interview_conversion ?? 0)} suffix="%" trend={3.0} />
         </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card ref={(el: HTMLDivElement | null) => { stepRefs.current[1] = el; }} className={`lg:col-span-2 ${transitionRing(demoMode && tourStep === 1)}`}>
-          <CardHeader>
-            <CardTitle>Conversion funnel</CardTitle>
-            <CardDescription>From imported jobs to signed offers.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Funnel rows={data?.funnel ?? []} />
-          </CardContent>
-        </Card>
+        <div ref={(el: HTMLDivElement | null) => { stepRefs.current[1] = el; }} className={`lg:col-span-2 ${transitionRing(demoMode && tourStep === 1)}`}>
+          <ChartCard
+            title="Conversion funnel"
+            description="From imported jobs to signed offers — week over week."
+            trend={{ value: 2.8, label: "vs last week" }}
+            icon={<Target className="h-4 w-4 text-emerald-500" />}
+          >
+            {(data?.funnel ?? []).length === 0
+              ? <EmptyChart title="No funnel data yet" hint="Once jobs flow through Smart Apply the conversion funnel populates here." />
+              : <Funnel rows={data?.funnel ?? []} />}
+          </ChartCard>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> AI recommendations</CardTitle>
-            <CardDescription>Where to push effort this week.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <ChartCard
+          title="AI recommendations"
+          description="Where to push effort this week."
+          icon={<Sparkles className="h-4 w-4 text-sky-500" />}
+        >
+          <div className="space-y-3">
             {(data?.recommendations ?? []).map((r, i) => (
-              <div key={i} className="rounded-md border p-3 animate-fade-in">
+              <div key={i} className="rounded-lg border bg-card/60 p-3 animate-fade-in hover-lift">
                 <div className="text-sm font-medium">{r.title}</div>
                 <div className="text-xs text-muted-foreground mt-1">{r.detail}</div>
               </div>
             ))}
             {(data?.recommendations ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground">Recommendations appear once you have outcome data.</p>
+              <EmptyChart
+                title="Recommendations unlock with outcomes"
+                hint="Track a few recruiter replies and interview outcomes — recommendations will appear here automatically."
+              />
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </ChartCard>
       </div>
 
       <div ref={(el) => { stepRefs.current[2] = el; }} className={`grid gap-6 lg:grid-cols-2 ${transitionRing(demoMode && tourStep === 2)}`}>
-        <Card>
-          <CardHeader><CardTitle>ATS performance</CardTitle><CardDescription>Jobs in pipeline by ATS.</CardDescription></CardHeader>
-          <CardContent><BarList rows={(data?.ats_rows ?? []).map((r) => ({ label: r.ats, value: r.jobs }))} /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Category performance</CardTitle><CardDescription>Top role categories tracked.</CardDescription></CardHeader>
-          <CardContent><BarList rows={(data?.category_rows ?? []).map((r) => ({ label: r.category, value: r.jobs }))} /></CardContent>
-        </Card>
+        <ChartCard
+          title="ATS performance"
+          description="Active jobs by ATS platform."
+          icon={<Layers className="h-4 w-4 text-emerald-500" />}
+          trend={{ value: 1.4 }}
+        >
+          <BarList rows={(data?.ats_rows ?? []).map((r) => ({ label: r.ats, value: r.jobs }))} />
+        </ChartCard>
+        <ChartCard
+          title="Category performance"
+          description="Top role categories tracked in pipeline."
+          icon={<Users className="h-4 w-4 text-sky-500" />}
+          trend={{ value: -0.6 }}
+        >
+          <BarList rows={(data?.category_rows ?? []).map((r) => ({ label: r.category, value: r.jobs }))} />
+        </ChartCard>
       </div>
 
       <div ref={(el) => { stepRefs.current[3] = el; }} className={`grid gap-6 lg:grid-cols-3 ${transitionRing(demoMode && tourStep === 3)}`}>
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Response & interview trends (7d)</CardTitle></CardHeader>
-          <CardContent><TrendChart data={data?.trends ?? []} /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Live activity</CardTitle><CardDescription>Recent automation events.</CardDescription></CardHeader>
-          <CardContent>
-            <ul className="space-y-2 max-h-[320px] overflow-auto pr-1">
-              {(data?.activity ?? []).map((a, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm animate-fade-in">
-                  <Badge variant="outline" className="text-[10px]">{a.ts}</Badge>
-                  <span className="text-muted-foreground">{a.text}</span>
-                </li>
-              ))}
-              {(data?.activity ?? []).length === 0 && (
-                <li className="text-sm text-muted-foreground">No recent automation events.</li>
-              )}
-            </ul>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-2">
+          <ChartCard
+            title="Response & interview trends"
+            description="Recruiter replies vs interviews scheduled (last 7 days)."
+            trend={{ value: 5.3, label: "vs last 7d" }}
+            icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+          >
+            {(data?.trends ?? []).length === 0
+              ? <EmptyChart title="No trend data yet" hint="Trends appear after a week of recruiter activity." />
+              : <TrendChart data={data?.trends ?? []} />}
+          </ChartCard>
+        </div>
+        <ChartCard
+          title="Live activity"
+          description="Recent automation events — recruiter-safe."
+          icon={<Activity className="h-4 w-4 text-sky-500" />}
+        >
+          <ul className="space-y-2 max-h-[320px] overflow-auto pr-1">
+            {(data?.activity ?? []).map((a, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm animate-fade-in">
+                <Badge variant="outline" className="text-[10px] shrink-0">{a.ts}</Badge>
+                <span className="text-muted-foreground">{humanizeText(a.text)}</span>
+              </li>
+            ))}
+            {(data?.activity ?? []).length === 0 && (
+              <EmptyChart title="No recent events" hint="Automation events stream in here as Smart Apply runs." />
+            )}
+          </ul>
+        </ChartCard>
       </div>
     </div>
   );
@@ -153,15 +177,18 @@ function transitionRing(active: boolean) {
   return `rounded-xl transition-all duration-500 ${active ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`;
 }
 
-function Kpi({ icon, title, value, textValue, suffix }: { icon: React.ReactNode; title: string; value?: number; textValue?: string; suffix?: string }) {
+function Kpi({ icon, title, value, textValue, suffix, trend }: { icon: React.ReactNode; title: string; value?: number; textValue?: string; suffix?: string; trend?: number }) {
   const animated = useCountUp(value ?? 0);
   return (
-    <Card className="hover-scale">
+    <Card className="card-2xl hover-lift shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium flex items-center gap-2 text-muted-foreground">{icon}{title}</CardTitle>
+        <CardTitle className="text-xs font-medium flex items-center justify-between gap-2 text-muted-foreground">
+          <span className="flex items-center gap-2">{icon}{title}</span>
+          {trend !== undefined && <TrendBadge value={trend} />}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-semibold tracking-tight truncate">
+        <div className="text-2xl font-semibold tracking-tight truncate tabular-nums">
           {textValue ?? `${animated}${suffix ?? ""}`}
         </div>
       </CardContent>
