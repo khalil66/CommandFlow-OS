@@ -275,7 +275,7 @@ function StatusBadge({ status }: { status: string }) {
     <Badge variant={variant} className="text-[10px] uppercase tracking-wide">
       {bad && <AlertTriangle className="h-3 w-3 mr-1" />}
       {!bad && warn && <ShieldAlert className="h-3 w-3 mr-1" />}
-      {status}
+      {humanizeReason(String(status))}
     </Badge>
   );
 }
