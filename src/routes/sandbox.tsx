@@ -65,40 +65,47 @@ function SandboxPage() {
       <header className="px-6 py-5 border-b bg-card/60 backdrop-blur sticky top-0 z-20">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold">A</div>
+            <div className="h-9 w-9 rounded-md bg-gradient-to-br from-emerald-500 to-sky-500 text-white grid place-items-center font-bold">A</div>
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Public sandbox · simulated data</p>
-              <p className="text-sm font-semibold">Apply Command — Live Demo</p>
+              <p className="text-sm font-semibold">CommandFlowOS — Live Demo</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant={playing ? "default" : "outline"} size="sm" onClick={() => setPlaying((v) => !v)}>
+            <Button variant={playing ? "default" : "outline"} size="sm" onClick={() => setPlaying((v) => !v)} className={playing ? "cta-gradient" : ""}>
               {playing ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
               {playing ? "Pause tour" : "Auto-play"}
             </Button>
             <a href="https://khalilhickson.com" target="_blank" rel="noreferrer">
               <Button size="sm" variant="outline">View resume <ExternalLink className="h-3 w-3 ml-1" /></Button>
             </a>
-            <Link to="/case-study"><Button size="sm">View case study</Button></Link>
+            <Link to="/case-study"><Button size="sm" className="cta-gradient">View case study</Button></Link>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10 space-y-12">
-        {/* Hero */}
-        <section className="text-center space-y-4 animate-fade-in">
-          <Badge variant="secondary" className="mx-auto">100% simulated · no production data</Badge>
-          <h1 className="text-5xl font-semibold tracking-tight">An AI command center for the job hunt.</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+      <CinematicHero
+        eyebrow="Public sandbox · 100% simulated data"
+        headline="AI-Powered Career Operating System"
+        subheadline="CommandFlowOS combines verified job intelligence, resume optimization, recruiter CRM workflows, outcome learning, and safe automation into one career operations platform."
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <GlassStat value={SANDBOX_KPIS.applications_today} label="Applications today" sub="across verified ATS" />
+          <GlassStat value={`${SANDBOX_KPIS.interview_probability_avg}%`} label="Avg interview probability" />
+          <GlassStat value={`${SANDBOX_KPIS.recruiter_response_rate}%`} label="Recruiter response rate" />
+          <GlassStat value={SANDBOX_KPIS.best_variant} label="Best resume variant" />
+        </div>
+      </CinematicHero>
+
+      <main className="max-w-7xl mx-auto px-6 py-14 space-y-14">
+        {/* Intro */}
+        <Reveal className="text-center space-y-3">
+          <Badge variant="secondary" className="mx-auto">No production data · no PII · no API keys</Badge>
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">An AI command center for the job hunt.</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
             Ingests roles across ATSs, scores fit, drafts packets, routes Safe Auto-Submit, and learns from every recruiter reply.
           </p>
-          <div className="flex justify-center gap-2 pt-2">
-            <a href="mailto:khalil@khalilhickson.com?subject=Apply%20Command%20walkthrough">
-              <Button>Request walkthrough</Button>
-            </a>
-            <Link to="/case-study"><Button variant="outline">Read the case study</Button></Link>
-          </div>
-        </section>
+        </Reveal>
 
         {/* KPIs */}
         <section id="kpis" className={ring(step === 0 && playing)}>
