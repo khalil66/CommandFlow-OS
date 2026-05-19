@@ -10,6 +10,14 @@ import {
   Activity, Sparkles, TrendingUp, Trophy, Users, Layers, ListChecks, Target, Play, Pause,
 } from "lucide-react";
 import { ChartCard, TrendBadge, EmptyChart, AnimatedBar, humanizeText } from "@/components/chart-card";
+import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-tour";
+
+const EXEC_TOUR: TourStep[] = [
+  { id: "exec-kpis", title: "Executive KPIs", body: "The eight numbers a hiring leader actually cares about — applications, interview probability, recruiter response rate, top-performing ATS and resume variant." },
+  { id: "exec-funnel", title: "Conversion funnel", body: "Imported → reviewed → applied → recruiter reply → interview → offer. Week-over-week trend surfaces drop-off stages immediately." },
+  { id: "exec-ats", title: "ATS & category performance", body: "Which ATS platforms and role categories are converting. Drives where to push effort this week." },
+  { id: "exec-trends", title: "Response & interview trends · live activity", body: "Seven-day recruiter replies vs interviews scheduled, alongside a recruiter-safe automation stream. No PII surfaces here." },
+];
 
 export const Route = createFileRoute("/executive")({
   head: () => ({ meta: [{ title: "Executive Command Center" }] }),
