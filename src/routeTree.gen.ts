@@ -16,6 +16,7 @@ import { Route as SmartApplyRouteImport } from './routes/smart-apply'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SafeAutoSubmitRouteImport } from './routes/safe-auto-submit'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as ResumeVariantsRouteImport } from './routes/resume-variants'
 import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -73,6 +74,11 @@ const SafeAutoSubmitRoute = SafeAutoSubmitRouteImport.update({
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeVariantsRoute = ResumeVariantsRouteImport.update({
+  id: '/resume-variants',
+  path: '/resume-variants',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumeDiffRoute = ResumeDiffRouteImport.update({
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
+  '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
   '/settings': typeof SettingsRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
+  '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
   '/settings': typeof SettingsRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/resume': typeof ResumeRoute
   '/resume-diff': typeof ResumeDiffRoute
+  '/resume-variants': typeof ResumeVariantsRoute
   '/review': typeof ReviewRoute
   '/safe-auto-submit': typeof SafeAutoSubmitRoute
   '/settings': typeof SettingsRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resume'
     | '/resume-diff'
+    | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
     | '/settings'
@@ -345,6 +355,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resume'
     | '/resume-diff'
+    | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
     | '/settings'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/resume'
     | '/resume-diff'
+    | '/resume-variants'
     | '/review'
     | '/safe-auto-submit'
     | '/settings'
@@ -410,6 +422,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResumeRoute: typeof ResumeRoute
   ResumeDiffRoute: typeof ResumeDiffRoute
+  ResumeVariantsRoute: typeof ResumeVariantsRoute
   ReviewRoute: typeof ReviewRoute
   SafeAutoSubmitRoute: typeof SafeAutoSubmitRoute
   SettingsRoute: typeof SettingsRoute
@@ -469,6 +482,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume-variants': {
+      id: '/resume-variants'
+      path: '/resume-variants'
+      fullPath: '/resume-variants'
+      preLoaderRoute: typeof ResumeVariantsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resume-diff': {
@@ -658,6 +678,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ResumeRoute: ResumeRoute,
   ResumeDiffRoute: ResumeDiffRoute,
+  ResumeVariantsRoute: ResumeVariantsRoute,
   ReviewRoute: ReviewRoute,
   SafeAutoSubmitRoute: SafeAutoSubmitRoute,
   SettingsRoute: SettingsRoute,
@@ -670,3 +691,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
