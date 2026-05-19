@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
 import { InstallAppButton } from "@/components/install-app-button";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { PageTracker } from "@/components/page-tracker";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
