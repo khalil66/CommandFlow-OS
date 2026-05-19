@@ -132,7 +132,14 @@ function ExecutivePage() {
             {(data?.recommendations ?? []).length === 0 && (
               <EmptyChart
                 title="Recommendations unlock with outcomes"
-                hint="Track a few recruiter replies and interview outcomes — recommendations will appear here automatically."
+                hint="Track a few recruiter replies and interviews and the engine will start suggesting which sources, ATSs, and resume variants to lean into."
+                why="Outcome-driven recommendations turn the platform from a job firehose into an actual learning loop."
+                sample="bars"
+                icon={Sparkles}
+                ctas={[
+                  { label: "Start Demo", to: "/demo" },
+                  { label: "View Architecture", to: "/case-study", variant: "outline" },
+                ]}
               />
             )}
           </div>
