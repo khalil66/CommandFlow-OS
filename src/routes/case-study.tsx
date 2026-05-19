@@ -8,6 +8,7 @@ import {
   TrendingUp, Layers, Cpu, Cloud, XCircle,
 } from "lucide-react";
 import { SystemArchitecture } from "@/components/system-architecture";
+import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 
 export const Route = createFileRoute("/case-study")({
   head: () => ({
@@ -24,35 +25,18 @@ export const Route = createFileRoute("/case-study")({
 function CaseStudy() {
   return (
     <div className="min-h-screen bg-background">
-      {/* HERO */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-background to-background" />
-        <div className="relative max-w-6xl mx-auto px-6 py-20">
-          <Badge className="mb-4 bg-accent/15 text-accent border-accent/30">Case Study · 2026</Badge>
-          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
-            AI-Powered Remote Job<br />
-            <span className="text-accent">Application Intelligence Platform</span>
-          </h1>
-          <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-3xl leading-relaxed">
-            A verified remote-job intelligence engine that combines ATS optimization, company trust scoring,
-            and AI-assisted application preparation — operated entirely under a manual-review workflow.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link to="/demo">View Public Demo <ArrowRight className="h-4 w-4 ml-1.5" /></Link>
-            </Button>
-            <Button variant="outline" asChild><a href="#summary">Read Full Case Study</a></Button>
-            <Button variant="outline" asChild><a href="https://khalilhickson.com#contact" target="_blank" rel="noopener noreferrer">Request Live Walkthrough</a></Button>
-            <Button variant="outline" asChild><a href="https://khalilhickson.com" target="_blank" rel="noopener noreferrer">View Resume</a></Button>
-          </div>
-          <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <HeroStat value="30+" label="Verified Companies" />
-            <HeroStat value="11-factor" label="Trust Scoring" />
-            <HeroStat value="25/day" label="AI Generation Cap" />
-            <HeroStat value="100%" label="Manual Review" />
-          </div>
+      <CinematicHero
+        eyebrow="Case Study · 2026"
+        headline="AI-Powered Career Operating System"
+        subheadline="CommandFlowOS combines verified job intelligence, resume optimization, recruiter CRM workflows, outcome learning, and safe automation into one career operations platform — operated entirely under a manual-review workflow."
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <GlassStat value="30+" label="Verified Companies" />
+          <GlassStat value="11-factor" label="Trust Scoring" />
+          <GlassStat value="25/day" label="AI Generation Cap" />
+          <GlassStat value="100%" label="Manual Review" />
         </div>
-      </section>
+      </CinematicHero>
 
       <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
 

@@ -9,6 +9,7 @@ import {
   AlertTriangle, TrendingUp, Users2, Globe2, MapPin, BellRing, Zap,
   PlayCircle, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 
 export const Route = createFileRoute("/demo")({
   head: () => ({
@@ -144,24 +145,22 @@ function DemoPage() {
         </div>
       </header>
 
+      <CinematicHero
+        eyebrow="Recruiter Demo · all data is mock"
+        headline="AI-Powered Career Operating System"
+        subheadline="CommandFlowOS combines verified job intelligence, resume optimization, recruiter CRM workflows, outcome learning, and safe automation into one career operations platform."
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <GlassStat value="248" label="Jobs scanned · 7d" />
+          <GlassStat value="35" label="Auto-reviewed packets" />
+          <GlassStat value="12" label="Manual review queue" />
+          <GlassStat value="4" label="Interviews this week" />
+        </div>
+      </CinematicHero>
+
       <WalkthroughTour />
 
       <main className="max-w-[1400px] mx-auto px-6 py-10 space-y-12">
-        {/* Hero */}
-        <section className="text-center max-w-3xl mx-auto space-y-4">
-          <Badge variant="outline" className="border-accent/40 text-accent">Read-only recruiter demo · all data is mock</Badge>
-          <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">An AI-assisted job-application command center</h1>
-          <p className="text-base text-muted-foreground leading-relaxed">
-            Built by Khalil Hickson — a working tool that imports jobs, scores fit, drafts tailored resumes + cover letters,
-            tracks recruiter responses, and surfaces what's actually converting. Nothing is auto-submitted; every send is a deliberate human action.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
-            <Badge variant="secondary">No login required</Badge>
-            <Badge variant="secondary">No real submissions</Badge>
-            <Badge variant="secondary">No production data</Badge>
-            <Badge variant="secondary">No browser automation</Badge>
-          </div>
-        </section>
 
         {/* Dashboard */}
         <Section id="tour-dashboard" icon={LayoutDashboard} title="Dashboard preview" subtitle="The morning briefing — what shipped, what's queued, what needs you.">
