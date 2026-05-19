@@ -174,7 +174,13 @@ function ExecutivePage() {
             icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
           >
             {(data?.trends ?? []).length === 0
-              ? <EmptyChart title="No trend data yet" hint="Trends appear after a week of recruiter activity." />
+              ? <EmptyChart
+                  title="Weekly trend chart waiting for activity"
+                  hint="After a few days of replies and interviews, you'll see momentum and week-over-week deltas here."
+                  why="A flat reply line means the funnel needs more top-of-pipeline — a rising interview line means the resume is landing."
+                  sample="line"
+                  ctas={[{ label: "Run Smart Apply", to: "/smart-apply" }]}
+                />
               : <TrendChart data={data?.trends ?? []} />}
           </ChartCard>
         </div>
