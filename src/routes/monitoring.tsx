@@ -205,7 +205,16 @@ function MonitoringPage() {
             </CardHeader>
             <CardContent className="space-y-1.5 max-h-[520px] overflow-y-auto">
               {filteredLogs.length === 0 ? (
-                <EmptyChart title="No matching events" hint="Try clearing the filter or expanding the time window." />
+                <EmptyChart
+                  title="No matching monitoring events"
+                  hint="Try clearing the filter or expanding the time window — or trigger a Smart Apply run to generate fresh telemetry."
+                  why="Monitoring shows the platform's heartbeat. A quiet feed during an active window can mean a paused worker or filter mismatch."
+                  sample="line"
+                  ctas={[
+                    { label: "Run Smart Apply", to: "/smart-apply" },
+                    { label: "View Architecture", to: "/case-study", variant: "outline" },
+                  ]}
+                />
               ) : filteredLogs.map((r: any, i: number) => (
                 <div key={i} className="grid grid-cols-[110px_160px_1fr_auto] gap-3 items-start text-xs p-2 rounded-md border border-border/40 hover:bg-muted/30 transition-colors">
                   <span className="text-muted-foreground tabular-nums">{new Date(r.ts).toLocaleTimeString()}</span>
