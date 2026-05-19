@@ -23,6 +23,7 @@ import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as OutcomesRouteImport } from './routes/outcomes'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -111,6 +112,11 @@ const RecruitersRoute = RecruitersRouteImport.update({
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioRoute = PortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PipelineRoute = PipelineRouteImport.update({
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/outcomes': typeof OutcomesRoute
   '/pipeline': typeof PipelineRoute
+  '/portfolio': typeof PortfolioRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -263,6 +270,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/outcomes': typeof OutcomesRoute
   '/pipeline': typeof PipelineRoute
+  '/portfolio': typeof PortfolioRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/outcomes': typeof OutcomesRoute
   '/pipeline': typeof PipelineRoute
+  '/portfolio': typeof PortfolioRoute
   '/queue': typeof QueueRoute
   '/recruiters': typeof RecruitersRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/outcomes'
     | '/pipeline'
+    | '/portfolio'
     | '/queue'
     | '/recruiters'
     | '/reset-password'
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/outcomes'
     | '/pipeline'
+    | '/portfolio'
     | '/queue'
     | '/recruiters'
     | '/reset-password'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/outcomes'
     | '/pipeline'
+    | '/portfolio'
     | '/queue'
     | '/recruiters'
     | '/reset-password'
@@ -442,6 +454,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   OutcomesRoute: typeof OutcomesRoute
   PipelineRoute: typeof PipelineRoute
+  PortfolioRoute: typeof PortfolioRoute
   QueueRoute: typeof QueueRoute
   RecruitersRoute: typeof RecruitersRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -557,6 +570,13 @@ declare module '@tanstack/react-router' {
       path: '/queue'
       fullPath: '/queue'
       preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio': {
+      id: '/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pipeline': {
@@ -714,6 +734,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   OutcomesRoute: OutcomesRoute,
   PipelineRoute: PipelineRoute,
+  PortfolioRoute: PortfolioRoute,
   QueueRoute: QueueRoute,
   RecruitersRoute: RecruitersRoute,
   ResetPasswordRoute: ResetPasswordRoute,

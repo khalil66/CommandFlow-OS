@@ -152,6 +152,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     path === "/auth" ||
     path === "/demo" ||
     path === "/sandbox" ||
+    path === "/portfolio" ||
     path === "/reset-password" ||
     path === "/admin-recovery" ||
     path === "/case-study";
@@ -192,6 +193,7 @@ function RootComponent() {
     path === "/auth" ||
     path === "/demo" ||
     path === "/sandbox" ||
+    path === "/portfolio" ||
     path === "/reset-password" ||
     path === "/admin-recovery" ||
     path === "/case-study"
