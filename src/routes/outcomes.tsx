@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { ChartCard, EmptyChart, humanizeReason } from "@/components/chart-card";
 
 export const Route = createFileRoute("/outcomes")({
   head: () => ({
@@ -37,36 +38,39 @@ function FunnelBar({ label, n, of, color }: { label: string; n: number; of: numb
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">{n} <span className="text-muted-foreground">({pct.toFixed(1)}%)</span></span>
+        <span className="text-muted-foreground">{humanizeReason(label)}</span>
+        <span className="font-medium tabular-nums">{n} <span className="text-muted-foreground">({pct.toFixed(1)}%)</span></span>
       </div>
-      <div className="h-2 w-full rounded bg-muted overflow-hidden">
-        <div className={`h-full ${color}`} style={{ width: `${Math.max(2, pct)}%` }} />
+      <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full ${color} transition-[width] duration-1000 ease-out`}
+          style={{ width: `${Math.max(2, pct)}%` }}
+        />
       </div>
     </div>
   );
 }
 
 function SegmentTable({ title, rows }: { title: string; rows: any[] }) {
-  if (!rows?.length) return null;
   return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-      <CardContent>
+    <ChartCard title={title} description="Submissions, reply rate, and interview rate per segment.">
+      {!rows?.length ? (
+        <EmptyChart hint="Not enough outcomes recorded yet — submit a few packets to populate." />
+      ) : (
         <div className="space-y-2">
           {rows.slice(0, 8).map((r) => (
             <div key={r.name} className="flex items-center justify-between gap-3 text-sm">
-              <div className="truncate font-medium">{r.name}</div>
+              <div className="truncate font-medium">{humanizeReason(r.name)}</div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="secondary">{r.funnel.submitted} sub</Badge>
-                <Badge>{r.funnel.reply_rate}% reply</Badge>
-                <Badge variant="outline">{r.funnel.interview_rate}% intv</Badge>
+                <Badge variant="secondary" className="tabular-nums">{r.funnel.submitted} sub</Badge>
+                <Badge className="tabular-nums">{r.funnel.reply_rate}% reply</Badge>
+                <Badge variant="outline" className="tabular-nums">{r.funnel.interview_rate}% intv</Badge>
               </div>
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </ChartCard>
   );
 }
 

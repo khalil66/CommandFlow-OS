@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getMonitoringDashboard, evaluateAndAlert } from "@/lib/monitoring.functions";
 import { getOpenAiHealth, validateOpenAi } from "@/lib/openai-validate.functions";
+import { humanizeReason, EmptyChart } from "@/components/chart-card";
 
 export const Route = createFileRoute("/monitoring")({
   beforeLoad: async () => {
@@ -204,15 +205,15 @@ function MonitoringPage() {
             </CardHeader>
             <CardContent className="space-y-1.5 max-h-[520px] overflow-y-auto">
               {filteredLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No matching entries.</p>
+                <EmptyChart title="No matching events" hint="Try clearing the filter or expanding the time window." />
               ) : filteredLogs.map((r: any, i: number) => (
-                <div key={i} className="grid grid-cols-[110px_140px_1fr_auto] gap-3 items-start text-xs p-2 rounded border border-border/40 hover:bg-muted/30">
+                <div key={i} className="grid grid-cols-[110px_160px_1fr_auto] gap-3 items-start text-xs p-2 rounded-md border border-border/40 hover:bg-muted/30 transition-colors">
                   <span className="text-muted-foreground tabular-nums">{new Date(r.ts).toLocaleTimeString()}</span>
-                  <span className="font-mono truncate">{r.action}</span>
+                  <span className="font-medium truncate">{humanizeReason(r.action)}</span>
                   <span className="truncate">
                     {r.company && <span className="font-medium">{r.company}</span>}
                     {r.ats && <span className="text-muted-foreground"> · {r.ats}</span>}
-                    {r.reason && <span className="text-muted-foreground"> — {String(r.reason).slice(0, 160)}</span>}
+                    {r.reason && <span className="text-muted-foreground"> — {humanizeReason(String(r.reason)).slice(0, 160)}</span>}
                   </span>
                   <StatusBadge status={r.status} />
                 </div>
@@ -274,7 +275,7 @@ function StatusBadge({ status }: { status: string }) {
     <Badge variant={variant} className="text-[10px] uppercase tracking-wide">
       {bad && <AlertTriangle className="h-3 w-3 mr-1" />}
       {!bad && warn && <ShieldAlert className="h-3 w-3 mr-1" />}
-      {status}
+      {humanizeReason(String(status))}
     </Badge>
   );
 }

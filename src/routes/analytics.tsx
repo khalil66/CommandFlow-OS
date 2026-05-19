@@ -12,6 +12,7 @@ import { withRetry } from "@/lib/api-utils";
 import { ResponseHeatmap } from "@/components/response-heatmap";
 import { Link } from "@tanstack/react-router";
 import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock, FileDiff } from "lucide-react";
+import { ChartCard, EmptyChart, humanizeReason, chartTooltipStyle, chartAxisProps as axisProps } from "@/components/chart-card";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
@@ -20,8 +21,7 @@ const COLORS = [
   "var(--color-chart-4)", "var(--color-chart-5)",
 ];
 
-const tooltipStyle = { background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 };
-const axisProps = { stroke: "var(--color-muted-foreground)", fontSize: 11 };
+const tooltipStyle = chartTooltipStyle;
 
 function Analytics() {
   const fn = useServerFn(getAnalyticsBreakdown);
@@ -55,10 +55,7 @@ function Analytics() {
       </div>
 
       {empty ? (
-        <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
-          <BarChart3 className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No data yet. Run today's batch or seed sample data.</p>
-        </CardContent></Card>
+        <EmptyChart title="No analytics yet" hint="Run today's batch or seed sandbox data to see conversion, ATS, and resume performance." />
       ) : (
         <>
           {/* KPI strip */}
@@ -70,151 +67,134 @@ function Analytics() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Best-performing resume version */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-base">Best-performing resume versions</CardTitle>
-                <Link to="/resume-diff" className="text-xs text-accent inline-flex items-center gap-1 hover:underline"><FileDiff className="h-3 w-3" /> View diff</Link>
-              </CardHeader>
-              <CardContent>
-                {data.resume_performance.length === 0 ? <Empty msg="No resume versions yet." /> : (
-                  <div className="space-y-3">
-                    {data.resume_performance.slice(0, 6).map((r: any) => (
-                      <Link
-                        key={r.name}
-                        to="/resume-diff"
-                        search={{ variant_key: r.name }}
-                        className="flex items-center gap-3 p-3 rounded-md border border-border hover:border-accent/40 hover:bg-muted/40 transition-colors"
-                      >
-                        <div className="font-mono text-xs w-48 truncate">{r.name}</div>
-                        <div className="flex-1">
-                          <div className="h-2 rounded-full bg-muted overflow-hidden">
-                            <div className="h-full bg-accent" style={{ width: `${r.match_score}%` }} />
-                          </div>
+            <ChartCard
+              title="Best-performing resume versions"
+              description="Variants ranked by match score and interview outcomes."
+              action={<Link to="/resume-diff" className="text-xs text-accent inline-flex items-center gap-1 hover:underline"><FileDiff className="h-3 w-3" /> View diff</Link>}
+            >
+              {data.resume_performance.length === 0 ? <EmptyChart hint="No resume versions yet — generate a packet to start tracking." /> : (
+                <div className="space-y-3">
+                  {data.resume_performance.slice(0, 6).map((r: any) => (
+                    <Link
+                      key={r.name}
+                      to="/resume-diff"
+                      search={{ variant_key: r.name }}
+                      className="flex items-center gap-3 p-3 rounded-md border border-border hover:border-accent/40 hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="font-mono text-xs w-48 truncate">{r.name}</div>
+                      <div className="flex-1">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-accent transition-[width] duration-1000 ease-out" style={{ width: `${r.match_score}%` }} />
                         </div>
-                        <div className="text-xs tabular-nums w-24 text-right text-muted-foreground">{r.interviews}/{r.applications} int</div>
-                        <div className="text-sm font-semibold tabular-nums w-12 text-right text-accent">{r.match_score}</div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      </div>
+                      <div className="text-xs tabular-nums w-24 text-right text-muted-foreground">{r.interviews}/{r.applications} int</div>
+                      <div className="text-sm font-semibold tabular-nums w-12 text-right text-accent">{r.match_score}</div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
 
-            {/* Highest interview probability roles */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Highest interview-probability roles</CardTitle></CardHeader>
-              <CardContent className="h-72">
-                {data.role_probability.length === 0 ? <Empty msg="No role data." /> : (
+            <ChartCard title="Highest interview-probability roles" description="Top role categories by predicted interview likelihood.">
+              <div className="h-72">
+                {data.role_probability.length === 0 ? <EmptyChart hint="No role data yet." /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.role_probability} layout="vertical" margin={{ left: 100 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                       <XAxis type="number" {...axisProps} />
-                      <YAxis type="category" dataKey="name" {...axisProps} width={140} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="value" fill="var(--color-chart-1)" radius={[0, 4, 4, 0]} />
+                      <YAxis type="category" dataKey="name" {...axisProps} width={140} tickFormatter={humanizeReason} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.3 }} />
+                      <Bar dataKey="value" fill="var(--color-chart-1)" radius={[0, 4, 4, 0]} animationDuration={900} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
 
-            {/* Best-performing company categories */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Best-performing company categories</CardTitle></CardHeader>
-              <CardContent className="h-72">
-                {data.category_performance.length === 0 ? <Empty msg="No category data." /> : (
+            <ChartCard title="Best-performing company categories" description="Where your applications convert best.">
+              <div className="h-72">
+                {data.category_performance.length === 0 ? <EmptyChart hint="No category data yet." /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.category_performance}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                      <XAxis dataKey="name" {...axisProps} />
+                      <XAxis dataKey="name" {...axisProps} tickFormatter={humanizeReason} />
                       <YAxis {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="value" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.3 }} />
+                      <Bar dataKey="value" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} animationDuration={900} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
 
-            {/* Best-performing ATS platforms */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Best-performing ATS platforms</CardTitle></CardHeader>
-              <CardContent className="h-72">
-                {data.ats_performance.length === 0 ? <Empty msg="No ATS data." /> : (
+            <ChartCard title="Best-performing ATS platforms" description="Pass-through rate per applicant tracking system.">
+              <div className="h-72">
+                {data.ats_performance.length === 0 ? <EmptyChart hint="No ATS data yet." /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.ats_performance}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                       <XAxis dataKey="name" {...axisProps} />
                       <YAxis {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.3 }} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]} animationDuration={900}>
                         {data.ats_performance.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
 
-            {/* Interview response trends */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Interview response trends (14 days)</CardTitle></CardHeader>
-              <CardContent className="h-72">
+            <ChartCard title="Interview response trends" description="Submissions vs. interviews over the last 14 days.">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.response_trend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis dataKey="day" {...axisProps} />
                     <YAxis {...axisProps} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Line type="monotone" dataKey="submitted" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="interviews" stroke="var(--color-chart-2)" strokeWidth={2} dot={false} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v) => humanizeReason(String(v))} />
+                    <Line type="monotone" dataKey="submitted" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} animationDuration={1100} />
+                    <Line type="monotone" dataKey="interviews" stroke="var(--color-chart-2)" strokeWidth={2} dot={false} animationDuration={1100} />
                   </LineChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
 
-            {/* Resume keyword performance */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Resume keyword performance</CardTitle></CardHeader>
-              <CardContent className="h-72">
-                {data.keyword_performance.length === 0 ? <Empty msg="No keywords yet." /> : (
+            <ChartCard title="Resume keyword performance" description="Keywords most correlated with recruiter replies.">
+              <div className="h-72">
+                {data.keyword_performance.length === 0 ? <EmptyChart hint="No keywords scored yet." /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.keyword_performance} layout="vertical" margin={{ left: 80 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                       <XAxis type="number" {...axisProps} />
                       <YAxis type="category" dataKey="name" {...axisProps} width={120} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="value" fill="var(--color-chart-3)" radius={[0, 4, 4, 0]} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.3 }} />
+                      <Bar dataKey="value" fill="var(--color-chart-3)" radius={[0, 4, 4, 0]} animationDuration={900} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
 
-            {/* Application funnel */}
-            <Card className="lg:col-span-2">
-              <CardHeader><CardTitle className="text-base">Application funnel</CardTitle></CardHeader>
-              <CardContent className="h-80">
+            <ChartCard title="Application funnel" description="Sourcing → review → submission → outcome." className="lg:col-span-2">
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.funnel}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                    <XAxis dataKey="name" {...axisProps} />
+                    <XAxis dataKey="name" {...axisProps} tickFormatter={humanizeReason} />
                     <YAxis {...axisProps} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => humanizeReason(String(l))} cursor={{ fill: "var(--color-muted)", opacity: 0.3 }} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} animationDuration={900}>
                       {data.funnel.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
 
-            {/* Approval / rejection */}
-            <Card className="lg:col-span-2">
-              <CardHeader><CardTitle className="text-base">Approval vs rejection rates</CardTitle></CardHeader>
-              <CardContent className="h-72">
+            <ChartCard title="Approval vs rejection" description="Share of decisions made on submitted packets." className="lg:col-span-2">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -224,18 +204,20 @@ function Analytics() {
                         { name: "Pending", value: Math.max(0, 100 - data.approval_rate - data.rejection_rate) },
                       ]}
                       dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={2}
+                      animationDuration={1000}
                     >
                       <Cell fill="var(--color-chart-2)" />
                       <Cell fill="var(--color-chart-4)" />
                       <Cell fill="var(--color-muted)" />
                     </Pie>
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v}%`, ""]} />
                   </PieChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </div>
+            </ChartCard>
           </div>
+
 
           <ResponseHeatmap />
 
