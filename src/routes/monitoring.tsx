@@ -68,6 +68,16 @@ function MonitoringPage() {
     finally { setAlerting(false); }
   };
 
+  const validateAi = async () => {
+    setValidating(true);
+    try {
+      const r: any = await openAiValidateFn();
+      setOpenAi(r);
+      r.ok ? toast.success("OpenAI key valid") : toast.error(`OpenAI: ${r.message ?? "invalid"}`);
+    } catch (e: any) { toast.error(e?.message ?? "Validation failed"); }
+    finally { setValidating(false); }
+  };
+
   const filteredLogs = useMemo(() => {
     const rows: any[] = data?.structured_logs ?? [];
     if (!q.trim()) return rows;
