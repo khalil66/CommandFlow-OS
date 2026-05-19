@@ -149,7 +149,7 @@ function ExecutivePage() {
         </ChartCard>
       </div>
 
-      <div ref={(el) => { stepRefs.current[3] = el; }} className={`grid gap-6 lg:grid-cols-3 ${transitionRing(demoMode && tourStep === 3)}`}>
+      <div id="exec-trends" ref={(el) => { stepRefs.current[3] = el; }} className={`grid gap-6 lg:grid-cols-3 scroll-mt-24 ${transitionRing(demoMode && tourStep === 3)}`}>
         <div className="lg:col-span-2">
           <ChartCard
             title="Response & interview trends"
