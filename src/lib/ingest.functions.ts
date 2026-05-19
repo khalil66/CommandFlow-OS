@@ -413,7 +413,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
 
           await supabase.from("job_sources").update({
             last_imported_at: new Date().toISOString(),
-            last_import_count: counts.imported + counts.manual_review,
+            last_import_count: counts.imported,
           }).eq("id", src.id);
         } catch (e: any) {
           success = false;
