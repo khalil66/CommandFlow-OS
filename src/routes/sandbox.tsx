@@ -11,6 +11,7 @@ import {
   Activity, Sparkles, TrendingUp, Trophy, Users, Layers, ListChecks, Target,
   Play, Pause, ExternalLink, FileText, Calendar, Workflow,
 } from "lucide-react";
+import { SystemArchitecture } from "@/components/system-architecture";
 
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
@@ -224,16 +225,7 @@ function SandboxPage() {
         </section>
 
         {/* Architecture */}
-        <section className="space-y-4">
-          <h2 className="text-xs uppercase tracking-widest text-muted-foreground">Architecture overview</h2>
-          <Card>
-            <CardContent className="p-6 grid gap-4 md:grid-cols-3">
-              <ArchBlock title="Frontend" items={["TanStack Start", "React 19", "Tailwind v4", "shadcn/ui"]} />
-              <ArchBlock title="Backend" items={["TanStack server fns", "Supabase Postgres + RLS", "OpenAI scoring", "Twilio alerts"]} />
-              <ArchBlock title="Automation" items={["Browserbase Safe-Submit", "Outcome Learning Engine", "Resume Variant Optimizer", "Monitoring + SMS"]} />
-            </CardContent>
-          </Card>
-        </section>
+        <SystemArchitecture />
 
         {/* Monitoring snapshot */}
         <section className="space-y-4">
@@ -293,16 +285,6 @@ function SandboxTrend() {
   );
 }
 
-function ArchBlock({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-semibold">{title}</p>
-      <ul className="space-y-1 text-sm text-muted-foreground">
-        {items.map((i) => <li key={i}>· {i}</li>)}
-      </ul>
-    </div>
-  );
-}
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (

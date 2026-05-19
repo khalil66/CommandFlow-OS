@@ -7,6 +7,7 @@ import {
   Building2, FileText, Target, Zap, GitBranch, ArrowRight, CheckCircle2,
   TrendingUp, Layers, Cpu, Cloud, XCircle,
 } from "lucide-react";
+import { SystemArchitecture } from "@/components/system-architecture";
 
 export const Route = createFileRoute("/case-study")({
   head: () => ({
@@ -54,6 +55,10 @@ function CaseStudy() {
       </section>
 
       <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
+
+        <SystemArchitecture />
+
+
 
         {/* EXEC SUMMARY */}
         <Section id="summary" eyebrow="01" title="Executive Summary">
