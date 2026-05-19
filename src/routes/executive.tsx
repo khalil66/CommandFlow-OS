@@ -103,7 +103,16 @@ function ExecutivePage() {
             icon={<Target className="h-4 w-4 text-emerald-500" />}
           >
             {(data?.funnel ?? []).length === 0
-              ? <EmptyChart title="No funnel data yet" hint="Once jobs flow through Smart Apply the conversion funnel populates here." />
+              ? <EmptyChart
+                  title="Your conversion funnel will live here"
+                  hint="As soon as Smart Apply submits packets, you'll see each stage — imports → review → submitted → recruiter reply → interview → offer."
+                  why="The funnel is how you spot where deals stall. A weak top means more sourcing; a weak bottom means rework the resume + outreach."
+                  sample="funnel"
+                  ctas={[
+                    { label: "Run Smart Apply", to: "/smart-apply" },
+                    { label: "Explore Sandbox", to: "/sandbox", variant: "outline" },
+                  ]}
+                />
               : <Funnel rows={data?.funnel ?? []} />}
           </ChartCard>
         </div>
