@@ -14,9 +14,11 @@ import { toast } from "sonner";
 import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
 import { sendTestSms } from "@/lib/sms.functions";
+import { runSafeAutoSubmitDryRun, getDryRunReport } from "@/lib/safe-auto-submit-dryrun.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket } from "lucide-react";
+import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket, PlayCircle, AlertTriangle } from "lucide-react";
 import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
