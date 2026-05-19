@@ -225,7 +225,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [path, nav, isPublic]);
-  if (isPublic) return <>{children}</>;
+  if (isPublic) return <><PageTracker path={path} key={path} />{children}</>;
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   return <>{children}</>;
 }
