@@ -13,7 +13,7 @@ import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 export const Route = createFileRoute("/portfolio")({
   head: () => ({
     meta: [
-      { title: "Portfolio — Khalil Hickson" },
+      { title: "Portfolio — AI-Powered Recruiting Intelligence Platform" },
       {
         name: "description",
         content:
@@ -25,6 +25,11 @@ export const Route = createFileRoute("/portfolio")({
         content:
           "Full-stack AI recruiting operations platform with ATS analytics, resume tailoring, outcome learning, and executive monitoring.",
       },
+      { property: "og:url", content: "https://commandflowos.online/portfolio" },
+      { property: "og:type", content: "website" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://commandflowos.online/portfolio" },
     ],
   }),
   component: PortfolioPage,
