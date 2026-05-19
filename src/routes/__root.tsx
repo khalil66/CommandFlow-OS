@@ -13,6 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { CommandPalette } from "@/components/command-palette";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
@@ -235,6 +236,7 @@ function RootComponent() {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthGate><Outlet /></AuthGate>
+        <CommandPalette />
         <Toaster />
       </QueryClientProvider>
     );
@@ -250,6 +252,14 @@ function RootComponent() {
               <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
                 <SidebarTrigger />
                 <div className="flex-1" />
+                <button
+                  onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                  className="hidden md:inline-flex items-center gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 py-1.5 hover:bg-accent hover:text-accent-foreground transition-colors"
+                  aria-label="Open command palette"
+                >
+                  <span>Search…</span>
+                  <kbd className="text-[10px] border rounded px-1 py-0.5">⌘K</kbd>
+                </button>
                 <div className="text-xs text-muted-foreground hidden sm:block">
                   khalilhickson.com · Remote-first
                 </div>
@@ -259,6 +269,7 @@ function RootComponent() {
               </main>
             </div>
           </div>
+          <CommandPalette />
           <Toaster />
         </SidebarProvider>
       </AuthGate>
