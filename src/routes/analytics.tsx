@@ -12,6 +12,7 @@ import { withRetry } from "@/lib/api-utils";
 import { ResponseHeatmap } from "@/components/response-heatmap";
 import { Link } from "@tanstack/react-router";
 import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock, FileDiff } from "lucide-react";
+import { ChartCard, EmptyChart, humanizeReason, chartTooltipStyle, chartAxisProps as axisProps } from "@/components/chart-card";
 
 export const Route = createFileRoute("/analytics")({ component: Analytics });
 
@@ -20,8 +21,7 @@ const COLORS = [
   "var(--color-chart-4)", "var(--color-chart-5)",
 ];
 
-const tooltipStyle = { background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 };
-const axisProps = { stroke: "var(--color-muted-foreground)", fontSize: 11 };
+const tooltipStyle = chartTooltipStyle;
 
 function Analytics() {
   const fn = useServerFn(getAnalyticsBreakdown);
