@@ -120,16 +120,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Job App" },
-      { name: "description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Job App" },
-      { property: "og:description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
+      { title: "CommandFlowOS — AI-Powered Career Operating System" },
+      {
+        name: "description",
+        content:
+          "CommandFlowOS combines verified job intelligence, resume optimization, recruiter CRM workflows, outcome learning, and safe automation into one career operations platform.",
+      },
+      {
+        name: "keywords",
+        content:
+          "AI recruiting, applicant tracking, resume intelligence, recruiter CRM, ATS analytics, job search automation, interview probability, career operations",
+      },
+      { name: "author", content: "Khalil Hickson" },
+      { name: "theme-color", content: "#0f172a" },
+      { property: "og:site_name", content: "CommandFlowOS" },
+      { property: "og:title", content: "CommandFlowOS — AI-Powered Career Operating System" },
+      {
+        property: "og:description",
+        content:
+          "Verified ATS intelligence, resume optimization, recruiter CRM, and outcome learning in one operator-grade platform.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Job App" },
-      { name: "twitter:description", content: "Career Command is an AI-powered platform that streamlines remote job applications for professionals." },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "CommandFlowOS — AI-Powered Career Operating System" },
+      {
+        name: "twitter:description",
+        content:
+          "Verified ATS intelligence, resume optimization, recruiter CRM, and outcome learning in one operator-grade platform.",
+      },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
     ],
