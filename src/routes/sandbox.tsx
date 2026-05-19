@@ -12,6 +12,7 @@ import {
   Play, Pause, ExternalLink, FileText, Calendar, Workflow,
 } from "lucide-react";
 import { SystemArchitecture } from "@/components/system-architecture";
+import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
