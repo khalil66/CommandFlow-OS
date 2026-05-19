@@ -13,6 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { CommandPalette } from "@/components/command-palette";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
