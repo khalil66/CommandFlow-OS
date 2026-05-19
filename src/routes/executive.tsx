@@ -197,7 +197,15 @@ function ExecutivePage() {
               </li>
             ))}
             {(data?.activity ?? []).length === 0 && (
-              <EmptyChart title="No recent events" hint="Automation events stream in here as Smart Apply runs." />
+              <EmptyChart
+                title="Live activity will stream in here"
+                hint="Each Smart Apply run posts events — imports, packet generation, approvals, recruiter replies."
+                why="The activity feed is the recruiter-safe audit log — proof that the system is acting responsibly."
+                sample="none"
+                icon={Activity}
+                compact
+                ctas={[{ label: "Run Smart Apply", to: "/smart-apply" }]}
+              />
             )}
           </ul>
         </ChartCard>
