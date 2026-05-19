@@ -477,7 +477,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
               // Dry-run mode or no prior passing dry run — simulate only, no submission.
               const dryReason = dryRunMode
                 ? "dry_run_mode_on"
-                : (!dryRunPassedAt ? "dry_run_not_passed" : "real_submit_disabled");
+                : (!dryRunFresh ? "dry_run_stale_>24h"
+                  : (!dryRunNoBlocks ? "dry_run_has_blocks"
+                    : (!realConfirmFresh ? "user_confirmation_required" : "real_submit_disabled")));
               await (supabase as any).from("applications").update({
                 auto_submit_result: `dry_run:${dryReason}`,
               }).eq("user_id", userId).eq("job_id", j.id);
