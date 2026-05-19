@@ -10,7 +10,7 @@ import {
   PlayCircle, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
-import { GuidedTour, StartTourButton, startGuidedTour, type TourStep } from "@/components/guided-tour";
+import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-tour";
 
 export const Route = createFileRoute("/demo")({
   head: () => ({
