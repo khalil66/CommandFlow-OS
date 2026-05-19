@@ -55,7 +55,17 @@ function SegmentTable({ title, rows }: { title: string; rows: any[] }) {
   return (
     <ChartCard title={title} description="Submissions, reply rate, and interview rate per segment.">
       {!rows?.length ? (
-        <EmptyChart hint="Not enough outcomes recorded yet — submit a few packets to populate." />
+        <EmptyChart
+          title="Outcome learning needs a few submissions"
+          hint="Submit a handful of packets — replies and interviews will populate this segment view automatically."
+          why="Segment-level outcomes are how the platform tells you which roles, ATSs, and companies actually convert for you."
+          sample="bars"
+          compact
+          ctas={[
+            { label: "Run Smart Apply", to: "/smart-apply" },
+            { label: "Start Demo", to: "/demo", variant: "outline" },
+          ]}
+        />
       ) : (
         <div className="space-y-2">
           {rows.slice(0, 8).map((r) => (
