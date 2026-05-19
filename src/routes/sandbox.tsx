@@ -218,7 +218,7 @@ function SandboxPage() {
         </section>
 
         {/* How it works flow */}
-        <section className="space-y-4">
+        <section id="tour-flow" className="space-y-4 scroll-mt-24">
           <h2 className="text-xs uppercase tracking-widest text-muted-foreground">How the system works</h2>
           <div className="grid gap-3 md:grid-cols-5">
             {[
@@ -241,7 +241,7 @@ function SandboxPage() {
         <div id="architecture"><Reveal><SystemArchitecture /></Reveal></div>
 
         {/* Monitoring snapshot */}
-        <section className="space-y-4">
+        <section id="tour-monitoring" className="space-y-4 scroll-mt-24">
           <h2 className="text-xs uppercase tracking-widest text-muted-foreground">Production monitoring snapshot</h2>
           <div className="grid gap-3 md:grid-cols-4">
             <MiniStat label="Imports OK (24h)" value="98.4%" />
