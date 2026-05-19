@@ -7,6 +7,7 @@ import {
   Building2, FileText, Target, Zap, GitBranch, ArrowRight, CheckCircle2,
   TrendingUp, Layers, Cpu, Cloud, XCircle,
 } from "lucide-react";
+import { SystemArchitecture } from "@/components/system-architecture";
 
 export const Route = createFileRoute("/case-study")({
   head: () => ({
