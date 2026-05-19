@@ -225,16 +225,7 @@ function SandboxPage() {
         </section>
 
         {/* Architecture */}
-        <section className="space-y-4">
-          <h2 className="text-xs uppercase tracking-widest text-muted-foreground">Architecture overview</h2>
-          <Card>
-            <CardContent className="p-6 grid gap-4 md:grid-cols-3">
-              <ArchBlock title="Frontend" items={["TanStack Start", "React 19", "Tailwind v4", "shadcn/ui"]} />
-              <ArchBlock title="Backend" items={["TanStack server fns", "Supabase Postgres + RLS", "OpenAI scoring", "Twilio alerts"]} />
-              <ArchBlock title="Automation" items={["Browserbase Safe-Submit", "Outcome Learning Engine", "Resume Variant Optimizer", "Monitoring + SMS"]} />
-            </CardContent>
-          </Card>
-        </section>
+        <SystemArchitecture />
 
         {/* Monitoring snapshot */}
         <section className="space-y-4">
