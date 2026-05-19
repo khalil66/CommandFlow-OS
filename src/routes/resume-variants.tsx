@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Sparkles, TrendingUp, Trophy, Calendar } from "lucide-react";
+import { Sparkles, TrendingUp, Trophy, Calendar, Layers } from "lucide-react";
+import { EmptyChart } from "@/components/chart-card";
 
 export const Route = createFileRoute("/resume-variants")({
   head: () => ({ meta: [{ title: "Resume Variant Optimizer" }] }),
