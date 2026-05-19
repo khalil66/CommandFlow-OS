@@ -13,10 +13,15 @@ import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 export const Route = createFileRoute("/case-study")({
   head: () => ({
     meta: [
-      { title: "Case Study — AI-Powered Remote Job Application Intelligence Platform" },
+      { title: "Case Study — CommandFlowOS Recruiting Intelligence" },
       { name: "description", content: "Executive case study: an AI-assisted recruiting intelligence platform combining ATS verification, company trust scoring, resume optimization, and analytics — all under a manual-review safety model." },
-      { property: "og:title", content: "AI-Powered Remote Job Application Intelligence Platform" },
+      { property: "og:title", content: "AI-Powered Recruiting Intelligence — Case Study" },
       { property: "og:description", content: "Verified remote-job intelligence with ATS optimization, trust scoring, and an AI learning loop. Manual-review only." },
+      { property: "og:url", content: "https://commandflowos.online/case-study" },
+      { property: "og:type", content: "article" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://commandflowos.online/case-study" },
     ],
   }),
   component: CaseStudy,
