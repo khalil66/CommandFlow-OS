@@ -29,6 +29,7 @@ import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as LegitimacyRouteImport } from './routes/legitimacy'
 import { Route as HighProbabilityRouteImport } from './routes/high-probability'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
+import { Route as ExecutiveRouteImport } from './routes/executive'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
 import { Route as CompaniesRouteImport } from './routes/companies'
@@ -141,6 +142,11 @@ const FollowUpsRoute = FollowUpsRouteImport.update({
   path: '/follow-ups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutiveRoute = ExecutiveRouteImport.update({
+  id: '/executive',
+  path: '/executive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByTo {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -275,6 +283,7 @@ export interface FileRoutesById {
   '/companies': typeof CompaniesRoute
   '/company-intelligence': typeof CompanyIntelligenceRoute
   '/demo': typeof DemoRoute
+  '/executive': typeof ExecutiveRoute
   '/follow-ups': typeof FollowUpsRoute
   '/high-probability': typeof HighProbabilityRoute
   '/legitimacy': typeof LegitimacyRoute
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/executive'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -343,6 +353,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/executive'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -376,6 +387,7 @@ export interface FileRouteTypes {
     | '/companies'
     | '/company-intelligence'
     | '/demo'
+    | '/executive'
     | '/follow-ups'
     | '/high-probability'
     | '/legitimacy'
@@ -410,6 +422,7 @@ export interface RootRouteChildren {
   CompaniesRoute: typeof CompaniesRoute
   CompanyIntelligenceRoute: typeof CompanyIntelligenceRoute
   DemoRoute: typeof DemoRoute
+  ExecutiveRoute: typeof ExecutiveRoute
   FollowUpsRoute: typeof FollowUpsRoute
   HighProbabilityRoute: typeof HighProbabilityRoute
   LegitimacyRoute: typeof LegitimacyRoute
@@ -575,6 +588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FollowUpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executive': {
+      id: '/executive'
+      path: '/executive'
+      fullPath: '/executive'
+      preLoaderRoute: typeof ExecutiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo': {
       id: '/demo'
       path: '/demo'
@@ -666,6 +686,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompaniesRoute: CompaniesRoute,
   CompanyIntelligenceRoute: CompanyIntelligenceRoute,
   DemoRoute: DemoRoute,
+  ExecutiveRoute: ExecutiveRoute,
   FollowUpsRoute: FollowUpsRoute,
   HighProbabilityRoute: HighProbabilityRoute,
   LegitimacyRoute: LegitimacyRoute,
@@ -691,3 +712,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
