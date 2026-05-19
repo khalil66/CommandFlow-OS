@@ -94,7 +94,7 @@ function ExecutivePage() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div id="exec-funnel" className="grid gap-6 lg:grid-cols-3 scroll-mt-24">
         <div ref={(el: HTMLDivElement | null) => { stepRefs.current[1] = el; }} className={`lg:col-span-2 ${transitionRing(demoMode && tourStep === 1)}`}>
           <ChartCard
             title="Conversion funnel"
