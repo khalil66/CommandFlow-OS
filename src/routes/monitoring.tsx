@@ -138,6 +138,35 @@ function MonitoringPage() {
             </CardContent>
           </Card>
 
+          {/* OpenAI key health */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldAlert className={`h-4 w-4 ${openAi?.ok ? "text-success" : "text-destructive"}`} />
+                OpenAI key
+                {openAi && (
+                  <Badge variant={openAi.ok ? "default" : "destructive"} className="text-[10px]">
+                    {openAi.ok ? "valid" : openAi.configured ? `invalid (${openAi.status ?? "err"})` : "not configured"}
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={validateAi} disabled={validating}>
+                {validating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                Validate now
+              </Button>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground space-y-1">
+              <div>Env var read: <code className="text-foreground">{openAi?.env_var ?? "OPENAI_API_KEY"}</code></div>
+              {openAi?.message && <div className="text-destructive">{openAi.message}</div>}
+              <div>Checked {openAi?.checked_at ? fmtAgo(openAi.checked_at) : "never"} {openAi?.cached ? "(cached)" : ""}</div>
+              {!openAi?.ok && (
+                <div className="pt-1 text-warning-foreground">
+                  Packet generation is disabled. New imports are routed to Manual Review with reason <code>invalid_openai_key</code>.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Failure counts */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <FailTile label="OpenAI failures" n={data.failures.openai.count} />
