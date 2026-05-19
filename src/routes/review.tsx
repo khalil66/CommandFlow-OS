@@ -19,6 +19,7 @@ import {
 import { getJobPacket } from "@/lib/jobs.functions";
 import { withRetry } from "@/lib/api-utils";
 import { exportApplicationPdf } from "@/lib/pdf-export";
+import { EmptyChart } from "@/components/chart-card";
 
 export const Route = createFileRoute("/review")({ component: Review });
 
