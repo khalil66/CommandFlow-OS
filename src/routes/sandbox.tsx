@@ -88,17 +88,20 @@ function SandboxPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant={playing ? "default" : "outline"} size="sm" onClick={() => setPlaying((v) => !v)} className={playing ? "cta-gradient" : ""}>
+            <StartTourButton label="Start guided tour" className="cta-gradient" />
+            <Button variant={playing ? "outline" : "outline"} size="sm" onClick={() => setPlaying((v) => !v)}>
               {playing ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-              {playing ? "Pause tour" : "Auto-play"}
+              {playing ? "Pause auto" : "Auto-play"}
             </Button>
-            <a href="https://khalilhickson.com" target="_blank" rel="noreferrer">
+            <a href="https://khalilhickson.com" target="_blank" rel="noreferrer" className="hidden sm:inline-flex">
               <Button size="sm" variant="outline">View resume <ExternalLink className="h-3 w-3 ml-1" /></Button>
             </a>
-            <Link to="/case-study"><Button size="sm" className="cta-gradient">View case study</Button></Link>
+            <Link to="/case-study"><Button size="sm" variant="ghost">Case study</Button></Link>
           </div>
         </div>
       </header>
+
+      <GuidedTour steps={SANDBOX_TOUR} eyebrow="Sandbox tour" />
 
       <CinematicHero
         eyebrow="Public sandbox · 100% simulated data"
