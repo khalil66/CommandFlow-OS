@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { ChartCard, EmptyChart, humanizeReason } from "@/components/chart-card";
 
 export const Route = createFileRoute("/outcomes")({
   head: () => ({
