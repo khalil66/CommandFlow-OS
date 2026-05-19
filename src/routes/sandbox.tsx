@@ -11,6 +11,7 @@ import {
   Activity, Sparkles, TrendingUp, Trophy, Users, Layers, ListChecks, Target,
   Play, Pause, ExternalLink, FileText, Calendar, Workflow,
 } from "lucide-react";
+import { SystemArchitecture } from "@/components/system-architecture";
 
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
