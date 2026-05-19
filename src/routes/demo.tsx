@@ -141,12 +141,10 @@ function DemoPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="default" onClick={() => window.dispatchEvent(new CustomEvent("start-walkthrough"))}>
-              <PlayCircle className="h-4 w-4 mr-1.5" /> Start guided walkthrough
-            </Button>
+            <StartTourButton label="Start guided tour" className="cta-gradient" />
             <Button asChild variant="ghost" size="sm"><a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">← Portfolio</a></Button>
             <Button asChild variant="outline" size="sm"><Link to="/case-study">Case Study</Link></Button>
-            <Button asChild size="sm"><a href={`${PORTFOLIO_URL}#contact`} target="_blank" rel="noopener noreferrer">Request Walkthrough</a></Button>
+            <Button asChild size="sm" variant="outline"><a href={`${PORTFOLIO_URL}#contact`} target="_blank" rel="noopener noreferrer">Request Walkthrough</a></Button>
           </div>
         </div>
       </header>
@@ -164,7 +162,7 @@ function DemoPage() {
         </div>
       </CinematicHero>
 
-      <WalkthroughTour />
+      <GuidedTour steps={DEMO_TOUR} eyebrow="Recruiter tour" />
 
       <main className="max-w-[1400px] mx-auto px-6 py-10 space-y-12">
 
