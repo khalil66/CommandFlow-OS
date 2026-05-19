@@ -14,6 +14,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
+import { InstallAppButton } from "@/components/install-app-button";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
@@ -134,6 +136,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "author", content: "Khalil Hickson" },
       { name: "theme-color", content: "#0f172a" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "CommandFlowOS" },
+      { name: "format-detection", content: "telephone=no" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { property: "og:site_name", content: "CommandFlowOS" },
       { property: "og:title", content: "CommandFlowOS — AI-Powered Career Operating System" },
       {
@@ -153,10 +161,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a974744a-c3b2-41cd-bf36-073f5ffd6459/id-preview-a5c326a0--e3d15bed-bdda-4965-9151-a59c323e34ae.lovable.app-1778830218046.png" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/app-icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/app-icon-512.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -237,6 +246,10 @@ function RootComponent() {
       <QueryClientProvider client={queryClient}>
         <AuthGate><Outlet /></AuthGate>
         <CommandPalette />
+        {/* Public Install App CTA — floating on small screens */}
+        <div className="fixed bottom-4 right-4 z-40 md:bottom-6 md:right-6">
+          <InstallAppButton className="cta-gradient shadow-2xl" />
+        </div>
         <Toaster />
       </QueryClientProvider>
     );
@@ -246,10 +259,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthGate>
         <SidebarProvider>
-          <div className="min-h-screen flex w-full bg-background">
+          <div className="min-h-dvh flex w-full bg-background">
             <AppSidebar />
             <div className="flex-1 flex flex-col min-w-0">
-              <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
+              <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
                 <SidebarTrigger />
                 <div className="flex-1" />
                 <button
@@ -260,13 +273,15 @@ function RootComponent() {
                   <span>Search…</span>
                   <kbd className="text-[10px] border rounded px-1 py-0.5">⌘K</kbd>
                 </button>
+                <InstallAppButton variant="ghost" />
                 <div className="text-xs text-muted-foreground hidden sm:block">
                   khalilhickson.com · Remote-first
                 </div>
               </header>
-              <main className="flex-1 min-w-0">
+              <main className="flex-1 min-w-0 pb-20 md:pb-0">
                 <Outlet />
               </main>
+              <MobileBottomNav />
             </div>
           </div>
           <CommandPalette />

@@ -1,0 +1,22 @@
+{
+  "name": "CommandFlowOS — AI Career OS",
+  "short_name": "CommandFlowOS",
+  "description": "Verified job intelligence, resume optimization, recruiter CRM, and outcome learning in one operator-grade platform.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Sandbox", "url": "/sandbox" },
+    { "name": "Case Study", "url": "/case-study" },
+    { "name": "Executive", "url": "/executive" }
+  ]
+}
