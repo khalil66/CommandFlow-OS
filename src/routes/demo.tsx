@@ -9,6 +9,7 @@ import {
   AlertTriangle, TrendingUp, Users2, Globe2, MapPin, BellRing, Zap,
   PlayCircle, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 
 export const Route = createFileRoute("/demo")({
   head: () => ({
