@@ -187,7 +187,7 @@ function EngagementPage() {
                 <Line type="monotone" dataKey="count" stroke={COLORS[0]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
-          ) : <EmptyChart message="No engagement yet — share the portfolio link to start collecting data." />}
+          ) : <EmptyChart hint="No engagement yet — share the portfolio link to start collecting data." />}
         </ChartCard>
 
         <ChartCard title="Most-viewed pages" description="Page views across public routes">
@@ -203,7 +203,7 @@ function EngagementPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : <EmptyChart message="No page views recorded yet." />}
+          ) : <EmptyChart hint="No page views recorded yet." />}
         </ChartCard>
 
         <ChartCard title="Top CTA performance" description="Most-clicked calls to action across public pages">
@@ -217,7 +217,7 @@ function EngagementPage() {
                 <Bar dataKey="count" fill={COLORS[1]} radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <EmptyChart message="No CTA clicks recorded yet." />}
+          ) : <EmptyChart hint="No CTA clicks recorded yet." />}
         </ChartCard>
 
         <ChartCard title="Mobile vs desktop" description="Device mix across all visitors">
@@ -231,7 +231,7 @@ function EngagementPage() {
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
-          ) : <EmptyChart message="No device data yet." />}
+          ) : <EmptyChart hint="No device data yet." />}
         </ChartCard>
       </div>
 
@@ -255,7 +255,7 @@ function EngagementPage() {
               });
             })()}
           </div>
-        ) : <EmptyChart message="No section views tracked yet." />}
+        ) : <EmptyChart hint="No section views tracked yet." />}
       </ChartCard>
 
       <Card>
