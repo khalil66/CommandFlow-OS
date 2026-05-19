@@ -1238,6 +1238,7 @@ export type Database = {
           phone_number: string | null
           remote_only: boolean
           role_categories: string[]
+          safe_auto_submit_confirmed_at: string | null
           safe_auto_submit_daily_cap: number
           safe_auto_submit_dry_run: boolean
           safe_auto_submit_dry_run_passed_at: string | null
@@ -1285,6 +1286,7 @@ export type Database = {
           phone_number?: string | null
           remote_only?: boolean
           role_categories?: string[]
+          safe_auto_submit_confirmed_at?: string | null
           safe_auto_submit_daily_cap?: number
           safe_auto_submit_dry_run?: boolean
           safe_auto_submit_dry_run_passed_at?: string | null
@@ -1332,6 +1334,7 @@ export type Database = {
           phone_number?: string | null
           remote_only?: boolean
           role_categories?: string[]
+          safe_auto_submit_confirmed_at?: string | null
           safe_auto_submit_daily_cap?: number
           safe_auto_submit_dry_run?: boolean
           safe_auto_submit_dry_run_passed_at?: string | null

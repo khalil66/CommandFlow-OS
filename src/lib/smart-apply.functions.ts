@@ -182,7 +182,15 @@ export const runSmartApply = createServerFn({ method: "POST" })
     // Real submission requires: enabled AND dry-run mode OFF AND a prior passing dry run.
     const dryRunMode = s.safe_auto_submit_dry_run !== false;
     const dryRunPassedAt = s.safe_auto_submit_dry_run_passed_at;
-    const realSubmitAllowed = !!s.safe_auto_submit_enabled && !dryRunMode && !!dryRunPassedAt;
+    const dryRunFresh = !!dryRunPassedAt &&
+      (Date.now() - new Date(dryRunPassedAt).getTime()) <= 24 * 3600 * 1000;
+    const dryRunReport = s.safe_auto_submit_dry_run_report ?? null;
+    const dryRunNoBlocks = !dryRunReport || (dryRunReport.blocked ?? 0) === 0;
+    const realConfirmedAt = s.safe_auto_submit_confirmed_at;
+    const realConfirmFresh = !!realConfirmedAt &&
+      (Date.now() - new Date(realConfirmedAt).getTime()) <= 24 * 3600 * 1000;
+    const realSubmitAllowed = !!s.safe_auto_submit_enabled && !dryRunMode &&
+      dryRunFresh && dryRunNoBlocks && realConfirmFresh;
     const safeSubmitEnabled = !!s.safe_auto_submit_enabled;
     const safeSubmitDailyCap = s.safe_auto_submit_daily_cap ?? 3;
     const safeSubmitPerAtsCap = 2;
@@ -469,7 +477,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
               // Dry-run mode or no prior passing dry run — simulate only, no submission.
               const dryReason = dryRunMode
                 ? "dry_run_mode_on"
-                : (!dryRunPassedAt ? "dry_run_not_passed" : "real_submit_disabled");
+                : (!dryRunFresh ? "dry_run_stale_>24h"
+                  : (!dryRunNoBlocks ? "dry_run_has_blocks"
+                    : (!realConfirmFresh ? "user_confirmation_required" : "real_submit_disabled")));
               await (supabase as any).from("applications").update({
                 auto_submit_result: `dry_run:${dryReason}`,
               }).eq("user_id", userId).eq("job_id", j.id);
