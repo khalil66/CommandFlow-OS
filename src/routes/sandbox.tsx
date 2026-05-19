@@ -13,6 +13,17 @@ import {
 } from "lucide-react";
 import { SystemArchitecture } from "@/components/system-architecture";
 import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
+import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-tour";
+
+const SANDBOX_TOUR: TourStep[] = [
+  { id: "kpis", title: "ATS ingestion · pipeline at a glance", body: "Verified roles flow in from supported ATS platforms (Greenhouse, Lever, Ashby, Workday). The KPI strip is the recruiter's morning briefing — applications, interview probability, response rates." },
+  { id: "tour-flow", title: "Trust scoring & decision engine", body: "Every imported role passes an 11-factor company trust check and a fit/realism/salary score before it can advance. Low-trust postings are quarantined automatically." },
+  { id: "funnel", title: "Resume optimization & funnel conversion", body: "Tailored resume variants are A/B-tracked through the funnel — imported → reviewed → applied → recruiter reply → interview → offer. Best-performing variant surfaces in the KPI row." },
+  { id: "variants", title: "Outcome learning loop", body: "Recruiter responses and interview outcomes feed back into variant scoring and category targeting weekly — the system gets sharper with every reply." },
+  { id: "activity", title: "Executive analytics & live activity", body: "Recruiter-safe activity stream shows what shipped, what auto-paused, and what's waiting for manual review. No PII, no API keys." },
+  { id: "architecture", title: "System architecture", body: "Edge-deployed TanStack Start + Supabase backbone with isolated AI generation, manual-review gate, and rate-limited safe auto-submit. Built for one-operator throughput." },
+  { id: "tour-monitoring", title: "Monitoring & safety systems", body: "Production monitoring tracks import health, packet generation, OpenAI status, and every blocked auto-submit. Anything ambiguous routes to manual review by design." },
+];
 
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
@@ -77,17 +88,20 @@ function SandboxPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant={playing ? "default" : "outline"} size="sm" onClick={() => setPlaying((v) => !v)} className={playing ? "cta-gradient" : ""}>
+            <StartTourButton label="Start guided tour" className="cta-gradient" />
+            <Button variant={playing ? "outline" : "outline"} size="sm" onClick={() => setPlaying((v) => !v)}>
               {playing ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-              {playing ? "Pause tour" : "Auto-play"}
+              {playing ? "Pause auto" : "Auto-play"}
             </Button>
-            <a href="https://khalilhickson.com" target="_blank" rel="noreferrer">
+            <a href="https://khalilhickson.com" target="_blank" rel="noreferrer" className="hidden sm:inline-flex">
               <Button size="sm" variant="outline">View resume <ExternalLink className="h-3 w-3 ml-1" /></Button>
             </a>
-            <Link to="/case-study"><Button size="sm" className="cta-gradient">View case study</Button></Link>
+            <Link to="/case-study"><Button size="sm" variant="ghost">Case study</Button></Link>
           </div>
         </div>
       </header>
+
+      <GuidedTour steps={SANDBOX_TOUR} eyebrow="Sandbox tour" />
 
       <CinematicHero
         eyebrow="Public sandbox · 100% simulated data"
@@ -218,7 +232,7 @@ function SandboxPage() {
         </section>
 
         {/* How it works flow */}
-        <section className="space-y-4">
+        <section id="tour-flow" className="space-y-4 scroll-mt-24">
           <h2 className="text-xs uppercase tracking-widest text-muted-foreground">How the system works</h2>
           <div className="grid gap-3 md:grid-cols-5">
             {[
@@ -241,7 +255,7 @@ function SandboxPage() {
         <div id="architecture"><Reveal><SystemArchitecture /></Reveal></div>
 
         {/* Monitoring snapshot */}
-        <section className="space-y-4">
+        <section id="tour-monitoring" className="space-y-4 scroll-mt-24">
           <h2 className="text-xs uppercase tracking-widest text-muted-foreground">Production monitoring snapshot</h2>
           <div className="grid gap-3 md:grid-cols-4">
             <MiniStat label="Imports OK (24h)" value="98.4%" />
