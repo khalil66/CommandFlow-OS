@@ -80,15 +80,25 @@ export function GuidedTour({
       if (scope && detail?.scope && detail.scope !== scope) return;
       setStep(0);
       setOpen(true);
+      void import("@/lib/track").then((m) => m.track({ event: "tour_start", section: scope })).catch(() => {});
     };
     window.addEventListener(EVENT, handler as EventListener);
     return () => window.removeEventListener(EVENT, handler as EventListener);
   }, [scope]);
 
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    void import("@/lib/track").then((m) => m.track({ event: "tour_exit", section: scope, label: String(step) })).catch(() => {});
+  }, [scope, step]);
   const next = useCallback(
-    () => setStep((s) => Math.min(steps.length - 1, s + 1)),
-    [steps.length],
+    () => setStep((s) => {
+      const ns = Math.min(steps.length - 1, s + 1);
+      if (ns === steps.length - 1 && s !== ns) {
+        void import("@/lib/track").then((m) => m.track({ event: "tour_complete", section: scope })).catch(() => {});
+      }
+      return ns;
+    }),
+    [steps.length, scope],
   );
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), []);
 
