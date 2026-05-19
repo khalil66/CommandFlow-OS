@@ -179,6 +179,10 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const cooldownCutoff = new Date(Date.now() - cooldownDays * 86400000).toISOString();
 
     // Safe Auto-Submit configuration (OFF by default)
+    // Real submission requires: enabled AND dry-run mode OFF AND a prior passing dry run.
+    const dryRunMode = s.safe_auto_submit_dry_run !== false;
+    const dryRunPassedAt = s.safe_auto_submit_dry_run_passed_at;
+    const realSubmitAllowed = !!s.safe_auto_submit_enabled && !dryRunMode && !!dryRunPassedAt;
     const safeSubmitEnabled = !!s.safe_auto_submit_enabled;
     const safeSubmitDailyCap = s.safe_auto_submit_daily_cap ?? 3;
     const safeSubmitPerAtsCap = 2;
@@ -425,7 +429,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
             if (safeSubmittedSoFar >= safeSubmitDailyCap) safeFailed.push(`daily_cap(${safeSubmitDailyCap})`);
             if (safeAtsCount >= safeSubmitPerAtsCap) safeFailed.push(`per_ats_cap(${safeSubmitPerAtsCap})`);
 
-            if (safeFailed.length === 0) {
+            if (safeFailed.length === 0 && realSubmitAllowed) {
               // All Safe Auto-Submit gates passed — record as submitted_automatically
               const submitTime = new Date().toISOString();
               const followUpAt = new Date(Date.now() + 7 * 86400000).toISOString();
@@ -461,6 +465,20 @@ export const runSmartApply = createServerFn({ method: "POST" })
                   kind: "auto_submit",
                 });
               }
+            } else if (safeFailed.length === 0 && !realSubmitAllowed) {
+              // Dry-run mode or no prior passing dry run — simulate only, no submission.
+              const dryReason = dryRunMode
+                ? "dry_run_mode_on"
+                : (!dryRunPassedAt ? "dry_run_not_passed" : "real_submit_disabled");
+              await (supabase as any).from("applications").update({
+                auto_submit_result: `dry_run:${dryReason}`,
+              }).eq("user_id", userId).eq("job_id", j.id);
+              await log({
+                job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+                action: "auto_approved",
+                reason: `Safe Auto-Submit DRY RUN · all gates passed · ${dryReason} · no submission`,
+                gates: { safe_auto_submit: "dry_run", trust: trustScore, interview: interviewProb, quality: qualityScore },
+              });
             } else {
               // Gates failed — leave as approved (Manual Review fallback for actual click)
               await (supabase as any).from("applications").update({

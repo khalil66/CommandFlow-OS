@@ -14,9 +14,11 @@ import { toast } from "sonner";
 import { getUsageAnalytics, getUsageToday } from "@/lib/usage.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
 import { sendTestSms } from "@/lib/sms.functions";
+import { runSafeAutoSubmitDryRun, getDryRunReport } from "@/lib/safe-auto-submit-dryrun.functions";
 import { withRetry } from "@/lib/api-utils";
-import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket } from "lucide-react";
+import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket, PlayCircle, AlertTriangle } from "lucide-react";
 import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/settings")({ component: Settings });
 
@@ -29,10 +31,15 @@ function Settings() {
   const getFn = useServerFn(getSettings);
   const saveFn = useServerFn(updateSettings);
   const testSmsFn = useServerFn(sendTestSms);
+  const dryRunFn = useServerFn(runSafeAutoSubmitDryRun);
+  const getDryRunFn = useServerFn(getDryRunReport);
 
   const [usage, setUsage] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [s, setS] = useState<any>(null);
+  const [dryRun, setDryRun] = useState<any>(null);
+  const [runningDry, setRunningDry] = useState(false);
+  const [confirmRealOpen, setConfirmRealOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingSms, setTestingSms] = useState(false);
@@ -42,9 +49,11 @@ function Settings() {
       usageFn().catch(() => null),
       analyticsFn().catch(() => null),
       getFn().catch(() => null),
-    ]).then(([u, a, st]: any) => {
+      getDryRunFn().catch(() => null),
+    ]).then(([u, a, st, dr]: any) => {
       setUsage(u); setAnalytics(a);
       setS(st?.settings ?? {});
+      setDryRun(dr ?? null);
       setLoading(false);
     });
   }, []);
@@ -82,6 +91,7 @@ function Settings() {
         sms_notify_followups: typeof s.sms_notify_followups === "boolean" ? s.sms_notify_followups : undefined,
         safe_auto_submit_enabled: typeof s.safe_auto_submit_enabled === "boolean" ? s.safe_auto_submit_enabled : undefined,
         safe_auto_submit_daily_cap: typeof s.safe_auto_submit_daily_cap === "number" ? s.safe_auto_submit_daily_cap : undefined,
+        safe_auto_submit_dry_run: typeof s.safe_auto_submit_dry_run === "boolean" ? s.safe_auto_submit_dry_run : undefined,
       } }), { label: "Save settings" });
       toast.success("Settings saved");
     } catch {} finally { setSaving(false); }
@@ -137,12 +147,83 @@ function Settings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label className="text-sm">Enable Safe Auto-Submit</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                OFF by default. Requires a passing Dry Run first. Only auto-submits when Application Mode = Auto Review AND every safety gate passes (trust ≥95, interview ≥92, quality ≥92, salary gate passes, fresh ≤14d, ATS in {"{"}Greenhouse, Lever, Ashby, Breezy{"}"}, no login/MFA/CAPTCHA/bot, no duplicate, no same-company within 30d). Caps: 3/day, 2/ATS/day. Manual Review fallback always available.
+              </p>
+            </div>
+            <Switch
+              checked={!!s.safe_auto_submit_enabled}
+              onCheckedChange={(v: boolean) => {
+                if (v) {
+                  if (!dryRun?.passed_at) {
+                    toast.error("Run a passing Dry Run before enabling real Safe Auto-Submit.");
+                    return;
+                  }
+                  setConfirmRealOpen(true);
+                } else {
+                  set("safe_auto_submit_enabled", false);
+                }
+              }}
+            />
+          </div>
+
           <Toggle
-            label="Enable Safe Auto-Submit"
-            desc="OFF by default. Only auto-submits when Application Mode = Auto Review AND every safety gate passes: trust ≥95, interview ≥92, quality ≥92, salary gate passes, posted within 14 days, ATS in {Greenhouse, Lever, Ashby, Breezy}, no login/MFA/CAPTCHA/bot warning, no duplicate, no same-company within 30 days, packet generated successfully. Caps: 3/day, 2/ATS/day, 1/company/30d. Stops immediately on any protection signal — no retry, no bypass. Manual Review fallback always available."
-            checked={!!s.safe_auto_submit_enabled}
-            onChange={(v: boolean) => set("safe_auto_submit_enabled", v)}
+            label="Dry Run Auto-Submit"
+            desc="Simulates the full submission process without clicking submit. Verifies URL opens, ATS supported, no login/MFA/CAPTCHA/bot, resume + cover-letter + submit fields detectable. Produces a report. Keep ON until you've reviewed at least one passing dry run."
+            checked={s.safe_auto_submit_dry_run !== false}
+            onChange={(v: boolean) => set("safe_auto_submit_dry_run", v)}
           />
+
+          <div className="rounded-md border border-border p-3 space-y-2 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <PlayCircle className="h-4 w-4 text-accent" /> Dry Run report
+              </div>
+              <Button
+                size="sm" variant="outline" disabled={runningDry}
+                onClick={async () => {
+                  setRunningDry(true);
+                  try {
+                    const r: any = await dryRunFn();
+                    setDryRun({ dry_run_enabled: s.safe_auto_submit_dry_run !== false, passed_at: r.passed ? r.generated_at : dryRun?.passed_at ?? null, report: r });
+                    toast.success(r.passed ? `Dry Run passed — ${r.ready_for_submit}/${r.total_candidates} ready` : `Dry Run finished — ${r.blocked} blocked, ${r.missing_fields} missing fields, ${r.manual_review_required} manual review`);
+                  } catch (e: any) { toast.error(`Dry Run failed: ${e.message}`); }
+                  finally { setRunningDry(false); }
+                }}>
+                {runningDry ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <PlayCircle className="h-4 w-4 mr-1.5" />}
+                Run Dry Run now
+              </Button>
+            </div>
+            {dryRun?.report ? (
+              <div className="text-xs space-y-1.5">
+                <div className="flex gap-2 flex-wrap">
+                  <Badge variant={dryRun.report.passed ? "default" : "outline"} className={dryRun.report.passed ? "bg-success/15 text-success border-success/30" : ""}>
+                    {dryRun.report.passed ? "PASSED" : "NEEDS REVIEW"}
+                  </Badge>
+                  <Badge variant="outline">Ready: {dryRun.report.ready_for_submit}</Badge>
+                  <Badge variant="outline" className="text-destructive">Blocked: {dryRun.report.blocked}</Badge>
+                  <Badge variant="outline">Missing fields: {dryRun.report.missing_fields}</Badge>
+                  <Badge variant="outline">Manual: {dryRun.report.manual_review_required}</Badge>
+                </div>
+                <p className="text-muted-foreground">
+                  Last run: {new Date(dryRun.report.generated_at).toLocaleString()} ·
+                  {dryRun.passed_at ? ` passing dry run on file (${new Date(dryRun.passed_at).toLocaleDateString()})` : " no passing dry run yet — real submit gated"}
+                </p>
+                {dryRun.report.results?.slice(0, 5).map((r: any) => (
+                  <div key={r.job_id} className="flex items-center justify-between border-t border-border/50 pt-1.5">
+                    <span className="truncate mr-2">{r.title} · {r.company} · {r.ats}</span>
+                    <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No dry run yet. Run one to verify the pipeline before enabling real Safe Auto-Submit.</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <Label>Safe Auto-Submit daily cap</Label>
@@ -157,6 +238,28 @@ function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmRealOpen} onOpenChange={setConfirmRealOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Enable real Safe Auto-Submit?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will submit real applications only when all safety gates pass.
+              Auto-submission stops immediately on any login wall, MFA, CAPTCHA, or bot warning.
+              Caps remain in force (3/day, 2/ATS/day, 1/company/30d). You can turn this off at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep dry run only</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { set("safe_auto_submit_enabled", true); set("safe_auto_submit_dry_run", false); }}>
+              Yes, enable real submission
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <Card>
         <CardHeader><CardTitle className="text-base">Profile</CardTitle></CardHeader>
