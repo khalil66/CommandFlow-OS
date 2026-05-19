@@ -90,7 +90,7 @@ export function CommandPalette() {
   );
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Command palette" description="Search actions and pages">
+    <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Search actions, pages, shortcuts…" aria-label="Search commands" />
       <CommandList className="max-h-[60vh]">
         <CommandEmpty>No commands match.</CommandEmpty>
