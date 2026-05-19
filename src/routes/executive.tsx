@@ -177,15 +177,18 @@ function transitionRing(active: boolean) {
   return `rounded-xl transition-all duration-500 ${active ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`;
 }
 
-function Kpi({ icon, title, value, textValue, suffix }: { icon: React.ReactNode; title: string; value?: number; textValue?: string; suffix?: string }) {
+function Kpi({ icon, title, value, textValue, suffix, trend }: { icon: React.ReactNode; title: string; value?: number; textValue?: string; suffix?: string; trend?: number }) {
   const animated = useCountUp(value ?? 0);
   return (
-    <Card className="hover-scale">
+    <Card className="card-2xl hover-lift shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium flex items-center gap-2 text-muted-foreground">{icon}{title}</CardTitle>
+        <CardTitle className="text-xs font-medium flex items-center justify-between gap-2 text-muted-foreground">
+          <span className="flex items-center gap-2">{icon}{title}</span>
+          {trend !== undefined && <TrendBadge value={trend} />}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-semibold tracking-tight truncate">
+        <div className="text-2xl font-semibold tracking-tight truncate tabular-nums">
           {textValue ?? `${animated}${suffix ?? ""}`}
         </div>
       </CardContent>
