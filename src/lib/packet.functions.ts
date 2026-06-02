@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { tailorResume } from "./resume.functions";
 import { projectsForRole, PORTFOLIO_URL } from "./portfolio";
 import { computeInterviewProbability, SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
+import { openAIFetch } from "./openai-fetch";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/khalilhickson";
 
