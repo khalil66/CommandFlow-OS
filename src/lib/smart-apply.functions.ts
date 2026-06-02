@@ -652,6 +652,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
       openai_cost_cents: +openaiCostCents.toFixed(2),
       pass_rate: passRate,
       mode, fridayPrepareOnly, guardTripped,
+      batch_size: batchSize,
+      quota_exhausted: quotaExhausted,
+      rate_limited_queued: rateLimitedQueued,
     };
 
     // Send completion SMS (best-effort, never throws)
