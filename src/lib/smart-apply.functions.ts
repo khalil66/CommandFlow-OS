@@ -339,12 +339,15 @@ export const runSmartApply = createServerFn({ method: "POST" })
         packet_failed++;
         if (e instanceof QuotaExhaustedError || e instanceof RateLimitExhaustedError) {
           const isQuota = e instanceof QuotaExhaustedError;
-          if (isQuota) quotaExhausted = true;
+          if (isQuota) {
+            quotaExhausted = true;
+            console.warn(`[smart-apply] ai_quota_exhausted_stop_batch — halting further AI calls this run`);
+          }
           rateLimitedQueued++;
           const cause = isQuota ? "quota_exhausted" : "rate_limit_exhausted";
           const reason = isQuota
-            ? "OpenAI quota exhausted — queued for automatic retry."
-            : "Rate limit reached after retries — queued for automatic retry.";
+            ? "Queued Retry — AI quota/rate limit reached"
+            : "Needs Review — AI retry limit reached";
           trackFailure(cause);
           manualReasons.set(cause, (manualReasons.get(cause) ?? 0) + 1);
           await enqueueRetryRow(supabase, userId, {
@@ -353,12 +356,17 @@ export const runSmartApply = createServerFn({ method: "POST" })
           });
           await (supabase as any).from("applications").update({
             status: "manual_review", priority: "manual",
-            notes: `[queued] ${reason}`,
+            notes: reason,
           }).eq("user_id", userId).eq("job_id", j.id);
           await log({
             job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
             action: "prepared", reason,
-            gates: { queue_state: "queued", cause, ...(e instanceof RateLimitExhaustedError ? { attempts: e.attempts } : {}) },
+            gates: {
+              queue_state: isQuota ? "queued_retry" : "needs_review",
+              route: isQuota ? "queued_retry" : "needs_review",
+              cause,
+              ...(e instanceof RateLimitExhaustedError ? { attempts: e.attempts } : {}),
+            },
           });
           continue;
         }
