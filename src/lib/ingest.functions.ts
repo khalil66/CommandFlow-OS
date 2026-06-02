@@ -192,23 +192,73 @@ export const listImportLogs = createServerFn({ method: "GET" })
 
 // ---------- IMPORT ---------- //
 
+const DEFAULT_ATS_CAPS: Record<string, number> = {
+  Greenhouse: 50, Lever: 50, Ashby: 50, Breezy: 50, Workday: 30, other: 25,
+};
+function capForAts(ats: string | null | undefined, caps: Record<string, number> | null | undefined, fallback: number): number {
+  const map = { ...DEFAULT_ATS_CAPS, ...(caps ?? {}) };
+  if (ats && map[ats] != null) return map[ats];
+  return map.other ?? fallback;
+}
+
+type RejectedDetail = {
+  ts: string;
+  title: string;
+  company: string;
+  ats: string;
+  url: string;
+  reason: string;   // canonical machine-readable reason
+  filter: string;   // pipeline stage / filter name
+};
+
 export const importJobsNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ source_id: z.string().uuid().optional() }).parse(d))
+  .inputValidator((d) => z.object({
+    source_id: z.string().uuid().optional(),
+    relaxed_mode: z.boolean().optional(),
+  }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // Pull user settings (relaxed_mode, per-ATS caps, exclusions).
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("relaxed_mode, per_ats_caps, per_ats_daily_cap, excluded_companies")
+      .eq("user_id", userId).maybeSingle();
+    const relaxed = data.relaxed_mode ?? (settings as any)?.relaxed_mode ?? false;
+    const atsCapMap = (settings as any)?.per_ats_caps as Record<string, number> | null;
+    const globalAtsCap = (settings as any)?.per_ats_daily_cap ?? 50;
+    const excludedCompanies = new Set<string>(
+      ((settings as any)?.excluded_companies ?? []).map((c: string) => c.toLowerCase())
+    );
 
     let q = supabase.from("job_sources").select("*").eq("status", "active");
     if (data.source_id) q = q.eq("id", data.source_id);
     const { data: sources } = await q;
     if (!sources || sources.length === 0) {
-      return { runs: [], totals: { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 } };
+      return { runs: [], totals: { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 }, relaxed };
+    }
+
+    // Count today's imports per ATS (so caps actually apply across sources too).
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    const { data: importedTodayRows } = await supabase
+      .from("job_listings")
+      .select("ats")
+      .eq("user_id", userId)
+      .gte("created_at", startOfDay.toISOString());
+    const importedTodayByAts = new Map<string, number>();
+    for (const r of importedTodayRows ?? []) {
+      const k = (r as any).ats ?? "other";
+      importedTodayByAts.set(k, (importedTodayByAts.get(k) ?? 0) + 1);
     }
 
     const totals = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
     const runs: any[] = [];
-    const STALE_DAYS = 14;
+    // Relaxed mode widens the freshness window.
+    const STALE_DAYS = relaxed ? 60 : 14;
     const staleCutoffMs = Date.now() - STALE_DAYS * 86400000;
+
+    console.log(`[ingest] starting import · relaxed=${relaxed} · sources=${sources.length}`);
 
     for (const src of sources) {
       const det = detectAts(src.careers_url);
@@ -217,9 +267,29 @@ export const importJobsNow = createServerFn({ method: "POST" })
       const skipBreakdown: Record<string, number> = {};
       const manualBreakdown: Record<string, number> = {};
       const rejectBreakdown: Record<string, number> = {};
+      const rejectedDetails: RejectedDetail[] = [];
+      const pipelineCounts = {
+        fetched: 0,
+        after_dedupe: 0,
+        after_company_excluded: 0,
+        after_ats_cap: 0,
+        after_hard_reject: 0,
+        imported: 0,
+        manual_review: 0,
+      };
       const bumpSkip = (k: string) => { skipBreakdown[k] = (skipBreakdown[k] ?? 0) + 1; };
       const bumpManual = (k: string) => { manualBreakdown[k] = (manualBreakdown[k] ?? 0) + 1; };
       const bumpReject = (k: string) => { rejectBreakdown[k] = (rejectBreakdown[k] ?? 0) + 1; };
+      const recordReject = (j: NormJob, ats: string, filter: string, reason: string) => {
+        if (rejectedDetails.length < 100) {
+          rejectedDetails.push({
+            ts: new Date().toISOString(),
+            title: j.title, company: src.name, ats, url: j.url,
+            filter, reason,
+          });
+        }
+        bumpReject(reason);
+      };
       let success = true;
       let message = "";
 
@@ -228,10 +298,17 @@ export const importJobsNow = createServerFn({ method: "POST" })
         message = det.reason || "Unsupported ATS";
         counts.rejected = 1;
         bumpReject("unsupported_ats");
+      } else if (excludedCompanies.has(src.name.toLowerCase())) {
+        success = true;
+        message = `Company "${src.name}" is in your excluded list`;
+        counts.skipped = 1;
+        bumpSkip("company_excluded");
       } else {
         try {
           const jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
           counts.found = jobs.length;
+          pipelineCounts.fetched = jobs.length;
+          console.log(`[ingest] ${src.name} (${det.platform}) fetched=${jobs.length}`);
 
           // Ensure company row exists + run trust verification
           let companyId: string | null = null;
@@ -265,39 +342,99 @@ export const importJobsNow = createServerFn({ method: "POST" })
             }
           }
 
+          let dedupedOut = 0, atsCappedOut = 0, hardRejectedOut = 0;
+          const platform = det.platform as SupportedAts;
+          const platformCap = capForAts(platform, atsCapMap, globalAtsCap);
+
           for (const j of jobs) {
             // ---- HARD REJECTS (do not insert) ----
-            const blockers = hasAccessBlockers(j.description_text);
-            if (blockers.length) {
-              counts.rejected++; bumpReject("access_blocker");
-              reasons.push(`reject:${j.title} (${blockers.join(",")})`); continue;
+            // 1. Broken URL
+            if (!j.url || !/^https?:\/\//.test(j.url)) {
+              counts.rejected++;
+              recordReject(j, platform, "url_check", "broken_job_url");
+              hardRejectedOut++;
+              continue;
             }
-            const scam = detectScamFlags(j.description_text);
-            if (scam.length) { counts.rejected++; bumpReject("scam_flag"); continue; }
 
+            // 2. Clearly unrelated title — intern / unpaid / commission-only.
+            //    This stays a hard reject even in Relaxed Mode.
             const titleLc = j.title.toLowerCase();
             const descLc = j.description_text.toLowerCase();
             if (/\b(intern|internship|unpaid|commission[- ]only)\b/.test(titleLc) ||
                 /\bcommission[- ]only\b/.test(descLc) || /\bunpaid\b/.test(descLc)) {
-              counts.rejected++; bumpReject("internship_unpaid_commission"); continue;
+              counts.rejected++;
+              recordReject(j, platform, "title_filter", "clearly_unrelated_title");
+              hardRejectedOut++;
+              continue;
             }
 
+            // 3. Scam signals
+            const scam = detectScamFlags(j.description_text);
+            if (scam.length) {
+              counts.rejected++;
+              recordReject(j, platform, "scam_filter", "scam_flag");
+              hardRejectedOut++;
+              continue;
+            }
+
+            // 4. Access blockers (recruiter/login walls). In relaxed mode, route to manual instead.
+            const blockers = hasAccessBlockers(j.description_text);
+            if (blockers.length && !relaxed) {
+              counts.rejected++;
+              recordReject(j, platform, "access_filter", "access_blocker");
+              hardRejectedOut++;
+              continue;
+            }
+
+            // 5. Expired posting (older than staleCutoff)
             const postedMs = j.posted_at ? new Date(j.posted_at).getTime() : null;
             if (postedMs != null && postedMs < staleCutoffMs) {
-              counts.rejected++; bumpReject("stale_gt_14d"); continue;
+              counts.rejected++;
+              recordReject(j, platform, "freshness_filter", "expired_posting");
+              hardRejectedOut++;
+              continue;
             }
 
-            // Dedupe (hard reject — already in DB)
+            // 6. Dedupe — hash already present
             const dedupe = dedupeHash(src.name, j.title, j.location, j.url);
             const { data: dup } = await supabase.from("job_listings")
               .select("id").eq("user_id", userId).eq("dedupe_hash", dedupe).maybeSingle();
-            if (dup) { counts.duplicate++; bumpReject("duplicate"); continue; }
+            if (dup) {
+              counts.duplicate++;
+              recordReject(j, platform, "dedupe", "duplicate");
+              dedupedOut++;
+              continue;
+            }
+
+            // 7. Already applied
+            const { data: existingApp } = await supabase
+              .from("applications")
+              .select("id, job_listings!inner(dedupe_hash)")
+              .eq("user_id", userId)
+              .eq("job_listings.dedupe_hash", dedupe)
+              .limit(1).maybeSingle();
+            if (existingApp) {
+              counts.rejected++;
+              recordReject(j, platform, "applied_filter", "already_applied");
+              hardRejectedOut++;
+              continue;
+            }
+
+            // 8. Per-ATS daily import cap
+            const importedSoFar = importedTodayByAts.get(platform) ?? 0;
+            if (importedSoFar >= platformCap) {
+              counts.skipped++;
+              bumpSkip("ats_cap_reached");
+              recordReject(j, platform, "ats_cap", "ats_cap_reached");
+              atsCappedOut++;
+              continue;
+            }
 
             // ---- SOFT GATES (insert and route to Manual Review) ----
             const manualReasons: string[] = [];
 
             const remote = isRemote(j.description_text, j.location);
-            if (!remote) manualReasons.push("not_remote");
+            if (!remote) manualReasons.push("location_mismatch");
 
             const enrichment = (await import("./salary-estimator")).enrichSalary({
               title: j.title,
@@ -313,21 +450,23 @@ export const importJobsNow = createServerFn({ method: "POST" })
             else if (enrichment.gate_status === "manual") manualReasons.push("salary_needs_review");
             if ((enrichment.confidence === "low" || enrichment.confidence === "unknown") &&
                 !manualReasons.includes("salary_needs_review")) {
-              manualReasons.push("low_salary_confidence");
+              manualReasons.push("salary_missing");
             }
 
             if (postedMs == null) manualReasons.push("missing_posted_date");
 
             const role = inferRoleCategory(j.title);
             const portfolio = projectsForRole(role).length > 0;
-            const roleMatched = role !== "Operations Analyst" || /operations|ops/.test(titleLc);
-            if (!roleMatched) manualReasons.push("category_uncertain");
+            const adjacentTitlePat =
+              /(operations|ops|business analyst|customer success|support|implementation|program|project|product|revenue|coordinator|specialist)/;
+            const roleMatched = adjacentTitlePat.test(titleLc) ||
+              (role !== "Operations Analyst" || /operations|ops/.test(titleLc));
+            if (!roleMatched) manualReasons.push("title_keyword_mismatch");
 
-            // Resume ↔ role fit (years, seniority, domain, specialty blocks).
             const fit = evaluateResumeFit({
               title: j.title, description: j.description_text, role_category: role,
             });
-            if (fit.realism === "unrealistic") manualReasons.push("unrealistic_career_fit");
+            if (fit.realism === "unrealistic") manualReasons.push("seniority_mismatch");
             else if (fit.realism === "stretch") manualReasons.push("stretch_role_fit");
             if (fit.role_fit_tier === "weak") manualReasons.push("weak_role_fit");
             fit.blockers.forEach((b) => manualReasons.push(b));
@@ -351,13 +490,11 @@ export const importJobsNow = createServerFn({ method: "POST" })
               remote, ats: det.platform,
             });
 
-            // Map salary_source to a DB-allowed value (never let constraint kill an insert).
             const mappedSource = mapSalarySource(enrichment.source);
             if (mappedSource.mapped) {
               manualReasons.push(`mapped_salary_source:${mappedSource.original ?? "null"}`);
             }
 
-            // OpenAI health -> packet generation gating
             const aiHealth = await isOpenAiHealthy();
             if (!aiHealth.ok) {
               manualReasons.push("invalid_openai_key");
@@ -403,8 +540,13 @@ export const importJobsNow = createServerFn({ method: "POST" })
             } as any);
 
             if (insErr) {
-              if (insErr.code === "23505") { counts.duplicate++; bumpReject("duplicate"); continue; }
-              counts.skipped++; bumpSkip(`insert_error:${insErr.code ?? "unknown"}`);
+              if (insErr.code === "23505") {
+                counts.duplicate++;
+                recordReject(j, platform, "dedupe", "duplicate");
+                continue;
+              }
+              counts.skipped++;
+              bumpSkip(`insert_error:${insErr.code ?? "unknown"}`);
               reasons.push(
                 `insert_error code=${insErr.code ?? "?"} ` +
                 `title="${j.title}" company="${src.name}" ` +
@@ -413,13 +555,29 @@ export const importJobsNow = createServerFn({ method: "POST" })
               );
               continue;
             }
-            // Count every successful insert as imported (manual_review still tracked separately).
             counts.imported++;
+            importedTodayByAts.set(platform, (importedTodayByAts.get(platform) ?? 0) + 1);
             if (toManualReviewFinal) {
               counts.manual_review++;
               manualReasons.forEach(bumpManual);
             }
           }
+
+          pipelineCounts.after_dedupe = pipelineCounts.fetched - dedupedOut;
+          pipelineCounts.after_company_excluded = pipelineCounts.after_dedupe;
+          pipelineCounts.after_ats_cap = pipelineCounts.after_dedupe - atsCappedOut;
+          pipelineCounts.after_hard_reject = pipelineCounts.after_ats_cap - hardRejectedOut;
+          pipelineCounts.imported = counts.imported;
+          pipelineCounts.manual_review = counts.manual_review;
+          console.log(
+            `[ingest] ${src.name} pipeline: fetched=${pipelineCounts.fetched}` +
+            ` · after_dedupe=${pipelineCounts.after_dedupe}` +
+            ` · after_ats_cap=${pipelineCounts.after_ats_cap}` +
+            ` · after_hard_reject=${pipelineCounts.after_hard_reject}` +
+            ` · imported=${counts.imported}` +
+            ` · manual=${counts.manual_review}` +
+            ` · rejected=${counts.rejected}`
+          );
 
           await supabase.from("job_sources").update({
             last_imported_at: new Date().toISOString(),
@@ -428,6 +586,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
         } catch (e: any) {
           success = false;
           message = e?.message || "Fetch failed";
+          console.error(`[ingest] ${src.name} fetch failed:`, message);
         }
       }
 
@@ -435,7 +594,13 @@ export const importJobsNow = createServerFn({ method: "POST" })
       (Object.keys(counts) as (keyof typeof counts)[]).forEach((k) => totals[k] += counts[k]);
 
       if (!message && counts.found > 0 && counts.imported === 0 && counts.manual_review === 0) {
-        message = "All fetched jobs were hard-rejected or duplicates";
+        const topReasons = Object.entries(rejectBreakdown)
+          .sort((a, b) => b[1] - a[1]).slice(0, 3)
+          .map(([r, c]) => `${r}(${c})`).join(", ");
+        message =
+          `0 jobs imported because filters rejected all fetched jobs. ` +
+          `Top reasons: ${topReasons || "n/a"}. ` +
+          `Try Relaxed Mode or increase ATS caps.`;
       }
 
       const { data: log } = await supabase.from("import_logs").insert({
@@ -447,16 +612,20 @@ export const importJobsNow = createServerFn({ method: "POST" })
         success,
         message,
         details: {
+          relaxed,
+          pipeline: pipelineCounts,
           reasons: reasons.slice(0, 20),
           skip_breakdown: skipBreakdown,
           manual_breakdown: manualBreakdown,
           reject_breakdown: rejectBreakdown,
+          rejected_details: rejectedDetails,
         },
       }).select().single();
       runs.push(log);
     }
 
-    return { runs, totals };
+    console.log(`[ingest] totals`, totals, `relaxed=${relaxed}`);
+    return { runs, totals, relaxed };
   });
 
 export const detectAtsFromUrl = createServerFn({ method: "POST" })
