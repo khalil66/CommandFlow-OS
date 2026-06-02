@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/public/hooks/retry-queue")({
           if (r.retry_attempts >= r.max_attempts) {
             await supabaseAdmin.from("ai_retry_queue").update({
               status: "failed", retry_status: "max_attempts_reached",
-              history: [...(r.history ?? []), {
+              history: [...(Array.isArray(r.history) ? r.history : []), {
                 ts: nowIso, event: "cron_max_attempts", attempt: r.retry_attempts,
               }],
             }).eq("id", r.id);
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/api/public/hooks/retry-queue")({
             const next = new Date(Date.now() + 15 * 60_000).toISOString();
             await supabaseAdmin.from("ai_retry_queue").update({
               next_retry_at: next, retry_status: "cron_nudged",
-              history: [...(r.history ?? []), {
+              history: [...(Array.isArray(r.history) ? r.history : []), {
                 ts: nowIso, event: "cron_nudge",
                 attempt: r.retry_attempts, next_retry_at: next,
               }],

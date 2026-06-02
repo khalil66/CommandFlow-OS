@@ -44,6 +44,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AdminRecoveryRouteImport } from './routes/admin-recovery'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
+import { Route as ApiPublicHooksRetryQueueRouteImport } from './routes/api/public/hooks/retry-queue'
 
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
@@ -220,6 +221,12 @@ const PacketJobIdRoute = PacketJobIdRouteImport.update({
   path: '/packet/$jobId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRetryQueueRoute =
+  ApiPublicHooksRetryQueueRouteImport.update({
+    id: '/api/public/hooks/retry-queue',
+    path: '/api/public/hooks/retry-queue',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
+  '/api/public/hooks/retry-queue': typeof ApiPublicHooksRetryQueueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -294,6 +302,7 @@ export interface FileRoutesByTo {
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
+  '/api/public/hooks/retry-queue': typeof ApiPublicHooksRetryQueueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -332,6 +341,7 @@ export interface FileRoutesById {
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
+  '/api/public/hooks/retry-queue': typeof ApiPublicHooksRetryQueueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tracker'
     | '/packet/$jobId'
+    | '/api/public/hooks/retry-queue'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tracker'
     | '/packet/$jobId'
+    | '/api/public/hooks/retry-queue'
   id:
     | '__root__'
     | '/'
@@ -445,6 +457,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tracker'
     | '/packet/$jobId'
+    | '/api/public/hooks/retry-queue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -483,6 +496,7 @@ export interface RootRouteChildren {
   SystemRoute: typeof SystemRoute
   TrackerRoute: typeof TrackerRoute
   PacketJobIdRoute: typeof PacketJobIdRoute
+  ApiPublicHooksRetryQueueRoute: typeof ApiPublicHooksRetryQueueRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -732,6 +746,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PacketJobIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/retry-queue': {
+      id: '/api/public/hooks/retry-queue'
+      path: '/api/public/hooks/retry-queue'
+      fullPath: '/api/public/hooks/retry-queue'
+      preLoaderRoute: typeof ApiPublicHooksRetryQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -771,6 +792,7 @@ const rootRouteChildren: RootRouteChildren = {
   SystemRoute: SystemRoute,
   TrackerRoute: TrackerRoute,
   PacketJobIdRoute: PacketJobIdRoute,
+  ApiPublicHooksRetryQueueRoute: ApiPublicHooksRetryQueueRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
