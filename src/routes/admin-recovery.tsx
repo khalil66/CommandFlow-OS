@@ -21,9 +21,7 @@ function AdminRecoveryPage() {
 
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(false);
-  const [email, setEmail] = useState("");
-  const [userId, setUserId] = useState("");
-  const [debug, setDebug] = useState<any>(null);
+  const [recoveryToken, setRecoveryToken] = useState("");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,12 +29,7 @@ function AdminRecoveryPage() {
 
   useEffect(() => {
     checkStatus({})
-      .then((r) => {
-        setEnabled(r.enabled);
-        setEmail(r.email);
-        setUserId(r.userId);
-        setDebug(r.debug);
-      })
+      .then((r) => setEnabled(r.enabled))
       .catch((e) => setLastError(e?.message ?? "status failed"))
       .finally(() => setLoading(false));
   }, [checkStatus]);
@@ -44,10 +37,11 @@ function AdminRecoveryPage() {
   const submit = async () => {
     if (pw !== confirm) return toast.error("Passwords do not match.");
     if (pw.length < 8) return toast.error("Password must be at least 8 characters.");
+    if (recoveryToken.length < 16) return toast.error("Recovery token required.");
     setSubmitting(true);
     setLastError(null);
     try {
-      await submitReset({ data: { email, newPassword: pw } });
+      await submitReset({ data: { recoveryToken, newPassword: pw } });
       toast.success("Password updated. Recovery mode is now disabled.");
       nav({ to: "/auth", replace: true });
     } catch (e: any) {
@@ -69,13 +63,13 @@ function AdminRecoveryPage() {
             </div>
             <div>
               <CardTitle>Admin Recovery</CardTitle>
-              <p className="text-xs text-muted-foreground">One-time password reset</p>
+              <p className="text-xs text-muted-foreground">Token-gated password reset</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            Admin recovery mode is temporary. Disable after use.
+            Requires the server-side recovery token. Disabled automatically after use.
           </div>
 
           {loading ? (
@@ -83,8 +77,8 @@ function AdminRecoveryPage() {
           ) : !enabled ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Admin recovery is currently disabled. If you need access, contact the system
-                owner to re-enable it server-side.
+                Admin recovery is currently disabled. If you need access, the system owner must
+                re-enable it server-side.
               </p>
               <Button
                 onClick={() => nav({ to: "/auth", replace: true })}
@@ -96,8 +90,13 @@ function AdminRecoveryPage() {
           ) : (
             <>
               <div>
-                <Label className="text-xs">Admin email</Label>
-                <Input value={email} readOnly className="bg-muted/40" />
+                <Label className="text-xs">Recovery token</Label>
+                <Input
+                  type="password"
+                  value={recoveryToken}
+                  onChange={(e) => setRecoveryToken(e.target.value)}
+                  placeholder="Server-side ADMIN_RECOVERY_TOKEN"
+                />
               </div>
               <div>
                 <Label className="text-xs">New password</Label>
@@ -116,7 +115,9 @@ function AdminRecoveryPage() {
               )}
               <Button
                 onClick={submit}
-                disabled={submitting || !pw || !confirm || pw !== confirm}
+                disabled={
+                  submitting || !pw || !confirm || pw !== confirm || recoveryToken.length < 16
+                }
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {submitting ? "Updating…" : "Set new password"}
@@ -124,19 +125,11 @@ function AdminRecoveryPage() {
               <p className="text-[11px] text-muted-foreground">
                 On success, recovery mode is automatically disabled. Re-enabling requires server access.
               </p>
-
-              {/* Debug panel — only visible while bootstrap is enabled */}
-              <div className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground space-y-1">
-                <div className="font-semibold text-foreground">Debug</div>
-                <div><span className="font-mono">project:</span> {debug?.projectUrl}</div>
-                <div><span className="font-mono">bootstrap.email:</span> {email}</div>
-                <div><span className="font-mono">bootstrap.user_id:</span> {userId}</div>
-                <div><span className="font-mono">lookup.method:</span> {debug?.lookup?.method}</div>
-                <div><span className="font-mono">lookup.foundUserId:</span> {debug?.lookup?.foundUserId ?? "—"}</div>
-                <div><span className="font-mono">lookup.foundEmail:</span> {debug?.lookup?.foundEmail ?? "—"}</div>
-                <div><span className="font-mono">lookup.error:</span> {debug?.lookup?.error ?? "—"}</div>
-                {lastError && <div className="text-destructive"><span className="font-mono">lastError:</span> {lastError}</div>}
-              </div>
+              {lastError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+                  {lastError}
+                </div>
+              )}
             </>
           )}
         </CardContent>
