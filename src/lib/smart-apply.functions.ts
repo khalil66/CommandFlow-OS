@@ -138,7 +138,7 @@ export const getSmartApplyMetrics = createServerFn({ method: "GET" })
       caps: {
         auto_review_daily_cap: autoCap,
         packet_daily_cap: packetCap,
-        per_ats_daily_cap: settings?.per_ats_daily_cap ?? 5,
+        per_ats_daily_cap: settings?.per_ats_daily_cap ?? 50,
         company_cooldown_days: settings?.company_cooldown_days ?? 30,
       },
     };
