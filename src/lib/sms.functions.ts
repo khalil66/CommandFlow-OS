@@ -45,6 +45,24 @@ export async function sendSmsInternal(args: {
     return { ok: false, status: "skipped:not_configured", missing };
   }
 
+  // Validate To/From: must be present, valid-looking E.164, and not equal.
+  const normalize = (n: string) => {
+    const t = String(n).trim();
+    const digits = t.replace(/[^\d+]/g, "");
+    if (digits.startsWith("+")) return digits;
+    if (/^\d{10,15}$/.test(digits)) return `+${digits}`;
+    return digits;
+  };
+  const toN = normalize(to!);
+  const fromN = normalize(env.from!);
+  if (toN && fromN && toN === fromN) {
+    const reason = "SMS blocked: To and From number cannot be the same.";
+    const suggestion = "Update USER_PHONE_NUMBER (recipient) so it differs from TWILIO_FROM_NUMBER.";
+    console.warn(`[sms] blocked_same_number user=${userId} kind=${kind} to=${toN} from=${fromN}`);
+    await supabase.from("notification_logs").insert(logRow("blocked:same_number", { error: `${reason} ${suggestion}` }));
+    return { ok: false, status: "blocked:same_number", error: reason, suggestion };
+  }
+
   try {
     const auth = btoa(`${env.sid}:${env.token}`);
     const res = await fetch(
