@@ -207,12 +207,15 @@ export const runSmartApply = createServerFn({ method: "POST" })
     let safeSubmittedSoFar = autoSubmittedToday ?? 0;
     const safeAtsCounts = new Map<string, number>();
 
+    // Limit to the user-selected batch size (default 5) so bulk runs do not
+    // hammer OpenAI in a single pass. Remaining jobs stay in the pipeline
+    // and get picked up on the next Run.
     const { data: jobs } = await (supabase as any).from("job_listings")
       .select("*, companies(*)")
       .eq("user_id", userId)
       .gte("posted_at", cutoff)
       .order("interview_probability", { ascending: false })
-      .limit(50);
+      .limit(Math.max(1, Math.min(50, batchSize)));
 
     const { data: appsToday } = await (supabase as any).from("automation_safety_logs")
       .select("ats, action")
