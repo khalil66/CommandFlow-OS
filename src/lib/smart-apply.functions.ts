@@ -138,7 +138,7 @@ export const getSmartApplyMetrics = createServerFn({ method: "GET" })
       caps: {
         auto_review_daily_cap: autoCap,
         packet_daily_cap: packetCap,
-        per_ats_daily_cap: settings?.per_ats_daily_cap ?? 5,
+        per_ats_daily_cap: settings?.per_ats_daily_cap ?? 50,
         company_cooldown_days: settings?.company_cooldown_days ?? 30,
       },
     };
@@ -175,7 +175,12 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const fridayPrepareOnly = dow === 5 && (s.friday_prepare_only ?? true);
     const autoCap = s.auto_review_daily_cap ?? 5;
     const packetCap = s.packet_daily_cap ?? 25;
-    const perAtsCap = s.per_ats_daily_cap ?? 5;
+    const globalAtsCap = s.per_ats_daily_cap ?? 50;
+    const atsCapMap: Record<string, number> = {
+      Greenhouse: 50, Lever: 50, Ashby: 50, Breezy: 50, Workday: 30, other: 25,
+      ...(s.per_ats_caps ?? {}),
+    };
+    const capFor = (ats: string) => atsCapMap[ats] ?? atsCapMap.other ?? globalAtsCap;
     const cooldownDays = s.company_cooldown_days ?? 30;
     const mode: "manual_review" | "auto_review" = s.application_mode ?? "manual_review";
 
@@ -269,6 +274,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
       if (mode === "auto_review" && approved >= autoCap) { skipped++; trackFailure("auto_cap_reached"); continue; }
 
       const ats = j.ats ?? "";
+      const perAtsCap = capFor(ats);
       if ((atsCounts.get(ats) ?? 0) >= perAtsCap) {
         // Preserve the job by parking the application in `skipped_cap` so it
         // remains visible in the Skipped / Capped tab and can be reviewed.

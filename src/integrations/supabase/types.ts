@@ -1273,8 +1273,10 @@ export type Database = {
           manual_review_only: boolean | null
           onboarded_at: string | null
           packet_daily_cap: number
+          per_ats_caps: Json
           per_ats_daily_cap: number
           phone_number: string | null
+          relaxed_mode: boolean
           remote_only: boolean
           role_categories: string[]
           safe_auto_submit_confirmed_at: string | null
@@ -1321,8 +1323,10 @@ export type Database = {
           manual_review_only?: boolean | null
           onboarded_at?: string | null
           packet_daily_cap?: number
+          per_ats_caps?: Json
           per_ats_daily_cap?: number
           phone_number?: string | null
+          relaxed_mode?: boolean
           remote_only?: boolean
           role_categories?: string[]
           safe_auto_submit_confirmed_at?: string | null
@@ -1369,8 +1373,10 @@ export type Database = {
           manual_review_only?: boolean | null
           onboarded_at?: string | null
           packet_daily_cap?: number
+          per_ats_caps?: Json
           per_ats_daily_cap?: number
           phone_number?: string | null
+          relaxed_mode?: boolean
           remote_only?: boolean
           role_categories?: string[]
           safe_auto_submit_confirmed_at?: string | null
