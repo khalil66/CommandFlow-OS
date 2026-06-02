@@ -9,6 +9,7 @@ const SETTINGS_FIELDS = [
   "manual_review_only","auto_apply","onboarded_at","created_at","updated_at",
   "application_mode","automation_paused","friday_prepare_only",
   "auto_review_daily_cap","packet_daily_cap","per_ats_daily_cap",
+  "per_ats_caps","relaxed_mode",
   "company_cooldown_days","schedule_hour","schedule_minute","active_weekdays",
   "phone_number","sms_enabled","sms_daily_cap",
   "sms_notify_batch_start","sms_notify_batch_complete","sms_notify_manual_mode",
