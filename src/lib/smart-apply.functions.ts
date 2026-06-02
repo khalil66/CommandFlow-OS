@@ -231,6 +231,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
     let approved = 0, blocked = 0, prepared = 0, skipped = 0, rejected = 0;
     let evaluated = 0; // jobs evaluated against auto-review (for pass-rate guard)
     let guardTripped = false;
+    let quotaExhausted = false; // set when OpenAI returns insufficient_quota
+    let rateLimitedQueued = 0;  // jobs sent to needs_review after retries exhausted
+    let cacheHits = 0;
     // Detailed routing counters
     let packet_attempted = 0, packet_failed = 0, scored = 0;
     let rejected_by_scoring = 0, rejected_by_qc = 0;
