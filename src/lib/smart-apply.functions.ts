@@ -7,6 +7,7 @@ import { sendSmsInternal } from "./sms.functions";
 import { runFinalQC, assignResumeVariant } from "./qc-gate";
 import { freshnessBucket } from "./freshness";
 import { QuotaExhaustedError, RateLimitExhaustedError } from "./openai-fetch";
+import { enqueueRetryRow } from "./retry-queue.functions";
 
 // Auto-Review safety constants. Source of truth lives in auto-review-scoring.ts.
 export const AUTO_GATES = {
