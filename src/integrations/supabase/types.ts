@@ -38,6 +38,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_retry_queue: {
+        Row: {
+          created_at: string
+          history: Json
+          id: string
+          job_id: string
+          kind: string
+          last_error: string | null
+          last_retry_at: string | null
+          max_attempts: number
+          next_retry_at: string
+          retry_attempts: number
+          retry_reason: string | null
+          retry_status: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          history?: Json
+          id?: string
+          job_id: string
+          kind?: string
+          last_error?: string | null
+          last_retry_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          retry_attempts?: number
+          retry_reason?: string | null
+          retry_status?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          history?: Json
+          id?: string
+          job_id?: string
+          kind?: string
+          last_error?: string | null
+          last_retry_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          retry_attempts?: number
+          retry_reason?: string | null
+          retry_status?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           application_url: string | null

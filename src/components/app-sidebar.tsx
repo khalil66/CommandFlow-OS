@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Search, ShieldCheck, Filter, FileText,
   ListChecks, AlertTriangle, BarChart3, Settings, Briefcase,
   Building2, CalendarDays, Sparkles, BellRing, Download, Activity, Compass, BookOpen, Zap,
-  KanbanSquare, Users, FileDiff, Brain, LineChart,
+  KanbanSquare, Users, FileDiff, Brain, LineChart, RefreshCw,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -15,6 +15,7 @@ const nav = [
   { title: "Executive Center", url: "/executive", icon: Sparkles },
   { title: "Public Sandbox", url: "/sandbox", icon: Compass },
   { title: "Smart Apply", url: "/smart-apply", icon: Zap },
+  { title: "AI Retry Queue", url: "/ai-queue", icon: RefreshCw },
   { title: "High-Probability", url: "/high-probability", icon: Sparkles },
   { title: "Job Queue", url: "/queue", icon: Search },
   { title: "Job Sources", url: "/sources", icon: Download },

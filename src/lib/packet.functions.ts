@@ -139,14 +139,19 @@ ${PREP_SCHEMA_HINT}`;
 
 // ---------- Generate full packet ---------- //
 
-export const generatePacket = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ job_id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
+/**
+ * Core packet generation logic. Accepts any Supabase client (authed user
+ * client or service-role admin client) plus an explicit userId so it can be
+ * invoked from both authenticated server functions AND cron/admin paths
+ * (e.g. the AI retry queue processor).
+ */
+export async function generatePacketCore(
+  supabase: any,
+  userId: string,
+  jobId: string,
+) {
     const { data: job } = await supabase.from("job_listings").select("*")
-      .eq("id", data.job_id).eq("user_id", userId).maybeSingle();
+      .eq("id", jobId).eq("user_id", userId).maybeSingle();
     if (!job) throw new Error("Job not found");
 
     const { data: company } = job.company_id
@@ -265,7 +270,15 @@ export const generatePacket = createServerFn({ method: "POST" })
       ats_summary: prep.ats_summary ?? "",
       readiness_explanation: prep.readiness_explanation ?? tailored.explanation,
     };
+}
+
+export const generatePacket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ job_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    return generatePacketCore(context.supabase, context.userId, data.job_id);
   });
+
 
 // ---------- Approve / Reject / Save / Get latest packet ---------- //
 
