@@ -306,14 +306,18 @@ export const runSmartApply = createServerFn({ method: "POST" })
       // Always create an application row so routing is observable.
       await ensureApp(j, "manual_review");
 
-      // If a prior job exhausted OpenAI quota, do not call AI again — queue this job for later.
+      // If a prior job exhausted OpenAI quota, do not call AI again — queue this job.
       if (quotaExhausted) {
         rateLimitedQueued++;
         trackFailure("queued_quota_exhausted");
         manualReasons.set("queued_quota_exhausted", (manualReasons.get("queued_quota_exhausted") ?? 0) + 1);
+        await enqueueRetryRow(supabase, userId, {
+          job_id: j.id, status: "quota_limited",
+          reason: "AI quota/rate limit reached on a prior job in this batch.",
+        });
         await (supabase as any).from("applications").update({
           status: "manual_review", priority: "manual",
-          notes: "[queued] AI quota/rate limit reached. Remaining jobs are safely queued and can be retried later.",
+          notes: "[queued] AI quota/rate limit reached. Queued for automatic retry.",
         }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
@@ -332,37 +336,37 @@ export const runSmartApply = createServerFn({ method: "POST" })
         prepared++;
       } catch (e: any) {
         packet_failed++;
-        if (e instanceof QuotaExhaustedError) {
-          quotaExhausted = true;
+        if (e instanceof QuotaExhaustedError || e instanceof RateLimitExhaustedError) {
+          const isQuota = e instanceof QuotaExhaustedError;
+          if (isQuota) quotaExhausted = true;
           rateLimitedQueued++;
-          const reason = "Rate limit reached after retries — queued for manual review.";
-          trackFailure("quota_exhausted");
-          manualReasons.set("quota_exhausted", (manualReasons.get("quota_exhausted") ?? 0) + 1);
+          const cause = isQuota ? "quota_exhausted" : "rate_limit_exhausted";
+          const reason = isQuota
+            ? "OpenAI quota exhausted — queued for automatic retry."
+            : "Rate limit reached after retries — queued for automatic retry.";
+          trackFailure(cause);
+          manualReasons.set(cause, (manualReasons.get(cause) ?? 0) + 1);
+          await enqueueRetryRow(supabase, userId, {
+            job_id: j.id, reason,
+            status: isQuota ? "quota_limited" : "queued",
+          });
           await (supabase as any).from("applications").update({
             status: "manual_review", priority: "manual",
-            notes: `[needs_review] ${reason}`,
+            notes: `[queued] ${reason}`,
           }).eq("user_id", userId).eq("job_id", j.id);
           await log({
             job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-            action: "prepared", reason, gates: { queue_state: "needs_review", cause: "quota_exhausted" },
+            action: "prepared", reason,
+            gates: { queue_state: "queued", cause, ...(e instanceof RateLimitExhaustedError ? { attempts: e.attempts } : {}) },
           });
           continue;
         }
-        if (e instanceof RateLimitExhaustedError) {
-          rateLimitedQueued++;
-          const reason = "Rate limit reached after retries — queued for manual review.";
-          trackFailure("rate_limit_exhausted");
-          manualReasons.set("rate_limit_exhausted", (manualReasons.get("rate_limit_exhausted") ?? 0) + 1);
-          await (supabase as any).from("applications").update({
-            status: "manual_review", priority: "manual",
-            notes: `[needs_review] ${reason}`,
-          }).eq("user_id", userId).eq("job_id", j.id);
-          await log({
-            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
-            action: "prepared", reason, gates: { queue_state: "needs_review", cause: "rate_limit_exhausted", attempts: e.attempts },
-          });
-          continue;
-        }
+        const reason = `Packet generation failed: ${e.message?.slice(0, 200)}`;
+        trackFailure("packet_generation_failed");
+        manualReasons.set("packet_generation_failed", (manualReasons.get("packet_generation_failed") ?? 0) + 1);
+        await (supabase as any).from("applications").update({
+          status: "manual_review", priority: "manual",
+          notes: reason,
         const reason = `Packet generation failed: ${e.message?.slice(0, 200)}`;
         trackFailure("packet_generation_failed");
         manualReasons.set("packet_generation_failed", (manualReasons.get("packet_generation_failed") ?? 0) + 1);
