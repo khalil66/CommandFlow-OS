@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { openAIFetch } from "./openai-fetch";
 
 // Master profile (mirrors resume.functions.ts KHALIL_PROFILE proof points)
 const MASTER_SUMMARY =
