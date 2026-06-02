@@ -135,20 +135,20 @@ Return JSON with keys:
 - questions_to_ask (array of 4-6 thoughtful questions to ask the interviewer)
 - red_flags (array of 0-4 risks; empty array if none)`;
 
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: ENRICH_SYSTEM }, { role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-      }),
-    });
-    if (!resp.ok) {
-      const txt = await resp.text();
-      throw new Error(`OpenAI ${resp.status}: ${txt.slice(0, 200)}`);
-    }
+    const resp = await openAIFetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "system", content: ENRICH_SYSTEM }, { role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+        }),
+      },
+      { label: `enrich:${company.name.slice(0, 24)}` }
+    );
     const json = await resp.json();
     const content = json.choices?.[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(content);
