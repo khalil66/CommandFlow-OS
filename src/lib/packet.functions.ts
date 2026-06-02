@@ -270,7 +270,15 @@ export async function generatePacketCore(
       ats_summary: prep.ats_summary ?? "",
       readiness_explanation: prep.readiness_explanation ?? tailored.explanation,
     };
+}
+
+export const generatePacket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ job_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    return generatePacketCore(context.supabase, context.userId, data.job_id);
   });
+
 
 // ---------- Approve / Reject / Save / Get latest packet ---------- //
 
