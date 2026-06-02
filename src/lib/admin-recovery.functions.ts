@@ -2,107 +2,84 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const TARGET_USER_ID = "00bb776c-6de6-40c2-8a06-34e4755ff403";
-const TARGET_EMAIL = "khalil.hickson@outlook.com";
-
 function normEmail(e: string | null | undefined) {
   return (e ?? "").trim().toLowerCase();
 }
 
-async function findAuthUser() {
-  // 1) Try by exact user_id first
-  const byId = await supabaseAdmin.auth.admin.getUserById(TARGET_USER_ID);
-  if (byId.data?.user) {
-    return { user: byId.data.user, method: "getUserById", error: null as string | null };
-  }
-  const idErr = byId.error?.message ?? null;
-
-  // 2) Fallback: scan listUsers for case-insensitive email match
-  const target = normEmail(TARGET_EMAIL);
-  for (let page = 1; page <= 20; page++) {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) {
-      return { user: null, method: "listUsers", error: error.message };
-    }
-    const match = data.users.find((u) => normEmail(u.email) === target);
-    if (match) return { user: match, method: "listUsers(email)", error: null };
-    if (data.users.length < 200) break;
-  }
-  return { user: null, method: "getUserById+listUsers", error: idErr ?? "User not found" };
+function timingSafeEqualStr(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
 }
 
-export const getAdminRecoveryStatus = createServerFn({ method: "GET" }).handler(async () => {
+function assertRecoveryToken(token: string | undefined) {
+  const expected = process.env.ADMIN_RECOVERY_TOKEN;
+  if (!expected || expected.length < 16) {
+    throw new Error("Admin recovery is not configured on the server.");
+  }
+  if (!token || !timingSafeEqualStr(token, expected)) {
+    throw new Error("Invalid recovery token.");
+  }
+}
+
+async function loadBootstrap() {
   const { data, error } = await supabaseAdmin
     .from("admin_bootstrap")
     .select("enabled,target_email,target_user_id")
     .eq("id", true)
     .maybeSingle();
   if (error) throw new Error(error.message);
+  return data;
+}
 
-  const enabled = !!data?.enabled;
-  const projectUrl = process.env.SUPABASE_URL ?? "(unset)";
-
-  let lookup: { method: string; foundUserId: string | null; foundEmail: string | null; error: string | null } = {
-    method: "skipped",
-    foundUserId: null,
-    foundEmail: null,
-    error: null,
-  };
-
-  if (enabled) {
-    const r = await findAuthUser();
-    lookup = {
-      method: r.method,
-      foundUserId: r.user?.id ?? null,
-      foundEmail: r.user?.email ?? null,
-      error: r.error,
-    };
+async function findAuthUser(targetUserId: string | null, targetEmail: string) {
+  if (targetUserId) {
+    const byId = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+    if (byId.data?.user) return { user: byId.data.user, method: "getUserById" };
   }
+  const target = normEmail(targetEmail);
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(error.message);
+    const match = data.users.find((u) => normEmail(u.email) === target);
+    if (match) return { user: match, method: "listUsers(email)" };
+    if (data.users.length < 200) break;
+  }
+  throw new Error("Admin user not found in Auth.");
+}
 
-  return {
-    enabled,
-    email: data?.target_email ?? TARGET_EMAIL,
-    userId: data?.target_user_id ?? TARGET_USER_ID,
-    debug: { projectUrl, lookup },
-  };
+// Public, minimal status — no PII, no infra details.
+export const getAdminRecoveryStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const data = await loadBootstrap();
+  return { enabled: !!data?.enabled };
 });
 
+// Token-gated reset. Requires ADMIN_RECOVERY_TOKEN header value to be supplied
+// by the caller. Email/userId are looked up server-side from admin_bootstrap.
 export const bootstrapAdminPassword = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        email: z.string().email(),
+        recoveryToken: z.string().min(16).max(512),
         newPassword: z.string().min(8).max(128),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    if (normEmail(data.email) !== normEmail(TARGET_EMAIL)) {
-      throw new Error("Email not authorized for admin recovery.");
-    }
+    assertRecoveryToken(data.recoveryToken);
 
-    const { data: row, error: rowErr } = await supabaseAdmin
-      .from("admin_bootstrap")
-      .select("enabled,target_user_id,target_email")
-      .eq("id", true)
-      .maybeSingle();
-    if (rowErr) throw new Error(rowErr.message);
+    const row = await loadBootstrap();
     if (!row || !row.enabled) {
-      throw new Error("Admin recovery is disabled. Contact the system owner.");
+      throw new Error("Admin recovery is disabled.");
+    }
+    if (!row.target_email) {
+      throw new Error("Admin recovery is misconfigured (no target email).");
     }
 
-    // Find the actual auth user (id-first, email fallback)
-    const found = await findAuthUser();
-    if (!found.user) {
-      throw new Error(
-        `Admin user not found in Supabase Auth (method=${found.method}, err=${found.error ?? "n/a"}). Verify SUPABASE_URL=${process.env.SUPABASE_URL} matches the project containing this user.`,
-      );
-    }
-
-    if (normEmail(found.user.email) !== normEmail(TARGET_EMAIL)) {
-      throw new Error(
-        `Auth email mismatch: found ${found.user.email} for id ${found.user.id}, expected ${TARGET_EMAIL}.`,
-      );
+    const found = await findAuthUser(row.target_user_id ?? null, row.target_email);
+    if (normEmail(found.user.email) !== normEmail(row.target_email)) {
+      throw new Error("Auth email mismatch for recovery target.");
     }
 
     const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(found.user.id, {
@@ -116,5 +93,5 @@ export const bootstrapAdminPassword = createServerFn({ method: "POST" })
       .eq("id", true);
     if (disableErr) throw new Error(disableErr.message);
 
-    return { ok: true, userId: found.user.id, method: found.method };
+    return { ok: true };
   });
