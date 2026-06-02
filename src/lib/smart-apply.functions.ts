@@ -274,6 +274,7 @@ export const runSmartApply = createServerFn({ method: "POST" })
       if (mode === "auto_review" && approved >= autoCap) { skipped++; trackFailure("auto_cap_reached"); continue; }
 
       const ats = j.ats ?? "";
+      const perAtsCap = capFor(ats);
       if ((atsCounts.get(ats) ?? 0) >= perAtsCap) {
         // Preserve the job by parking the application in `skipped_cap` so it
         // remains visible in the Skipped / Capped tab and can be reviewed.
