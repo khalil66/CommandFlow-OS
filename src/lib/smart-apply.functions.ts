@@ -147,8 +147,12 @@ export const getSmartApplyMetrics = createServerFn({ method: "GET" })
 // ----- Run Smart-Apply daily batch ----- //
 export const runSmartApply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({
+    batch_size: z.number().int().min(1).max(50).optional(),
+  }).optional().parse(d ?? {}))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const batchSize = data?.batch_size ?? 5;
     const log = async (row: any) => {
       await (supabase as any).from("automation_safety_logs").insert({ user_id: userId, ...row });
     };
