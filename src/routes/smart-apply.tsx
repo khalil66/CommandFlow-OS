@@ -199,11 +199,19 @@ function SmartApplyPage() {
       }
 
       // 2. Then score / route
-      const r: any = await runFn();
+      // 2. Then score / route — throttled by batch size to avoid OpenAI rate limits.
+      const r: any = await runFn({ data: { batch_size: batchSize } });
       if (!r.ok) toast.warning(`Skipped: ${r.reason}`);
       else {
         const sm = r.summary ?? {};
         const scanned = sm.jobs_scanned ?? 0;
+        if (sm.quota_exhausted || (sm.rate_limited_queued ?? 0) > 0) {
+          setLastQuotaWarning(
+            `AI quota/rate limit reached. ${sm.rate_limited_queued} job${sm.rate_limited_queued === 1 ? "" : "s"} safely queued — retry later.`
+          );
+        } else {
+          setLastQuotaWarning(null);
+        }
         if (scanned === 0) {
           const reason = importTotals
             ? `Ingestion found ${importTotals.found}, imported ${importTotals.imported}, rejected ${importTotals.rejected}, skipped ${importTotals.skipped}. No fresh jobs (<14 days) to score.`
