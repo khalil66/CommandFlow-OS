@@ -10,7 +10,11 @@ import type { ReactNode } from "react";
  * Humanizes technical status/reason keys into executive-friendly labels.
  */
 const LABEL_MAP: Record<string, string> = {
-  routing_unresolved: "Needs Review",
+  routing_unresolved: "Needs Review — Missing or uncertain routing data",
+  needs_review_missing_data: "Needs Review — Missing or uncertain routing data",
+  quota_exhausted: "Queued Retry — AI quota/rate limit reached",
+  queued_quota_exhausted: "Queued Retry — AI quota/rate limit reached",
+  rate_limit_exhausted: "Needs Review — AI retry limit reached",
   skipped_cap: "Daily Cap Reached",
   safety_blocked: "Safety Blocked",
   packet_generation_failed: "Packet Needs Attention",
