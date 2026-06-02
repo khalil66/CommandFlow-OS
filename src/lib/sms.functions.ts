@@ -4,7 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface SmsResult {
   ok: boolean;
-  status: "sent" | "skipped:not_configured" | "skipped:disabled" | "error";
+  status: "sent" | "skipped:not_configured" | "skipped:disabled" | "error" | "blocked:same_number";
+  suggestion?: string;
   missing?: string[];
   error?: string;
   sid?: string;
