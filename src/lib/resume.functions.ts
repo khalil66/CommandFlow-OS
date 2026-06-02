@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { projectsForRole, PORTFOLIO_URL } from "./portfolio";
+import { openAIFetch } from "./openai-fetch";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/khalilhickson";
 
