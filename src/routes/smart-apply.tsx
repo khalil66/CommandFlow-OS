@@ -80,6 +80,8 @@ function SmartApplyPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [batchSize, setBatchSize] = useState<number>(5);
+  const [lastQuotaWarning, setLastQuotaWarning] = useState<string | null>(null);
 
   const refresh = async () => {
     const [mm, ll, dd]: any = await Promise.all([
