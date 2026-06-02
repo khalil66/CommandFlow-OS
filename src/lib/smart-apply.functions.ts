@@ -367,12 +367,6 @@ export const runSmartApply = createServerFn({ method: "POST" })
         await (supabase as any).from("applications").update({
           status: "manual_review", priority: "manual",
           notes: reason,
-        const reason = `Packet generation failed: ${e.message?.slice(0, 200)}`;
-        trackFailure("packet_generation_failed");
-        manualReasons.set("packet_generation_failed", (manualReasons.get("packet_generation_failed") ?? 0) + 1);
-        await (supabase as any).from("applications").update({
-          status: "manual_review", priority: "manual",
-          notes: reason,
         }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
