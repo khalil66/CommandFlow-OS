@@ -41,6 +41,7 @@ import { Route as BatchesRouteImport } from './routes/batches'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtsRouteImport } from './routes/ats'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AiQueueRouteImport } from './routes/ai-queue'
 import { Route as AdminRecoveryRouteImport } from './routes/admin-recovery'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
@@ -206,6 +207,11 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AiQueueRoute = AiQueueRouteImport.update({
+  id: '/ai-queue',
+  path: '/ai-queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRecoveryRoute = AdminRecoveryRouteImport.update({
   id: '/admin-recovery',
   path: '/admin-recovery',
@@ -231,6 +237,7 @@ const ApiPublicHooksRetryQueueRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin-recovery': typeof AdminRecoveryRoute
+  '/ai-queue': typeof AiQueueRoute
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
@@ -269,6 +276,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-recovery': typeof AdminRecoveryRoute
+  '/ai-queue': typeof AiQueueRoute
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
@@ -308,6 +316,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin-recovery': typeof AdminRecoveryRoute
+  '/ai-queue': typeof AiQueueRoute
   '/analytics': typeof AnalyticsRoute
   '/ats': typeof AtsRoute
   '/auth': typeof AuthRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin-recovery'
+    | '/ai-queue'
     | '/analytics'
     | '/ats'
     | '/auth'
@@ -386,6 +396,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin-recovery'
+    | '/ai-queue'
     | '/analytics'
     | '/ats'
     | '/auth'
@@ -424,6 +435,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin-recovery'
+    | '/ai-queue'
     | '/analytics'
     | '/ats'
     | '/auth'
@@ -463,6 +475,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRecoveryRoute: typeof AdminRecoveryRoute
+  AiQueueRoute: typeof AiQueueRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AtsRoute: typeof AtsRoute
   AuthRoute: typeof AuthRoute
@@ -725,6 +738,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ai-queue': {
+      id: '/ai-queue'
+      path: '/ai-queue'
+      fullPath: '/ai-queue'
+      preLoaderRoute: typeof AiQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin-recovery': {
       id: '/admin-recovery'
       path: '/admin-recovery'
@@ -759,6 +779,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRecoveryRoute: AdminRecoveryRoute,
+  AiQueueRoute: AiQueueRoute,
   AnalyticsRoute: AnalyticsRoute,
   AtsRoute: AtsRoute,
   AuthRoute: AuthRoute,
@@ -797,3 +818,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
