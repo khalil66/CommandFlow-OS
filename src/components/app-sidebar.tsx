@@ -15,6 +15,7 @@ const nav = [
   { title: "Executive Center", url: "/executive", icon: Sparkles },
   { title: "Public Sandbox", url: "/sandbox", icon: Compass },
   { title: "Smart Apply", url: "/smart-apply", icon: Zap },
+  { title: "AI Retry Queue", url: "/ai-queue", icon: RefreshCw },
   { title: "High-Probability", url: "/high-probability", icon: Sparkles },
   { title: "Job Queue", url: "/queue", icon: Search },
   { title: "Job Sources", url: "/sources", icon: Download },
