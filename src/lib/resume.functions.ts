@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { projectsForRole, PORTFOLIO_URL } from "./portfolio";
+import { openAIFetch } from "./openai-fetch";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/khalilhickson";
 
@@ -147,24 +148,29 @@ Return JSON with:
 - ats_readability (0-100, your assessment of ATS-friendliness)`;
 
     const model = "gpt-4o-mini";
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.4,
-      }),
-    });
-    if (!resp.ok) {
-      const txt = await resp.text();
-      // Log failure
+    let resp: Response;
+    try {
+      resp = await openAIFetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.4,
+          }),
+        },
+        { label: `resume:${data.company.slice(0, 24)}` }
+      );
+    } catch (e: any) {
       await supabase.from("openai_usage").insert({
         user_id: userId, kind: "resume", model, success: false,
-        error: `OpenAI ${resp.status}: ${txt.slice(0, 200)}`, job_id: data.job_id ?? null,
+        error: `${e?.code ?? "error"}: ${(e?.message ?? String(e)).slice(0, 200)}`,
+        job_id: data.job_id ?? null,
       } as any);
-      throw new Error(`OpenAI error ${resp.status}: ${txt.slice(0, 200)}`);
+      throw e;
     }
     const json = await resp.json();
     const content = json.choices?.[0]?.message?.content ?? "{}";

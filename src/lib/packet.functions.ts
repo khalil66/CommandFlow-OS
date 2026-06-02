@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { tailorResume } from "./resume.functions";
 import { projectsForRole, PORTFOLIO_URL } from "./portfolio";
 import { computeInterviewProbability, SUPPORTED_ATS, SALARY_FLOOR } from "./scoring";
+import { openAIFetch } from "./openai-fetch";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/khalilhickson";
 
@@ -118,17 +119,20 @@ LINKEDIN: ${LINKEDIN_URL}
 Return JSON in this shape:
 ${PREP_SCHEMA_HINT}`;
 
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "system", content: PREP_SYSTEM }, { role: "user", content: userPrompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.5,
-    }),
-  });
-  if (!resp.ok) throw new Error(`OpenAI prep error ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+  const resp = await openAIFetch(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "system", content: PREP_SYSTEM }, { role: "user", content: userPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.5,
+      }),
+    },
+    { label: `packet-prep:${args.company.slice(0, 24)}` }
+  );
   const j = await resp.json();
   return JSON.parse(j.choices?.[0]?.message?.content ?? "{}");
 }
@@ -149,17 +153,50 @@ export const generatePacket = createServerFn({ method: "POST" })
       ? await supabase.from("companies").select("*").eq("id", job.company_id).maybeSingle()
       : { data: null as any };
 
-    // 1. Tailored resume + cover (uses existing tailorResume server fn under the hood)
-    const tailored = await tailorResume({
-      data: {
-        title: job.title,
-        company: job.company_name,
-        category: job.role_category ?? job.category ?? "operations",
-        job_description: job.description ?? `${job.title} at ${job.company_name}`,
-        job_id: job.id,
-        save: true,
-      },
-    });
+    // 1. Tailored resume + cover (uses existing tailorResume server fn under the hood).
+    // Cache: if we already generated a resume + cover for this job in the last 7 days
+    // (same jobId + role bucket + company), reuse instead of paying OpenAI again.
+    const cacheCutoff = new Date(Date.now() - 7 * 86400_000).toISOString();
+    const { data: cachedResume } = await supabase.from("resume_versions")
+      .select("*").eq("user_id", userId).eq("job_id", job.id)
+      .gte("created_at", cacheCutoff)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: cachedCover } = cachedResume
+      ? await supabase.from("cover_letters")
+          .select("*").eq("user_id", userId).eq("job_id", job.id)
+          .gte("created_at", cacheCutoff)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle()
+      : { data: null as any };
+
+    let tailored: Awaited<ReturnType<typeof tailorResume>>;
+    if (cachedResume && cachedCover) {
+      console.log(`[packet] cache hit for job ${job.id} (${job.company_name})`);
+      tailored = {
+        matchScore: cachedResume.match_score ?? 0,
+        summary: cachedResume.summary ?? "",
+        skills: cachedResume.skills ?? [],
+        bullets: cachedResume.bullets ?? [],
+        keywords: cachedResume.keywords ?? [],
+        cover: cachedCover.body ?? "",
+        explanation: cachedResume.explanation ?? "",
+        ats_readability: 80,
+        portfolio_project: null,
+        links: { portfolio: PORTFOLIO_URL, linkedin: "https://www.linkedin.com/in/khalilhickson" },
+        resume_id: cachedResume.id,
+        cover_id: cachedCover.id,
+      } as any;
+    } else {
+      tailored = await tailorResume({
+        data: {
+          title: job.title,
+          company: job.company_name,
+          category: job.role_category ?? job.category ?? "operations",
+          job_description: job.description ?? `${job.title} at ${job.company_name}`,
+          job_id: job.id,
+          save: true,
+        },
+      });
+    }
 
     // 2. Interview prep / why-this-company
     const portfolio = projectsForRole(job.role_category ?? job.title)[0] ?? null;

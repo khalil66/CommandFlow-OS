@@ -80,6 +80,8 @@ function SmartApplyPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [batchSize, setBatchSize] = useState<number>(5);
+  const [lastQuotaWarning, setLastQuotaWarning] = useState<string | null>(null);
 
   const refresh = async () => {
     const [mm, ll, dd]: any = await Promise.all([
@@ -197,11 +199,19 @@ function SmartApplyPage() {
       }
 
       // 2. Then score / route
-      const r: any = await runFn();
+      // 2. Then score / route — throttled by batch size to avoid OpenAI rate limits.
+      const r: any = await runFn({ data: { batch_size: batchSize } });
       if (!r.ok) toast.warning(`Skipped: ${r.reason}`);
       else {
         const sm = r.summary ?? {};
         const scanned = sm.jobs_scanned ?? 0;
+        if (sm.quota_exhausted || (sm.rate_limited_queued ?? 0) > 0) {
+          setLastQuotaWarning(
+            `AI quota/rate limit reached. ${sm.rate_limited_queued} job${sm.rate_limited_queued === 1 ? "" : "s"} safely queued — retry later.`
+          );
+        } else {
+          setLastQuotaWarning(null);
+        }
         if (scanned === 0) {
           const reason = importTotals
             ? `Ingestion found ${importTotals.found}, imported ${importTotals.imported}, rejected ${importTotals.rejected}, skipped ${importTotals.skipped}. No fresh jobs (<14 days) to score.`
@@ -238,13 +248,27 @@ function SmartApplyPage() {
             Manual Review remains the default — Auto Review only acts when every gate passes.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1">
+            <Label htmlFor="batch-size" className="text-xs text-muted-foreground">Batch</Label>
+            <select
+              id="batch-size"
+              value={batchSize}
+              onChange={(e) => setBatchSize(Number(e.target.value))}
+              className="bg-transparent text-sm font-medium tabular-nums outline-none"
+              aria-label="Process N jobs at a time"
+            >
+              {[1, 3, 5, 10, 15, 25].map((n) => (
+                <option key={n} value={n}>{n} at a time</option>
+              ))}
+            </select>
+          </div>
           <Button
             variant={paused ? "default" : "destructive"}
             onClick={() => togglePause(!paused)}
           >
             {paused ? <PlayCircle className="h-4 w-4 mr-1.5" /> : <PauseCircle className="h-4 w-4 mr-1.5" />}
-            {paused ? "Resume Automation" : "Pause Automation"}
+            {paused ? "Resume Queue" : "Pause Queue"}
           </Button>
           <Button onClick={handleRun} disabled={running || paused} className="bg-accent text-accent-foreground hover:bg-accent/90">
             {running ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <PlayCircle className="h-4 w-4 mr-1.5" />}
@@ -252,6 +276,19 @@ function SmartApplyPage() {
           </Button>
         </div>
       </div>
+
+      {lastQuotaWarning && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-foreground flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="font-medium">{lastQuotaWarning}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Throttling + exponential backoff are active. Queued jobs will be retried automatically on the next run.
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setLastQuotaWarning(null)}>Dismiss</Button>
+        </div>
+      )}
 
       {/* Diagnostics + Recovery tools */}
       <Card>

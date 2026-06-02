@@ -6,6 +6,7 @@ import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
 import { sendSmsInternal } from "./sms.functions";
 import { runFinalQC, assignResumeVariant } from "./qc-gate";
 import { freshnessBucket } from "./freshness";
+import { QuotaExhaustedError, RateLimitExhaustedError } from "./openai-fetch";
 
 // Auto-Review safety constants. Source of truth lives in auto-review-scoring.ts.
 export const AUTO_GATES = {
@@ -146,8 +147,12 @@ export const getSmartApplyMetrics = createServerFn({ method: "GET" })
 // ----- Run Smart-Apply daily batch ----- //
 export const runSmartApply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({
+    batch_size: z.number().int().min(1).max(50).optional(),
+  }).optional().parse(d ?? {}))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const batchSize = data?.batch_size ?? 5;
     const log = async (row: any) => {
       await (supabase as any).from("automation_safety_logs").insert({ user_id: userId, ...row });
     };
@@ -202,12 +207,15 @@ export const runSmartApply = createServerFn({ method: "POST" })
     let safeSubmittedSoFar = autoSubmittedToday ?? 0;
     const safeAtsCounts = new Map<string, number>();
 
+    // Limit to the user-selected batch size (default 5) so bulk runs do not
+    // hammer OpenAI in a single pass. Remaining jobs stay in the pipeline
+    // and get picked up on the next Run.
     const { data: jobs } = await (supabase as any).from("job_listings")
       .select("*, companies(*)")
       .eq("user_id", userId)
       .gte("posted_at", cutoff)
       .order("interview_probability", { ascending: false })
-      .limit(50);
+      .limit(Math.max(1, Math.min(50, batchSize)));
 
     const { data: appsToday } = await (supabase as any).from("automation_safety_logs")
       .select("ats, action")
@@ -223,6 +231,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
     let approved = 0, blocked = 0, prepared = 0, skipped = 0, rejected = 0;
     let evaluated = 0; // jobs evaluated against auto-review (for pass-rate guard)
     let guardTripped = false;
+    let quotaExhausted = false; // set when OpenAI returns insufficient_quota
+    let rateLimitedQueued = 0;  // jobs sent to needs_review after retries exhausted
+    let cacheHits = 0;
     // Detailed routing counters
     let packet_attempted = 0, packet_failed = 0, scored = 0;
     let rejected_by_scoring = 0, rejected_by_qc = 0;
@@ -288,13 +299,63 @@ export const runSmartApply = createServerFn({ method: "POST" })
       // Always create an application row so routing is observable.
       await ensureApp(j, "manual_review");
 
+      // If a prior job exhausted OpenAI quota, do not call AI again — queue this job for later.
+      if (quotaExhausted) {
+        rateLimitedQueued++;
+        trackFailure("queued_quota_exhausted");
+        manualReasons.set("queued_quota_exhausted", (manualReasons.get("queued_quota_exhausted") ?? 0) + 1);
+        await (supabase as any).from("applications").update({
+          status: "manual_review", priority: "manual",
+          notes: "[queued] AI quota/rate limit reached. Remaining jobs are safely queued and can be retried later.",
+        }).eq("user_id", userId).eq("job_id", j.id);
+        await log({
+          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+          action: "prepared",
+          reason: "Queued — AI quota/rate limit reached; will retry on next run.",
+          gates: { queue_state: "queued" },
+        });
+        continue;
+      }
+
       let packet: any;
       packet_attempted++;
       try {
+        console.log(`[smart-apply] packet start job=${j.id} (${j.company_name})`);
         packet = await generateFn({ job_id: j.id });
         prepared++;
       } catch (e: any) {
         packet_failed++;
+        if (e instanceof QuotaExhaustedError) {
+          quotaExhausted = true;
+          rateLimitedQueued++;
+          const reason = "Rate limit reached after retries — queued for manual review.";
+          trackFailure("quota_exhausted");
+          manualReasons.set("quota_exhausted", (manualReasons.get("quota_exhausted") ?? 0) + 1);
+          await (supabase as any).from("applications").update({
+            status: "manual_review", priority: "manual",
+            notes: `[needs_review] ${reason}`,
+          }).eq("user_id", userId).eq("job_id", j.id);
+          await log({
+            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+            action: "prepared", reason, gates: { queue_state: "needs_review", cause: "quota_exhausted" },
+          });
+          continue;
+        }
+        if (e instanceof RateLimitExhaustedError) {
+          rateLimitedQueued++;
+          const reason = "Rate limit reached after retries — queued for manual review.";
+          trackFailure("rate_limit_exhausted");
+          manualReasons.set("rate_limit_exhausted", (manualReasons.get("rate_limit_exhausted") ?? 0) + 1);
+          await (supabase as any).from("applications").update({
+            status: "manual_review", priority: "manual",
+            notes: `[needs_review] ${reason}`,
+          }).eq("user_id", userId).eq("job_id", j.id);
+          await log({
+            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+            action: "prepared", reason, gates: { queue_state: "needs_review", cause: "rate_limit_exhausted", attempts: e.attempts },
+          });
+          continue;
+        }
         const reason = `Packet generation failed: ${e.message?.slice(0, 200)}`;
         trackFailure("packet_generation_failed");
         manualReasons.set("packet_generation_failed", (manualReasons.get("packet_generation_failed") ?? 0) + 1);
@@ -591,6 +652,9 @@ export const runSmartApply = createServerFn({ method: "POST" })
       openai_cost_cents: +openaiCostCents.toFixed(2),
       pass_rate: passRate,
       mode, fridayPrepareOnly, guardTripped,
+      batch_size: batchSize,
+      quota_exhausted: quotaExhausted,
+      rate_limited_queued: rateLimitedQueued,
     };
 
     // Send completion SMS (best-effort, never throws)
