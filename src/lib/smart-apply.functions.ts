@@ -311,19 +311,20 @@ export const runSmartApply = createServerFn({ method: "POST" })
         rateLimitedQueued++;
         trackFailure("queued_quota_exhausted");
         manualReasons.set("queued_quota_exhausted", (manualReasons.get("queued_quota_exhausted") ?? 0) + 1);
+        console.log(`[smart-apply] ai_quota_exhausted_stop_batch job=${j.id} — routing to queued_retry`);
         await enqueueRetryRow(supabase, userId, {
           job_id: j.id, status: "quota_limited",
           reason: "AI quota/rate limit reached on a prior job in this batch.",
         });
         await (supabase as any).from("applications").update({
           status: "manual_review", priority: "manual",
-          notes: "[queued] AI quota/rate limit reached. Queued for automatic retry.",
+          notes: "Queued Retry — AI quota/rate limit reached",
         }).eq("user_id", userId).eq("job_id", j.id);
         await log({
           job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
           action: "prepared",
-          reason: "Queued — AI quota/rate limit reached; will retry on next run.",
-          gates: { queue_state: "queued" },
+          reason: "Queued Retry — AI quota/rate limit reached",
+          gates: { queue_state: "queued_retry", route: "queued_retry" },
         });
         continue;
       }
