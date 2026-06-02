@@ -153,17 +153,50 @@ export const generatePacket = createServerFn({ method: "POST" })
       ? await supabase.from("companies").select("*").eq("id", job.company_id).maybeSingle()
       : { data: null as any };
 
-    // 1. Tailored resume + cover (uses existing tailorResume server fn under the hood)
-    const tailored = await tailorResume({
-      data: {
-        title: job.title,
-        company: job.company_name,
-        category: job.role_category ?? job.category ?? "operations",
-        job_description: job.description ?? `${job.title} at ${job.company_name}`,
-        job_id: job.id,
-        save: true,
-      },
-    });
+    // 1. Tailored resume + cover (uses existing tailorResume server fn under the hood).
+    // Cache: if we already generated a resume + cover for this job in the last 7 days
+    // (same jobId + role bucket + company), reuse instead of paying OpenAI again.
+    const cacheCutoff = new Date(Date.now() - 7 * 86400_000).toISOString();
+    const { data: cachedResume } = await supabase.from("resume_versions")
+      .select("*").eq("user_id", userId).eq("job_id", job.id)
+      .gte("created_at", cacheCutoff)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: cachedCover } = cachedResume
+      ? await supabase.from("cover_letters")
+          .select("*").eq("user_id", userId).eq("job_id", job.id)
+          .gte("created_at", cacheCutoff)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle()
+      : { data: null as any };
+
+    let tailored: Awaited<ReturnType<typeof tailorResume>>;
+    if (cachedResume && cachedCover) {
+      console.log(`[packet] cache hit for job ${job.id} (${job.company_name})`);
+      tailored = {
+        matchScore: cachedResume.match_score ?? 0,
+        summary: cachedResume.summary ?? "",
+        skills: cachedResume.skills ?? [],
+        bullets: cachedResume.bullets ?? [],
+        keywords: cachedResume.keywords ?? [],
+        cover: cachedCover.body ?? "",
+        explanation: cachedResume.explanation ?? "",
+        ats_readability: 80,
+        portfolio_project: null,
+        links: { portfolio: PORTFOLIO_URL, linkedin: "https://www.linkedin.com/in/khalilhickson" },
+        resume_id: cachedResume.id,
+        cover_id: cachedCover.id,
+      } as any;
+    } else {
+      tailored = await tailorResume({
+        data: {
+          title: job.title,
+          company: job.company_name,
+          category: job.role_category ?? job.category ?? "operations",
+          job_description: job.description ?? `${job.title} at ${job.company_name}`,
+          job_id: job.id,
+          save: true,
+        },
+      });
+    }
 
     // 2. Interview prep / why-this-company
     const portfolio = projectsForRole(job.role_category ?? job.title)[0] ?? null;
