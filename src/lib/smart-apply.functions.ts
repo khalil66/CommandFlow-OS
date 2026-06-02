@@ -595,24 +595,26 @@ export const runSmartApply = createServerFn({ method: "POST" })
       }
     }
 
-    // Fallback: if scan found jobs but nothing got routed, force-assign
-    // every processed job to Manual Review so nothing is left in limbo.
+    // Central route resolver: never leave a prepared job in an unresolved state.
+    // If anything fell through, force-assign to needs_review with a clear label.
     if (scanned > 0 && approved === 0 && blocked === 0 && rejected === 0 &&
         (prepared - approved) === 0 && processedJobIds.length > 0) {
       for (const jid of processedJobIds) {
         await ensureApp({ id: jid }, "manual_review");
+        const note = "Needs Review — Missing or uncertain routing data";
+        console.log(`[smart-apply] route_defaulted_to_needs_review job=${jid}`);
         await (supabase as any).from("applications").update({
           status: "manual_review", priority: "manual",
-          notes: "routing_unresolved — forced to Manual Review by fallback",
+          notes: note,
         }).eq("user_id", userId).eq("job_id", jid);
         await log({
           job_id: jid, action: "prepared",
-          reason: "routing_unresolved — fallback to Manual Review", gates: {},
+          reason: note, gates: { route: "needs_review", cause: "missing_routing_data" },
         });
         fallback_unresolved++;
       }
-      manualReasons.set("routing_unresolved", fallback_unresolved);
-      trackFailure("routing_unresolved");
+      manualReasons.set("needs_review_missing_data", fallback_unresolved);
+      trackFailure("needs_review_missing_data");
       prepared += fallback_unresolved;
     }
 
