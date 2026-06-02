@@ -119,17 +119,20 @@ LINKEDIN: ${LINKEDIN_URL}
 Return JSON in this shape:
 ${PREP_SCHEMA_HINT}`;
 
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "system", content: PREP_SYSTEM }, { role: "user", content: userPrompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.5,
-    }),
-  });
-  if (!resp.ok) throw new Error(`OpenAI prep error ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+  const resp = await openAIFetch(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "system", content: PREP_SYSTEM }, { role: "user", content: userPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.5,
+      }),
+    },
+    { label: `packet-prep:${args.company.slice(0, 24)}` }
+  );
   const j = await resp.json();
   return JSON.parse(j.choices?.[0]?.message?.content ?? "{}");
 }
