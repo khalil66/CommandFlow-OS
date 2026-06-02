@@ -299,13 +299,63 @@ export const runSmartApply = createServerFn({ method: "POST" })
       // Always create an application row so routing is observable.
       await ensureApp(j, "manual_review");
 
+      // If a prior job exhausted OpenAI quota, do not call AI again — queue this job for later.
+      if (quotaExhausted) {
+        rateLimitedQueued++;
+        trackFailure("queued_quota_exhausted");
+        manualReasons.set("queued_quota_exhausted", (manualReasons.get("queued_quota_exhausted") ?? 0) + 1);
+        await (supabase as any).from("applications").update({
+          status: "manual_review", priority: "manual",
+          notes: "[queued] AI quota/rate limit reached. Remaining jobs are safely queued and can be retried later.",
+        }).eq("user_id", userId).eq("job_id", j.id);
+        await log({
+          job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+          action: "prepared",
+          reason: "Queued — AI quota/rate limit reached; will retry on next run.",
+          gates: { queue_state: "queued" },
+        });
+        continue;
+      }
+
       let packet: any;
       packet_attempted++;
       try {
+        console.log(`[smart-apply] packet start job=${j.id} (${j.company_name})`);
         packet = await generateFn({ job_id: j.id });
         prepared++;
       } catch (e: any) {
         packet_failed++;
+        if (e instanceof QuotaExhaustedError) {
+          quotaExhausted = true;
+          rateLimitedQueued++;
+          const reason = "Rate limit reached after retries — queued for manual review.";
+          trackFailure("quota_exhausted");
+          manualReasons.set("quota_exhausted", (manualReasons.get("quota_exhausted") ?? 0) + 1);
+          await (supabase as any).from("applications").update({
+            status: "manual_review", priority: "manual",
+            notes: `[needs_review] ${reason}`,
+          }).eq("user_id", userId).eq("job_id", j.id);
+          await log({
+            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+            action: "prepared", reason, gates: { queue_state: "needs_review", cause: "quota_exhausted" },
+          });
+          continue;
+        }
+        if (e instanceof RateLimitExhaustedError) {
+          rateLimitedQueued++;
+          const reason = "Rate limit reached after retries — queued for manual review.";
+          trackFailure("rate_limit_exhausted");
+          manualReasons.set("rate_limit_exhausted", (manualReasons.get("rate_limit_exhausted") ?? 0) + 1);
+          await (supabase as any).from("applications").update({
+            status: "manual_review", priority: "manual",
+            notes: `[needs_review] ${reason}`,
+          }).eq("user_id", userId).eq("job_id", j.id);
+          await log({
+            job_id: j.id, job_title: j.title, company_name: j.company_name, ats,
+            action: "prepared", reason, gates: { queue_state: "needs_review", cause: "rate_limit_exhausted", attempts: e.attempts },
+          });
+          continue;
+        }
         const reason = `Packet generation failed: ${e.message?.slice(0, 200)}`;
         trackFailure("packet_generation_failed");
         manualReasons.set("packet_generation_failed", (manualReasons.get("packet_generation_failed") ?? 0) + 1);
