@@ -20,6 +20,14 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Environment variables — never commit real secrets/keys.
+# .env.example (if present) is intentionally NOT ignored — it documents
+# required variable names only, with placeholder values.
+.env
+.env.local
+.env.*.local
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
