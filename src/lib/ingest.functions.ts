@@ -9,7 +9,7 @@ import { detectScamFlags } from "./scam-signals";
 import { projectsForRole } from "./portfolio";
 import { evaluateResumeFit } from "./resume-fit";
 
-interface NormJob {
+export interface NormJob {
   external_id: string;
   title: string;
   location: string | null;
@@ -115,7 +115,11 @@ async function fetchBreezy(slug: string): Promise<NormJob[]> {
   });
 }
 
-async function fetchByPlatform(platform: SupportedAts, slug: string): Promise<NormJob[]> {
+// Exported (Phase 2 / Company Discovery Intelligence Layer) so company-discovery.functions.ts
+// can reuse the exact same fetch/parse logic for source validation instead of duplicating
+// ATS request URLs and response shapes in a second place. Behavior is unchanged — this is
+// purely a visibility change (`function` → `export function`), everything below is untouched.
+export async function fetchByPlatform(platform: SupportedAts, slug: string): Promise<NormJob[]> {
   switch (platform) {
     case "Greenhouse": return fetchGreenhouse(slug);
     case "Lever":      return fetchLever(slug);
