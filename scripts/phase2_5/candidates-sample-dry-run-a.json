@@ -1,0 +1,12 @@
+[
+  { "name": "Notion", "domain_guess": "notion.so", "careers_url_guess": "https://boards.greenhouse.io/notion", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Vercel", "domain_guess": "vercel.com", "careers_url_guess": "https://jobs.ashbyhq.com/vercel", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Retool", "domain_guess": "retool.com", "careers_url_guess": "https://jobs.lever.co/retool", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Rippling", "domain_guess": "rippling.com", "careers_url_guess": "https://boards.greenhouse.io/rippling", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Deel", "domain_guess": "deel.com", "careers_url_guess": "https://jobs.lever.co/deel", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Webflow", "domain_guess": "webflow.com", "careers_url_guess": "https://jobs.ashbyhq.com/webflow", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Gusto", "domain_guess": "gusto.com", "careers_url_guess": "https://boards.greenhouse.io/gusto", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Loom", "domain_guess": "loom.com", "careers_url_guess": "https://jobs.lever.co/loom", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Substack", "domain_guess": "substack.com", "careers_url_guess": "https://jobs.lever.co/substack", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" },
+  { "name": "Mercury", "domain_guess": "mercury.com", "careers_url_guess": "https://jobs.ashbyhq.com/mercury", "discovery_level": 2, "discovery_source": "ats_pattern", "discovery_reason": "sample seed candidate for Dry Run A smoke test" }
+]
