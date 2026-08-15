@@ -28,6 +28,12 @@ import { detectAts, type SupportedAts } from "./ats-detect";
 import { fetchByPlatform, type NormJob } from "./ingest.functions";
 import { computeTrustScore, SALARY_FLOOR } from "./scoring";
 import {
+  resolveCompanyAts,
+  buildDefaultAtsResolverDeps,
+  type AtsResolutionResult,
+  type ResolveCompanyAtsInput,
+} from "./ats-resolver";
+import {
   type CompanyDiscoveryStatus,
   type ExpansionLevel,
   DEFAULT_DISCOVERY_SAFETY_CAPS,
@@ -78,6 +84,7 @@ export interface CandidateOutcome {
   job_source_action: "would_add" | "would_update" | "added" | "updated" | "skipped" | null;
   reject_reason: string | null;
   error: string | null;
+  ats_resolution?: AtsResolutionResult | null;
 }
 
 interface ScoutRunResult {
@@ -153,7 +160,17 @@ async function computePopulationPriors(supabase: any, userId: string): Promise<P
 export async function processCandidate(params: {
   supabase: any;
   userId: string;
-  candidate: { name: string; domain_guess: string | null; careers_url_guess: string | null; discovery_level: ExpansionLevel; discovery_source: string; discovery_reason: string };
+  candidate: {
+    name: string;
+    domain_guess: string | null;
+    careers_url_guess: string | null;
+    discovery_level: ExpansionLevel;
+    discovery_source: string;
+    discovery_reason: string;
+    ats_provider_guess?: string | null;
+    ats_url_guess?: string | null;
+    ats_slug_guess?: string | null;
+  };
   existingIndex: ReturnType<typeof buildExistingCompanyIndex>;
   existingJobSourceUrls: Set<string>;
   priors: PopulationPriors;
@@ -161,6 +178,7 @@ export async function processCandidate(params: {
   remainingNewCompanySlots: number;
   remainingNewSourceSlots: number;
   fetcher?: typeof fetchByPlatform;
+  atsResolver?: (input: ResolveCompanyAtsInput) => Promise<AtsResolutionResult>;
 }): Promise<CandidateOutcome> {
   const { supabase, userId, candidate, existingIndex, existingJobSourceUrls, priors, dryRun } = params;
   const fetcher = params.fetcher ?? fetchByPlatform;
@@ -185,7 +203,7 @@ export async function processCandidate(params: {
 
   // ---- NORMALIZATION ----
   const domain = normalizeDomain(candidate.domain_guess);
-  const careersUrl = candidate.careers_url_guess?.trim() || null;
+  let careersUrl = candidate.careers_url_guess?.trim() || null;
   outcome.domain = domain;
   outcome.careers_url = careersUrl;
 
@@ -197,19 +215,69 @@ export async function processCandidate(params: {
 
   // ---- DOMAIN VALIDATION + ATS DETECTION ----
   outcome.stage_reached = "ats_detection";
-  const det = detectAts(careersUrl);
+  let det = detectAts(careersUrl);
+
   if (!det.supported || !det.slug || !isDiscoverySupportedAts(det.platform)) {
-    outcome.reject_reason = `unsupported_ats:${det.platform}`;
-    return outcome;
+    if (det.platform === "Unknown") {
+      outcome.stage_reached = "ats_resolution";
+
+      const resolveAts =
+        params.atsResolver ??
+        ((resolverInput: ResolveCompanyAtsInput) =>
+          resolveCompanyAts(
+            resolverInput,
+            buildDefaultAtsResolverDeps({
+              supabase,
+              userId,
+              apiKey: process.env.OPENAI_API_KEY ?? null,
+            })
+          ));
+
+      const resolution = await resolveAts({
+        companyName: candidate.name,
+        domain,
+        careersUrl,
+        aiGuess: {
+          ats_provider_guess: candidate.ats_provider_guess ?? null,
+          ats_url_guess: candidate.ats_url_guess ?? null,
+          ats_slug_guess: candidate.ats_slug_guess ?? null,
+        },
+      });
+
+      outcome.ats_resolution = resolution;
+
+      if (
+        resolution.resolved &&
+        resolution.provider &&
+        resolution.slug &&
+        resolution.careersUrl
+      ) {
+        det = {
+          supported: true,
+          platform: resolution.provider,
+          slug: resolution.slug,
+        };
+        careersUrl = resolution.careersUrl;
+        outcome.careers_url = careersUrl;
+      } else {
+        outcome.reject_reason = `unsupported_ats:${det.platform}`;
+        return outcome;
+      }
+    } else {
+      outcome.reject_reason = `unsupported_ats:${det.platform}`;
+      return outcome;
+    }
   }
+
   outcome.ats_provider = det.platform;
+  const atsSlug: string = det.slug!;
 
   // Live-fetch a sample of postings — doubles as "career endpoint responds
   // correctly" validation (point 8) and the data source for remote-eligibility
   // + role-relevance analysis.
   let jobs: NormJob[] = [];
   try {
-    jobs = await fetcher(det.platform as SupportedAts, det.slug);
+    jobs = await fetcher(det.platform as SupportedAts, atsSlug);
   } catch (e: any) {
     outcome.stage_reached = "domain_validation";
     outcome.reject_reason = `endpoint_unreachable: ${(e?.message || String(e)).slice(0, 160)}`;
@@ -262,7 +330,7 @@ export async function processCandidate(params: {
   // ---- DEDUPLICATION ----
   outcome.stage_reached = "deduplication";
   const match = findExistingCompanyMatch(
-    { domain, ats_provider: det.platform, ats_company_slug: det.slug, careers_url: careersUrl, name: candidate.name },
+    { domain, ats_provider: det.platform, ats_company_slug: atsSlug, careers_url: careersUrl, name: candidate.name },
     existingIndex
   );
   if (match.matched) {
@@ -290,7 +358,7 @@ export async function processCandidate(params: {
 
   const companyPayload: Record<string, unknown> = {
     ats_provider: det.platform,
-    ats_company_slug: det.slug,
+    ats_company_slug: atsSlug,
     us_remote_allowed: aggregate.companyClass === "us_confirmed" || aggregate.companyClass === "global_us_eligible",
     global_remote_allowed: aggregate.companyClass === "global_us_eligible",
     north_america_remote_allowed: aggregate.companyClass === "north_america",
@@ -630,6 +698,9 @@ export const runCompanyScout = createServerFn({ method: "POST" })
       name: string; domain_guess: string | null; careers_url_guess: string | null; level: ExpansionLevel;
       source: string; reason: string;
       similarToCompanyId?: string; similarToCompanyName?: string; similarSharedAttributes?: Record<string, unknown>;
+      ats_provider_guess?: string | null;
+      ats_url_guess?: string | null;
+      ats_slug_guess?: string | null;
     };
     let rawCandidates: RawCandidate[] = [];
 
@@ -658,6 +729,9 @@ export const runCompanyScout = createServerFn({ method: "POST" })
               name: c.name, domain_guess: c.domain_guess, careers_url_guess: c.careers_url_guess,
               level: b.level, source: b.source,
               reason: `Discovered via level ${b.level} (${b.source}): ${c.reasoning}`.slice(0, 500),
+              ats_provider_guess: c.ats_provider_guess ?? null,
+              ats_url_guess: c.ats_url_guess ?? null,
+              ats_slug_guess: c.ats_slug_guess ?? null,
             });
           }
         } catch (e: any) {
@@ -689,6 +763,9 @@ export const runCompanyScout = createServerFn({ method: "POST" })
                 reason: `Similar to ${source.name} (opportunity score ${source.company_opportunity_score}): ${c.reasoning}`.slice(0, 500),
                 similarToCompanyId: source.id, similarToCompanyName: source.name,
                 similarSharedAttributes: simResult.sharedAttributes,
+                ats_provider_guess: c.ats_provider_guess ?? null,
+                ats_url_guess: c.ats_url_guess ?? null,
+                ats_slug_guess: c.ats_slug_guess ?? null,
               });
             }
           } catch (e: any) {
@@ -707,7 +784,17 @@ export const runCompanyScout = createServerFn({ method: "POST" })
       try {
         const result = await processCandidate({
           supabase, userId,
-          candidate: { name: rc.name, domain_guess: rc.domain_guess, careers_url_guess: rc.careers_url_guess, discovery_level: rc.level, discovery_source: rc.source, discovery_reason: rc.reason },
+          candidate: {
+            name: rc.name,
+            domain_guess: rc.domain_guess,
+            careers_url_guess: rc.careers_url_guess,
+            discovery_level: rc.level,
+            discovery_source: rc.source,
+            discovery_reason: rc.reason,
+            ats_provider_guess: rc.ats_provider_guess,
+            ats_url_guess: rc.ats_url_guess,
+            ats_slug_guess: rc.ats_slug_guess,
+          },
           existingIndex, existingJobSourceUrls, priors, dryRun,
           remainingNewCompanySlots, remainingNewSourceSlots,
         });

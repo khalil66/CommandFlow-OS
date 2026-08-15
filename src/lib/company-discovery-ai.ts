@@ -24,6 +24,13 @@ export interface AiCandidateCompany {
   careers_url_guess: string | null;
   reasoning: string;
   confidence: "high" | "medium" | "low";
+  // Phase 2.6 addendum: an optional, UNTRUSTED hint at the company's ATS,
+  // asked for alongside the generic careers page. Never used to skip
+  // validation — src/lib/ats-resolver.ts still independently verifies any
+  // of these before ever accepting them (see its Stage 4a).
+  ats_provider_guess?: "Greenhouse" | "Lever" | "Ashby" | "Breezy" | null;
+  ats_url_guess?: string | null;
+  ats_slug_guess?: string | null;
 }
 
 export interface AiCandidateGenerationResult {
@@ -121,7 +128,9 @@ Companies already known (do NOT resuggest these): ${params.excludeNames.slice(0,
 
 Suggest up to ${Math.min(params.limit, 25)} real companies matching the brief.
 
-Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "careers_url_guess": string|null, "reasoning": string (1 sentence), "confidence": "high"|"medium"|"low" } ] }`;
+For each company, also give your best guess at BOTH a generic careers page AND, if you specifically know it, a DIRECT supported-ATS job-board URL (Greenhouse/Lever/Ashby/Breezy) — but it is fine and expected to leave the ATS fields null/"Unknown" when you don't know; that will be verified separately and never trusted on your word alone.
+
+Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "careers_url_guess": string|null, "reasoning": string (1 sentence), "confidence": "high"|"medium"|"low", "ats_provider_guess": "Greenhouse"|"Lever"|"Ashby"|"Breezy"|"Unknown"|null, "ats_url_guess": string|null (a DIRECT ATS board URL, e.g. https://boards.greenhouse.io/{slug} — NOT just the generic careers page again; null if unsure), "ats_slug_guess": string|null } ] }`;
 
   const { parsed, usage } = await callOpenAiJson({
     apiKey: params.apiKey,
@@ -141,6 +150,9 @@ Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "c
           careers_url_guess: c.careers_url_guess ? String(c.careers_url_guess).trim() : null,
           reasoning: typeof c.reasoning === "string" ? c.reasoning.slice(0, 300) : "",
           confidence: (["high", "medium", "low"] as const).includes(c.confidence) ? c.confidence : "low",
+          ats_provider_guess: (["Greenhouse", "Lever", "Ashby", "Breezy"] as const).includes(c.ats_provider_guess) ? c.ats_provider_guess : null,
+          ats_url_guess: typeof c.ats_url_guess === "string" && c.ats_url_guess.trim() ? c.ats_url_guess.trim() : null,
+          ats_slug_guess: typeof c.ats_slug_guess === "string" && c.ats_slug_guess.trim() ? c.ats_slug_guess.trim() : null,
         }))
     : [];
 
@@ -176,7 +188,9 @@ Remote policy: ${profile.remote_policy_summary ?? "unknown"}
 
 Suggest up to ${Math.min(params.limit, 25)} REAL companies with a similar profile (similar industry, size band, remote philosophy, and ideally the same ATS). These will be validated separately — it's fine to be unsure of their exact ATS.
 
-Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "careers_url_guess": string|null, "reasoning": string, "confidence": "high"|"medium"|"low" } ] }`;
+For each company, also give your best guess at BOTH a generic careers page AND, if you specifically know it, a DIRECT supported-ATS job-board URL (Greenhouse/Lever/Ashby/Breezy) — leave the ATS fields null/"Unknown" when unsure; that will be verified separately.
+
+Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "careers_url_guess": string|null, "reasoning": string, "confidence": "high"|"medium"|"low", "ats_provider_guess": "Greenhouse"|"Lever"|"Ashby"|"Breezy"|"Unknown"|null, "ats_url_guess": string|null, "ats_slug_guess": string|null } ] }`;
 
   const { parsed, usage } = await callOpenAiJson({
     apiKey: params.apiKey,
@@ -196,6 +210,9 @@ Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "c
           careers_url_guess: c.careers_url_guess ? String(c.careers_url_guess).trim() : null,
           reasoning: typeof c.reasoning === "string" ? c.reasoning.slice(0, 300) : "",
           confidence: (["high", "medium", "low"] as const).includes(c.confidence) ? c.confidence : "low",
+          ats_provider_guess: (["Greenhouse", "Lever", "Ashby", "Breezy"] as const).includes(c.ats_provider_guess) ? c.ats_provider_guess : null,
+          ats_url_guess: typeof c.ats_url_guess === "string" && c.ats_url_guess.trim() ? c.ats_url_guess.trim() : null,
+          ats_slug_guess: typeof c.ats_slug_guess === "string" && c.ats_slug_guess.trim() ? c.ats_slug_guess.trim() : null,
         }))
     : [];
 
@@ -258,6 +275,54 @@ Return JSON: { "eligibility_class": "us_confirmed"|"global_us_eligible"|"north_a
     eligibilityClass,
     confidence,
     reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning.slice(0, 300) : "",
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Phase 2.6 addendum — ATS Resolver Stage 4b (src/lib/ats-resolver.ts): a
+// last-resort AI guess at a company's supported-ATS job-board URL, used only
+// when deterministic resolution (direct URL, careers-page link inspection,
+// bounded pattern candidates) and the free candidate-generation hint all
+// failed. IMPORTANT: this function's output is NEVER treated as validated —
+// ats-resolver.ts independently re-checks every field this returns against
+// the real ATS fetcher before accepting anything. This function's only job
+// is to produce a candidate guess, restricted to exactly the 4 supported
+// providers or "Unknown".
+// ----------------------------------------------------------------------------
+export async function generateAtsGuessAI(params: {
+  supabase: any;
+  userId: string;
+  apiKey: string;
+  companyName: string;
+  domain: string | null;
+  careersUrl: string | null;
+}): Promise<{ provider: string | null; url: string | null; slug: string | null }> {
+  const userPrompt = `Company: ${params.companyName}
+Domain: ${params.domain ?? "unknown"}
+Known careers page (generic — NOT necessarily an ATS job board): ${params.careersUrl ?? "unknown"}
+
+We need to know whether this company uses one of exactly these four applicant-tracking systems for hiring: Greenhouse, Lever, Ashby, or Breezy. Return only one of "Greenhouse", "Lever", "Ashby", "Breezy", or "Unknown" — never any other ATS name, and never guess if you aren't reasonably confident.
+
+If you know it, give the DIRECT ATS job-board URL — e.g. https://boards.greenhouse.io/{slug}, https://jobs.lever.co/{slug}, https://jobs.ashbyhq.com/{slug}, or https://{slug}.breezy.hr. Do NOT simply repeat the generic careers page URL above as your answer — if all you know is the generic page, return "Unknown" with null url/slug instead.
+
+Return JSON: { "ats_provider": "Greenhouse"|"Lever"|"Ashby"|"Breezy"|"Unknown", "ats_url": string|null, "ats_slug": string|null }`;
+
+  const { parsed, usage } = await callOpenAiJson({
+    apiKey: params.apiKey,
+    label: `discovery:ats-resolve:${params.companyName.slice(0, 24)}`,
+    systemPrompt:
+      "You identify which applicant-tracking system (if any of exactly Greenhouse, Lever, Ashby, or Breezy) a company uses, and its direct job-board URL. Never invent a URL. Never return a generic careers page as if it were an ATS board URL. Prefer \"Unknown\" over a low-confidence guess. Return STRICT JSON only.",
+    userPrompt,
+  });
+
+  await logAiUsage(params.supabase, params.userId, "company_discovery_ats_resolution", "gpt-4o-mini", usage, true);
+
+  const validProviders = ["Greenhouse", "Lever", "Ashby", "Breezy"];
+  const provider = validProviders.includes(parsed.ats_provider) ? parsed.ats_provider : null;
+  return {
+    provider,
+    url: typeof parsed.ats_url === "string" && parsed.ats_url.trim() ? parsed.ats_url.trim() : null,
+    slug: typeof parsed.ats_slug === "string" && parsed.ats_slug.trim() ? parsed.ats_slug.trim() : null,
   };
 }
 

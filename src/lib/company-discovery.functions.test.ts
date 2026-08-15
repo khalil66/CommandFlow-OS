@@ -25,6 +25,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildExistingCompanyIndex, NEUTRAL_PRIORS, type ExistingCompanyIndexEntry } from "./company-discovery";
 import type { NormJob } from "./ingest.functions";
+import type { AtsResolutionResult } from "./ats-resolver";
 
 // ---- Mock the real network-calling ATS fetcher -----------------------------
 // company-discovery.functions.ts imports `fetchByPlatform` (and the NormJob
@@ -414,5 +415,135 @@ describe("processCandidate — live run", () => {
     expect(outcome.outcome).toBe("rejected");
     expect(outcome.reject_reason).toBe("max_new_companies_validated_per_run_reached");
     expect(supabase.calls).toEqual([]);
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Phase 2.6 addendum — ATS Resolver integration. processCandidate() accepts
+// an optional, dependency-injected `atsResolver` (src/lib/ats-resolver.ts);
+// this proves the wiring end-to-end without any Vitest module mocking of
+// ats-resolver.ts itself — see ats-resolver.test.ts for the resolver's own
+// unit tests (direct/career-page-link/pattern/AI resolution, safety caps,
+// etc.), which use the same dependency-injection approach.
+// ----------------------------------------------------------------------------
+describe("processCandidate — ATS Resolver integration (Phase 2.6)", () => {
+  it("promotes an Unknown-platform candidate to the normal pipeline once the injected resolver verifies a supported ATS endpoint", async () => {
+    mockFetchByPlatform.mockResolvedValue(strongJobSample());
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => ({
+      resolved: true,
+      provider: "Greenhouse",
+      careersUrl: "https://boards.greenhouse.io/zapier",
+      slug: "zapier",
+      confidence: "high",
+      resolutionMethod: "career_page_link",
+      validationEvidence: [],
+    }));
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Zapier",
+        domain_guess: "zapier.com",
+        careers_url_guess: "https://zapier.com/jobs", // generic page — detectAts() alone reports Unknown
+        discovery_level: 4,
+        discovery_source: "manual",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: true,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+      atsResolver: fakeAtsResolver,
+    });
+
+    expect(fakeAtsResolver).toHaveBeenCalledTimes(1);
+    expect(outcome.ats_provider).toBe("Greenhouse");
+    expect(outcome.careers_url).toBe("https://boards.greenhouse.io/zapier");
+    expect(outcome.ats_resolution?.resolved).toBe(true);
+    // Fell through into the exact same pipeline a directly-supported
+    // candidate would use — real fetchByPlatform mock was called with the
+    // RESOLVED (provider, slug), and scoring/eligibility ran normally.
+    expect(mockFetchByPlatform).toHaveBeenCalledWith("Greenhouse", "zapier");
+    expect(outcome.outcome).toBe("would_create");
+    expect(supabase.calls).toEqual([]); // still a dry run — zero mutation
+  });
+
+  it("rejects as unsupported_ats:Unknown when the injected resolver cannot verify any supported ATS endpoint", async () => {
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => ({
+      resolved: false,
+      provider: null,
+      careersUrl: null,
+      slug: null,
+      confidence: "low",
+      resolutionMethod: "unresolved",
+      validationEvidence: [],
+    }));
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Totally Unresolvable LLC",
+        domain_guess: "unresolvable.com",
+        careers_url_guess: "https://unresolvable.com/careers",
+        discovery_level: 4,
+        discovery_source: "manual",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: true,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      atsResolver: fakeAtsResolver,
+    });
+
+    expect(fakeAtsResolver).toHaveBeenCalledTimes(1);
+    expect(outcome.outcome).toBe("rejected");
+    expect(outcome.reject_reason).toBe("unsupported_ats:Unknown");
+    expect(supabase.calls).toEqual([]);
+    expect(mockFetchByPlatform).not.toHaveBeenCalled();
+  });
+
+  it("does NOT invoke the resolver for explicitly-rejected/walled platforms (e.g. Workday) — only for Unknown", async () => {
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => ({
+      resolved: false, provider: null, careersUrl: null, slug: null,
+      confidence: "low", resolutionMethod: "unresolved", validationEvidence: [],
+    }));
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Workday Co",
+        domain_guess: "workdayco.com",
+        careers_url_guess: "https://workdayco.myworkdayjobs.com/careers",
+        discovery_level: 2,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: false,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      atsResolver: fakeAtsResolver,
+    });
+
+    expect(fakeAtsResolver).not.toHaveBeenCalled();
+    expect(outcome.outcome).toBe("rejected");
+    expect(outcome.reject_reason).toBe("unsupported_ats:Workday");
   });
 });
