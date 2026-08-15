@@ -405,28 +405,78 @@ export function classifyRemoteEligibility(text: string | null | undefined): Remo
  */
 export function aggregateCompanyRemoteEligibility(
   perJobResults: RemoteEligibilityResult[]
-): { companyClass: RemoteEligibilityClass; confidence: "high" | "medium" | "low"; shouldDeprioritize: boolean } {
+): {
+  companyClass: RemoteEligibilityClass;
+  confidence: "high" | "medium" | "low";
+  shouldDeprioritize: boolean;
+} {
   if (perJobResults.length === 0) {
-    return { companyClass: "unknown", confidence: "low", shouldDeprioritize: false };
-  }
-  const confirmedCount = perJobResults.filter((r) => r.usEligibleConfirmed).length;
-  const excludedCount = perJobResults.filter((r) => r.eligibilityClass === "us_excluded").length;
-
-  if (confirmedCount > 0) {
-    // At least one confirmed-eligible role exists — company is not rejected,
-    // even if other roles sampled were excluded (mixed/role-dependent reality).
-    const allConfirmed = confirmedCount === perJobResults.length;
     return {
-      companyClass: allConfirmed ? perJobResults[0].eligibilityClass : "mixed_role_dependent",
-      confidence: allConfirmed ? "high" : "medium",
+      companyClass: "unknown",
+      confidence: "low",
       shouldDeprioritize: false,
     };
   }
-  if (excludedCount === perJobResults.length) {
-    // Every sampled role was consistently non-US-eligible.
-    return { companyClass: "us_excluded", confidence: "high", shouldDeprioritize: true };
+
+  const confirmedResults = perJobResults.filter(
+    (r) => r.usEligibleConfirmed
+  );
+
+  const confirmedCount = confirmedResults.length;
+
+  const excludedCount = perJobResults.filter(
+    (r) => r.eligibilityClass === "us_excluded"
+  ).length;
+
+  // At least one independently confirmed US-eligible role proves that this
+  // COMPANY has a US hiring path. This does NOT mean every job is eligible.
+  //
+  // Job-level eligibility remains strict and must still be evaluated on the
+  // individual posting before application/Auto Apply.
+  if (confirmedCount > 0) {
+    const allConfirmed = confirmedCount === perJobResults.length;
+
+    if (allConfirmed) {
+      const classes = new Set(
+        confirmedResults.map((r) => r.eligibilityClass)
+      );
+
+      // Preserve the exact class when all confirmed jobs agree.
+      // If confirmed jobs use different US-compatible classes
+      // (e.g. us_confirmed + north_america), eligibility varies by role.
+      return {
+        companyClass:
+          classes.size === 1
+            ? confirmedResults[0].eligibilityClass
+            : "mixed_role_dependent",
+        confidence: "high",
+        shouldDeprioritize: false,
+      };
+    }
+
+    // Some sampled roles are confirmed US-eligible while others are
+    // excluded/unknown. We therefore have HIGH confidence that the company
+    // has a US hiring path, but eligibility is role-dependent.
+    return {
+      companyClass: "mixed_role_dependent",
+      confidence: "high",
+      shouldDeprioritize: false,
+    };
   }
-  return { companyClass: "unknown", confidence: "low", shouldDeprioritize: false };
+
+  if (excludedCount === perJobResults.length) {
+    return {
+      companyClass: "us_excluded",
+      confidence: "high",
+      shouldDeprioritize: true,
+    };
+  }
+
+  return {
+    companyClass: "unknown",
+    confidence: "low",
+    shouldDeprioritize: false,
+  };
 }
 
 // ----------------------------------------------------------------------------

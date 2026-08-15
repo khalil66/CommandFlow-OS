@@ -254,6 +254,50 @@ describe("aggregateCompanyRemoteEligibility", () => {
     expect(agg.confidence).toBe("low");
     expect(agg.shouldDeprioritize).toBe(false);
   });
+
+  it("treats a mixed sample containing a confirmed US role as high-confidence company-level US capability", () => {
+    const results = [
+      classifyRemoteEligibility("Remote - US only."),
+      classifyRemoteEligibility("This role is EU-only."),
+      classifyRemoteEligibility("Join our growing team."),
+    ];
+    const agg = aggregateCompanyRemoteEligibility(results);
+    expect(agg.companyClass).toBe("mixed_role_dependent");
+    expect(agg.confidence).toBe("high");
+    expect(agg.shouldDeprioritize).toBe(false);
+  });
+
+  it("preserves us_confirmed/high when every sampled role is explicitly US eligible", () => {
+    const results = [
+      classifyRemoteEligibility("Remote - US."),
+      classifyRemoteEligibility("Must be based in the United States."),
+    ];
+    const agg = aggregateCompanyRemoteEligibility(results);
+    expect(agg.companyClass).toBe("us_confirmed");
+    expect(agg.confidence).toBe("high");
+    expect(agg.shouldDeprioritize).toBe(false);
+  });
+
+  it("keeps mixed unknown/excluded samples unconfirmed when no US-eligible role exists", () => {
+    const results = [
+      classifyRemoteEligibility("Join our growing team."),
+      classifyRemoteEligibility("This role is EU-only."),
+    ];
+    const agg = aggregateCompanyRemoteEligibility(results);
+    expect(agg.companyClass).toBe("unknown");
+    expect(agg.confidence).toBe("low");
+    expect(agg.shouldDeprioritize).toBe(false);
+  });
+
+  it("recognizes North America as confirmed US-capable at company level", () => {
+    const results = [
+      classifyRemoteEligibility("Remote - North America."),
+    ];
+    const agg = aggregateCompanyRemoteEligibility(results);
+    expect(agg.companyClass).toBe("north_america");
+    expect(agg.confidence).toBe("high");
+    expect(agg.shouldDeprioritize).toBe(false);
+  });
 });
 
 // ----------------------------------------------------------------------------

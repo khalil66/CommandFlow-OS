@@ -299,6 +299,14 @@ export async function processCandidate(params: {
   const aggregate = aggregateCompanyRemoteEligibility(perJobEligibility);
   outcome.remote_eligibility_class = aggregate.companyClass;
   const usExcluded = aggregate.companyClass === "us_excluded";
+  const companyUsRemoteCapable =
+    aggregate.confidence === "high" &&
+    (
+      aggregate.companyClass === "us_confirmed" ||
+      aggregate.companyClass === "global_us_eligible" ||
+      aggregate.companyClass === "north_america" ||
+      aggregate.companyClass === "mixed_role_dependent"
+    );
 
   // ---- ROLE-RELEVANCE ANALYSIS ----
   outcome.stage_reached = "role_relevance";
@@ -359,9 +367,13 @@ export async function processCandidate(params: {
   const companyPayload: Record<string, unknown> = {
     ats_provider: det.platform,
     ats_company_slug: atsSlug,
-    us_remote_allowed: aggregate.companyClass === "us_confirmed" || aggregate.companyClass === "global_us_eligible",
-    global_remote_allowed: aggregate.companyClass === "global_us_eligible",
-    north_america_remote_allowed: aggregate.companyClass === "north_america",
+    us_remote_allowed: companyUsRemoteCapable,
+    global_remote_allowed:
+      aggregate.confidence === "high" &&
+      aggregate.companyClass === "global_us_eligible",
+    north_america_remote_allowed:
+      aggregate.confidence === "high" &&
+      aggregate.companyClass === "north_america",
     career_page_active: true,
     last_job_seen_at: new Date().toISOString(),
     last_checked_at: new Date().toISOString(),
@@ -525,6 +537,14 @@ export async function refreshExistingCompany(params: {
   const aggregate = aggregateCompanyRemoteEligibility(perJobEligibility);
   outcome.remote_eligibility_class = aggregate.companyClass;
   const usExcluded = aggregate.companyClass === "us_excluded";
+  const companyUsRemoteCapable =
+    aggregate.confidence === "high" &&
+    (
+      aggregate.companyClass === "us_confirmed" ||
+      aggregate.companyClass === "global_us_eligible" ||
+      aggregate.companyClass === "north_america" ||
+      aggregate.companyClass === "mixed_role_dependent"
+    );
   const roleRelevance = evaluateRoleRelevance(sample.map((j) => j.title));
   const compensationHits = sample.filter((j) => (j.salary_min ?? 0) >= SALARY_FLOOR).length;
 
@@ -552,6 +572,13 @@ export async function refreshExistingCompany(params: {
     eligible_job_count: jobs.length,
     company_opportunity_score: scoreResult.score,
     discovery_status: discoveryStatus,
+    us_remote_allowed: companyUsRemoteCapable,
+    global_remote_allowed:
+      aggregate.confidence === "high" &&
+      aggregate.companyClass === "global_us_eligible",
+    north_america_remote_allowed:
+      aggregate.confidence === "high" &&
+      aggregate.companyClass === "north_america",
     last_checked_at: new Date().toISOString(),
     last_job_seen_at: jobs.length > 0 ? new Date().toISOString() : company.last_job_seen_at,
   };
