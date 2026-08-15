@@ -113,7 +113,7 @@ function PacketPage() {
             {g ? "Regenerate Packet" : "Generate Packet"}
           </Button>
           <Button variant="outline" onClick={exportPdf} disabled={!resume}><FileDown className="mr-2 h-4 w-4" />Export PDF</Button>
-          <Button variant="outline" asChild disabled={!resume}><Link to="/resume-diff">Resume Diff</Link></Button>
+          <Button variant="outline" asChild disabled={!resume}><Link to="/resume-diff" search={{ resume_id: undefined, variant_key: undefined }}>Resume Diff</Link></Button>
           <Button variant="default" onClick={() => decide("approve")}><CheckCircle2 className="mr-2 h-4 w-4" />Approve</Button>
           <Button variant="outline" onClick={() => decide("save_for_later")}><Bookmark className="mr-2 h-4 w-4" />Save</Button>
           <Button variant="destructive" onClick={() => decide("reject")}><XCircle className="mr-2 h-4 w-4" />Reject</Button>

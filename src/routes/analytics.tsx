@@ -80,7 +80,7 @@ function Analytics() {
             <ChartCard
               title="Best-performing resume versions"
               description="Variants ranked by match score and interview outcomes."
-              action={<Link to="/resume-diff" className="text-xs text-accent inline-flex items-center gap-1 hover:underline"><FileDiff className="h-3 w-3" /> View diff</Link>}
+              action={<Link to="/resume-diff" search={{ resume_id: undefined, variant_key: undefined }} className="text-xs text-accent inline-flex items-center gap-1 hover:underline"><FileDiff className="h-3 w-3" /> View diff</Link>}
             >
               {data.resume_performance.length === 0 ? <EmptyChart hint="No resume versions yet — generate a packet to start tracking." /> : (
                 <div className="space-y-3">
@@ -88,7 +88,7 @@ function Analytics() {
                     <Link
                       key={r.name}
                       to="/resume-diff"
-                      search={{ variant_key: r.name }}
+                      search={{ resume_id: undefined, variant_key: r.name }}
                       className="flex items-center gap-3 p-3 rounded-md border border-border hover:border-accent/40 hover:bg-muted/40 transition-colors"
                     >
                       <div className="font-mono text-xs w-48 truncate">{r.name}</div>

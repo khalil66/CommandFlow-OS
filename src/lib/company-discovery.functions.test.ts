@@ -30,10 +30,15 @@ import type { NormJob } from "./ingest.functions";
 // company-discovery.functions.ts imports `fetchByPlatform` (and the NormJob
 // type) from ./ingest.functions. We replace the runtime value only; the type
 // import is erased at compile time and needs no mock.
-const mockFetchByPlatform = vi.fn<[string, string], Promise<NormJob[]>>();
-vi.mock("./ingest.functions", () => ({
-  fetchByPlatform: (...args: [string, string]) => mockFetchByPlatform(...args),
-}));
+const mockFetchByPlatform = vi.fn<(platform: string, slug: string) => Promise<NormJob[]>>();
+
+vi.doMock("./ingest.functions", async () => {
+  const actual = await vi.importActual<typeof import("./ingest.functions")>("./ingest.functions");
+  return {
+    ...actual,
+    fetchByPlatform: mockFetchByPlatform,
+  };
+});
 
 // Imported AFTER the mock is registered so company-discovery.functions.ts
 // picks up the mocked fetchByPlatform.
@@ -188,6 +193,7 @@ describe("processCandidate — dry run", () => {
       dryRun: true,
       remainingNewCompanySlots: 25,
       remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
     });
 
     expect(supabase.calls).toEqual([]); // <-- the core dry-run guarantee
@@ -219,6 +225,7 @@ describe("processCandidate — dry run", () => {
       },
       priors: NEUTRAL_PRIORS,
       dryRun: true,
+      fetcher: mockFetchByPlatform,
     });
 
     expect(supabase.calls).toEqual([]);
@@ -251,6 +258,7 @@ describe("processCandidate — live run", () => {
       dryRun: false,
       remainingNewCompanySlots: 25,
       remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
     });
 
     expect(outcome.outcome).toBe("created");
@@ -300,6 +308,7 @@ describe("processCandidate — live run", () => {
       dryRun: false,
       remainingNewCompanySlots: 25,
       remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
     });
 
     expect(outcome.matched_existing_company_id).toBe("existing-company-1");
@@ -338,6 +347,7 @@ describe("processCandidate — live run", () => {
       dryRun: false,
       remainingNewCompanySlots: 25,
       remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
     });
 
     // The company row is still recorded (so it isn't re-discovered every run)
@@ -367,6 +377,7 @@ describe("processCandidate — live run", () => {
       dryRun: false,
       remainingNewCompanySlots: 25,
       remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
     });
 
     expect(outcome.outcome).toBe("rejected");
@@ -397,6 +408,7 @@ describe("processCandidate — live run", () => {
       dryRun: false,
       remainingNewCompanySlots: 0, // <-- cap exhausted
       remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
     });
 
     expect(outcome.outcome).toBe("rejected");

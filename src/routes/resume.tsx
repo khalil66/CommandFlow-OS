@@ -54,7 +54,7 @@ function ResumeStudio() {
           <p className="text-sm text-muted-foreground mt-1">AI tailors Khalil's master resume to each job description.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/resume-diff" className="text-xs px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted/40 inline-flex items-center gap-1.5">
+          <Link to="/resume-diff" search={{ resume_id: undefined, variant_key: undefined }} className="text-xs px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted/40 inline-flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5 text-accent" /> Compare versions (Diff)
           </Link>
           {usage && (

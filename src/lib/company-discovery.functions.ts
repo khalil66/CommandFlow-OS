@@ -160,8 +160,10 @@ export async function processCandidate(params: {
   dryRun: boolean;
   remainingNewCompanySlots: number;
   remainingNewSourceSlots: number;
+  fetcher?: typeof fetchByPlatform;
 }): Promise<CandidateOutcome> {
   const { supabase, userId, candidate, existingIndex, existingJobSourceUrls, priors, dryRun } = params;
+  const fetcher = params.fetcher ?? fetchByPlatform;
 
   const outcome: CandidateOutcome = {
     name: candidate.name,
@@ -207,7 +209,7 @@ export async function processCandidate(params: {
   // + role-relevance analysis.
   let jobs: NormJob[] = [];
   try {
-    jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
+    jobs = await fetcher(det.platform as SupportedAts, det.slug);
   } catch (e: any) {
     outcome.stage_reached = "domain_validation";
     outcome.reject_reason = `endpoint_unreachable: ${(e?.message || String(e)).slice(0, 160)}`;
@@ -409,8 +411,10 @@ export async function refreshExistingCompany(params: {
   company: any; // full companies row
   priors: PopulationPriors;
   dryRun: boolean;
+  fetcher?: typeof fetchByPlatform;
 }): Promise<CandidateOutcome> {
   const { supabase, userId, company, priors, dryRun } = params;
+  const fetcher = params.fetcher ?? fetchByPlatform;
   const outcome: CandidateOutcome = {
     name: company.name,
     domain: company.domain ?? null,
@@ -442,7 +446,7 @@ export async function refreshExistingCompany(params: {
 
   let jobs: NormJob[] = [];
   try {
-    jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
+    jobs = await fetcher(det.platform as SupportedAts, det.slug);
   } catch (e: any) {
     outcome.reject_reason = `endpoint_unreachable: ${(e?.message || String(e)).slice(0, 160)}`;
     return outcome;
@@ -721,7 +725,7 @@ export const runCompanyScout = createServerFn({ method: "POST" })
         // here never fails the candidate itself (failure isolation, point 25).
         if (!dryRun && rc.similarToCompanyId && result.matched_existing_company_id && rc.level === 3) {
           try {
-            await supabase.from("company_similarity").insert({
+            await (supabase as any).from("company_similarity").insert({
               user_id: userId,
               company_id_a: rc.similarToCompanyId,
               company_id_b: result.matched_existing_company_id,
@@ -760,7 +764,7 @@ export const runCompanyScout = createServerFn({ method: "POST" })
       // Deliberately no API keys, tokens, or raw prompts here — just structured, reviewable counts.
     };
 
-    const { data: runRow, error: runErr } = await supabase
+    const { data: runRow, error: runErr } = await (supabase as any)
       .from("discovery_runs")
       .insert({
         user_id: userId,
@@ -785,7 +789,7 @@ export const runCompanyScout = createServerFn({ method: "POST" })
     );
 
     return {
-      run_id: runRow?.id ?? "unknown",
+      run_id: String(runRow?.id ?? "unknown"),
       dry_run: dryRun,
       levels_run: [...levelsRun].sort(),
       safety_caps: caps,
@@ -820,7 +824,7 @@ export const listDiscoveredCompanies = createServerFn({ method: "GET" })
       .select("id, name, domain, careers_url, ats_provider, discovery_status, company_opportunity_score, discovery_source, discovery_reason, first_discovered_at, last_checked_at, us_remote_allowed, global_remote_allowed, north_america_remote_allowed")
       .order("company_opportunity_score", { ascending: false, nullsFirst: false })
       .limit(data.limit);
-    if (data.status) q = q.eq("discovery_status", data.status);
+    if (data.status) q = (q as any).eq("discovery_status", data.status);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return { companies: rows ?? [] };
@@ -830,7 +834,7 @@ export const getDiscoveryRunHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ limit: z.number().int().min(1).max(100).default(20) }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    const { data: rows, error } = await (context.supabase as any)
       .from("discovery_runs")
       .select("*")
       .order("run_started_at", { ascending: false })
