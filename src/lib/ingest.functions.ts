@@ -215,56 +215,94 @@ type RejectedDetail = {
   filter: string;   // pipeline stage / filter name
 };
 
-export const importJobsNow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    source_id: z.string().uuid().optional(),
-    relaxed_mode: z.boolean().optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+// ============================================================================
+// Phase 3.1 — testability refactor (Step 2). importJobsNow's ENTIRE
+// operational body, extracted verbatim into a plain, dependency-injectable
+// function. importJobsNow itself (below) becomes a thin auth/context
+// wrapper that just translates its zod-validated input into this function's
+// params and calls it — same source selection, same hard rejects, same
+// dedupe, same status/manual-review routing, same writes, no threshold
+// changes, no new behavior.
+//
+// Two DI seams were added, both defaulting to the exact real implementation
+// importJobsNow already called directly, so production behavior is
+// byte-for-byte unchanged when these params are omitted:
+//   - `fetcher` (defaults to the real fetchByPlatform) — the only network
+//     call in this pipeline besides the OpenAI health check below.
+//   - `openAiHealthCheck` (defaults to the real isOpenAiHealthy) — also
+//     network-calling, also unconditionally invoked per job in the
+//     original code.
+// A new `sourceIds` param (Phase 3.1, Step 6) replaces the single
+// `source_id` filter with an array — `.eq("id", source_id)` and
+// `.in("id", [source_id])` produce identical SQL for a single id, so
+// importJobsNow's existing single-source behavior is preserved exactly;
+// the array form is what Step 5's Scout→ingest handoff needs (a specific
+// set of just-created/updated source ids, not "all active sources").
+// ============================================================================
 
-    // Pull user settings (relaxed_mode, per-ATS caps, exclusions).
-    const { data: settings } = await supabase
-      .from("user_settings")
-      .select("relaxed_mode, per_ats_caps, per_ats_daily_cap, excluded_companies")
-      .eq("user_id", userId).maybeSingle();
-    const relaxed = data.relaxed_mode ?? (settings as any)?.relaxed_mode ?? false;
-    const atsCapMap = (settings as any)?.per_ats_caps as Record<string, number> | null;
-    const globalAtsCap = (settings as any)?.per_ats_daily_cap ?? 50;
-    const excludedCompanies = new Set<string>(
-      ((settings as any)?.excluded_companies ?? []).map((c: string) => c.toLowerCase())
-    );
+export interface RunImportJobsPipelineParams {
+  supabase: any;
+  userId: string;
+  // Absent/empty → current behavior: every active job_source for this user.
+  // Present → only those source ids (still filtered to status='active' and
+  // still re-validated against a supported ATS, exactly like every other
+  // source).
+  sourceIds?: string[];
+  relaxedMode?: boolean;
+  fetcher?: typeof fetchByPlatform;
+  openAiHealthCheck?: typeof isOpenAiHealthy;
+}
 
-    let q = supabase.from("job_sources").select("*").eq("status", "active");
-    if (data.source_id) q = q.eq("id", data.source_id);
-    const { data: sources } = await q;
-    if (!sources || sources.length === 0) {
-      return { runs: [], totals: { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 }, relaxed };
-    }
+export interface RunImportJobsPipelineResult {
+  runs: any[];
+  totals: { found: number; imported: number; duplicate: number; skipped: number; rejected: number; manual_review: number };
+  relaxed: boolean;
+}
 
-    // Count today's imports per ATS (so caps actually apply across sources too).
-    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-    const { data: importedTodayRows } = await supabase
-      .from("job_listings")
-      .select("ats")
-      .eq("user_id", userId)
-      .gte("created_at", startOfDay.toISOString());
-    const importedTodayByAts = new Map<string, number>();
-    for (const r of importedTodayRows ?? []) {
-      const k = (r as any).ats ?? "other";
-      importedTodayByAts.set(k, (importedTodayByAts.get(k) ?? 0) + 1);
-    }
+export async function runImportJobsPipeline(params: RunImportJobsPipelineParams): Promise<RunImportJobsPipelineResult> {
+  const { supabase, userId, sourceIds, fetcher = fetchByPlatform, openAiHealthCheck = isOpenAiHealthy } = params;
 
-    const totals = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
-    const runs: any[] = [];
-    // Relaxed mode widens the freshness window.
-    const STALE_DAYS = relaxed ? 60 : 14;
-    const staleCutoffMs = Date.now() - STALE_DAYS * 86400000;
+  // Pull user settings (relaxed_mode, per-ATS caps, exclusions).
+  const { data: settings } = await supabase
+    .from("user_settings")
+    .select("relaxed_mode, per_ats_caps, per_ats_daily_cap, excluded_companies")
+    .eq("user_id", userId).maybeSingle();
+  const relaxed = params.relaxedMode ?? (settings as any)?.relaxed_mode ?? false;
+  const atsCapMap = (settings as any)?.per_ats_caps as Record<string, number> | null;
+  const globalAtsCap = (settings as any)?.per_ats_daily_cap ?? 50;
+  const excludedCompanies = new Set<string>(
+    ((settings as any)?.excluded_companies ?? []).map((c: string) => c.toLowerCase())
+  );
 
-    console.log(`[ingest] starting import · relaxed=${relaxed} · sources=${sources.length}`);
+  let q = supabase.from("job_sources").select("*").eq("status", "active");
+  if (sourceIds && sourceIds.length > 0) q = q.in("id", sourceIds);
+  const { data: sources } = await q;
+  if (!sources || sources.length === 0) {
+    return { runs: [], totals: { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 }, relaxed };
+  }
 
-    for (const src of sources) {
+  // Count today's imports per ATS (so caps actually apply across sources too).
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const { data: importedTodayRows } = await supabase
+    .from("job_listings")
+    .select("ats")
+    .eq("user_id", userId)
+    .gte("created_at", startOfDay.toISOString());
+  const importedTodayByAts = new Map<string, number>();
+  for (const r of importedTodayRows ?? []) {
+    const k = (r as any).ats ?? "other";
+    importedTodayByAts.set(k, (importedTodayByAts.get(k) ?? 0) + 1);
+  }
+
+  const totals = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
+  const runs: any[] = [];
+  // Relaxed mode widens the freshness window.
+  const STALE_DAYS = relaxed ? 60 : 14;
+  const staleCutoffMs = Date.now() - STALE_DAYS * 86400000;
+
+  console.log(`[ingest] starting import · relaxed=${relaxed} · sources=${sources.length}`);
+
+  for (const src of sources) {
       const det = detectAts(src.careers_url);
       const counts = { found: 0, imported: 0, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 };
       const reasons: string[] = [];
@@ -309,7 +347,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
         bumpSkip("company_excluded");
       } else {
         try {
-          const jobs = await fetchByPlatform(det.platform as SupportedAts, det.slug);
+          const jobs = await fetcher(det.platform as SupportedAts, det.slug);
           counts.found = jobs.length;
           pipelineCounts.fetched = jobs.length;
           console.log(`[ingest] ${src.name} (${det.platform}) fetched=${jobs.length}`);
@@ -499,7 +537,7 @@ export const importJobsNow = createServerFn({ method: "POST" })
               manualReasons.push(`mapped_salary_source:${mappedSource.original ?? "null"}`);
             }
 
-            const aiHealth = await isOpenAiHealthy();
+            const aiHealth = await openAiHealthCheck();
             if (!aiHealth.ok) {
               manualReasons.push("invalid_openai_key");
               manualReasons.push("packet_generation_disabled");
@@ -628,8 +666,26 @@ export const importJobsNow = createServerFn({ method: "POST" })
       runs.push(log);
     }
 
-    console.log(`[ingest] totals`, totals, `relaxed=${relaxed}`);
-    return { runs, totals, relaxed };
+  console.log(`[ingest] totals`, totals, `relaxed=${relaxed}`);
+  return { runs, totals, relaxed };
+}
+
+// Thin auth/context wrapper (Phase 3.1, Step 2) — translates the
+// zod-validated request shape into runImportJobsPipeline's params and
+// delegates entirely. No pipeline logic lives here anymore.
+export const importJobsNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    source_id: z.string().uuid().optional(),
+    relaxed_mode: z.boolean().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    return runImportJobsPipeline({
+      supabase: context.supabase,
+      userId: context.userId,
+      sourceIds: data.source_id ? [data.source_id] : undefined,
+      relaxedMode: data.relaxed_mode,
+    });
   });
 
 export const detectAtsFromUrl = createServerFn({ method: "POST" })

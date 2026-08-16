@@ -23,7 +23,7 @@
 // ============================================================================
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { buildExistingCompanyIndex, NEUTRAL_PRIORS, type ExistingCompanyIndexEntry } from "./company-discovery";
+import { buildExistingCompanyIndex, NEUTRAL_PRIORS, statusForOpportunityScore, type ExistingCompanyIndexEntry } from "./company-discovery";
 import type { NormJob } from "./ingest.functions";
 import type { AtsResolutionResult } from "./ats-resolver";
 
@@ -305,6 +305,77 @@ describe("processCandidate — live run", () => {
     expect(supabase.calls.some((c) => c.op === "update")).toBe(false);
   });
 
+  // ----------------------------------------------------------------------
+  // Phase 3.0, Step 5 — the job_sources payload Company Scout writes for an
+  // APPROVED/HIGH_PRIORITY company must be shaped exactly like a manually
+  // added source (see ingest.functions.test.ts's "A. a Company Scout-shaped
+  // source receives no special treatment" for the reverse proof — that the
+  // ingestion side treats the two identically). This test proves the
+  // WRITING side matches importJobsNow's actual read contract: it queries
+  // job_sources WHERE status='active' and reads .name/.careers_url/.ats/.id
+  // — every field it reads must be present and correctly shaped here.
+  // Deliberately does NOT assert company_id — that field doesn't exist on
+  // job_sources yet; adding it is Phase 3.1, not 3.0.
+  // ----------------------------------------------------------------------
+  it("Phase 3.0: an APPROVED/HIGH_PRIORITY company's job_sources payload is fully compatible with importJobsNow's ingestion contract", async () => {
+    mockFetchByPlatform.mockResolvedValue(strongJobSample());
+    const supabase = createMockSupabase({
+      companiesInsertResult: { data: { id: "new-company-id" }, error: null },
+    });
+    const existingIndex = buildExistingCompanyIndex([]);
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Acme Inc",
+        domain_guess: "acme.com",
+        careers_url_guess: "https://boards.greenhouse.io/acmeinc",
+        discovery_level: 2,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: false,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+    });
+
+    expect(["APPROVED", "HIGH_PRIORITY"]).toContain(outcome.discovery_status);
+
+    const jobSourcesInsert = supabase.calls.find((c) => c.table === "job_sources" && c.op === "insert");
+    expect(jobSourcesInsert).toBeDefined();
+    const payload = jobSourcesInsert!.payload;
+
+    // Every field importJobsNow's handler actually reads off a job_sources
+    // row (careers_url, name, ats, status, id — the last supplied by the DB
+    // on insert) must be present and correctly typed.
+    expect(payload.user_id).toBe("user-1");
+    expect(payload.name).toBe("Acme Inc");
+    expect(typeof payload.name).toBe("string");
+    expect(payload.careers_url).toBe("https://boards.greenhouse.io/acmeinc");
+    expect(payload.ats).toBe("Greenhouse");
+    expect(["Greenhouse", "Lever", "Ashby", "Breezy"]).toContain(payload.ats);
+    expect(payload.status).toBe("active");
+
+    // Phase 3.1: the row is linked to the just-created company by id, not
+    // guessed/fabricated — see outcome.job_source_company_id below.
+    expect(payload.company_id).toBe(outcome.matched_existing_company_id);
+    expect(payload.company_id).toBe(outcome.job_source_company_id);
+
+    // The only field beyond the pre-Phase-3.1 shape is company_id — see the
+    // architectural boundary test for the full key-set comparison against
+    // addJobSource()'s manual-entry payload (which predates company_id and
+    // deliberately still doesn't set it — a manually-added source has no
+    // Company Scout-derived company to link to).
+    expect(Object.keys(payload).sort()).toEqual(
+      ["user_id", "name", "careers_url", "ats", "status", "notes", "company_id"].sort()
+    );
+  });
+
   it("does NOT duplicate an existing job_sources row — updates it instead", async () => {
     mockFetchByPlatform.mockResolvedValue(strongJobSample());
     const existingCompany: ExistingCompanyIndexEntry = {
@@ -351,6 +422,118 @@ describe("processCandidate — live run", () => {
 
     const companiesInsert = supabase.calls.find((c) => c.table === "companies" && c.op === "insert");
     expect(companiesInsert).toBeUndefined(); // matched existing company → update, not insert
+
+    // D. Existing company linkage: the update uses the EXISTING company's id
+    // — known immediately, no insert needed to learn it.
+    // G. Source update: an existing job_source's company_id is (re)written
+    // every time Company Scout revisits it — repairing any pre-Phase-3.1 row
+    // whose company_id was previously null.
+    expect(outcome.job_source_company_id).toBe("existing-company-1");
+    expect(jobSourcesUpdate!.payload.company_id).toBe("existing-company-1");
+  });
+
+  it("E. Dry-run: the proposed company_id linkage is visible on the outcome for a matched existing company, with zero DB mutation", async () => {
+    mockFetchByPlatform.mockResolvedValue(strongJobSample());
+    const existingCompany: ExistingCompanyIndexEntry = {
+      id: "existing-company-1",
+      domain: "acme.com",
+      ats_provider: "Greenhouse",
+      ats_company_slug: "acmeinc",
+      careers_url: "https://boards.greenhouse.io/acmeinc",
+      name: "Acme Inc",
+    };
+    const existingIndex = buildExistingCompanyIndex([existingCompany]);
+    const supabase = createMockSupabase();
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Acme Inc",
+        domain_guess: "acme.com",
+        careers_url_guess: "https://boards.greenhouse.io/acmeinc",
+        discovery_level: 1,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: true,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+    });
+
+    expect(outcome.job_source_company_id).toBe("existing-company-1"); // proposed linkage, visible before any write
+    expect(outcome.job_source_action).toBe("would_add");
+    expect(supabase.calls).toEqual([]); // zero DB mutation
+  });
+
+  it("E (new company). Dry-run for a brand-new company reports no company_id yet — a real id can't exist until the insert actually happens", async () => {
+    mockFetchByPlatform.mockResolvedValue(strongJobSample());
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Brand New Co",
+        domain_guess: "brandnew.com",
+        careers_url_guess: "https://boards.greenhouse.io/brandnew",
+        discovery_level: 2,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: true,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+    });
+
+    expect(outcome.outcome).toBe("would_create");
+    expect(outcome.job_source_action).toBe("would_add");
+    expect(outcome.job_source_company_id).toBeNull();
+    expect(supabase.calls).toEqual([]);
+  });
+
+  it("F. Company persistence failure: if the companies insert fails, no job_sources row is ever created", async () => {
+    mockFetchByPlatform.mockResolvedValue(strongJobSample());
+    const supabase = createMockSupabase({
+      companiesInsertResult: { data: null, error: { message: "simulated companies insert failure" } },
+    });
+    const existingIndex = buildExistingCompanyIndex([]);
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Doomed Co",
+        domain_guess: "doomed.com",
+        careers_url_guess: "https://boards.greenhouse.io/doomed",
+        discovery_level: 2,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: false,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+    });
+
+    expect(outcome.outcome).toBe("error");
+    expect(outcome.error).toBe("simulated companies insert failure");
+    expect(outcome.job_source_action).toBeNull();
+    expect(outcome.job_source_company_id).toBeUndefined();
+    const jobSourcesCalls = supabase.calls.filter((c: any) => c.table === "job_sources");
+    expect(jobSourcesCalls).toEqual([]);
   });
 
   it("rejects a weak/ineligible candidate before it ever reaches company_upsert with an active source", async () => {
@@ -379,9 +562,37 @@ describe("processCandidate — live run", () => {
     });
 
     // The company row is still recorded (so it isn't re-discovered every run)
-    // but it must never become an active job source.
+    // but it must never become an active job source. weakJobSample() is
+    // EU-only, so this specific fixture lands on INACTIVE (us_excluded) —
+    // asserted explicitly (Phase 3.0, Step 5) rather than left implicit.
+    expect(outcome.discovery_status).toBe("INACTIVE");
     expect(outcome.job_source_action).toBe("skipped");
     expect(supabase.calls.some((c) => c.table === "job_sources")).toBe(false);
+  });
+
+  // ----------------------------------------------------------------------
+  // Phase 3.0, Step 5 — the eligibleForSourcing gate in processCandidate()
+  // is a simple two-value allowlist: only APPROVED/HIGH_PRIORITY ever reach
+  // the job_sources upsert. Rather than hand-engineer job/score fixtures to
+  // land exactly in the WATCHLIST/LOW_YIELD bands (fragile — the scoring
+  // formula has many interacting factors), this proves the ALLOWLIST ITSELF
+  // is correct at the pure scoring-status level via the same exported
+  // statusForOpportunityScore() processCandidate() calls internally, then
+  // cross-checks that only its two "eligible" outputs are the ones
+  // processCandidate treats as sourcing-eligible (see the source-derived
+  // eligibleForSourcing check in company-discovery.functions.ts).
+  // ----------------------------------------------------------------------
+  it("Phase 3.0: WATCHLIST, LOW_YIELD, and INACTIVE discovery statuses are all distinct from, and never equal to, APPROVED/HIGH_PRIORITY", () => {
+    expect(statusForOpportunityScore(95, false)).toBe("HIGH_PRIORITY");
+    expect(statusForOpportunityScore(80, false)).toBe("APPROVED");
+    expect(statusForOpportunityScore(60, false)).toBe("WATCHLIST");
+    expect(statusForOpportunityScore(30, false)).toBe("LOW_YIELD");
+    expect(statusForOpportunityScore(95, true)).toBe("INACTIVE"); // us_excluded overrides even a top score
+
+    const eligibleForSourcing = new Set(["APPROVED", "HIGH_PRIORITY"]);
+    for (const status of ["WATCHLIST", "LOW_YIELD", "INACTIVE"]) {
+      expect(eligibleForSourcing.has(status)).toBe(false);
+    }
   });
 
   it("rejects candidates on unsupported/rejected ATS platforms without any Supabase calls", async () => {

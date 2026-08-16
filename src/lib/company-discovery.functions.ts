@@ -85,12 +85,26 @@ export interface CandidateOutcome {
   matched_existing_company_id: string | null;
   matched_by: string | null;
   job_source_action: "would_add" | "would_update" | "added" | "updated" | "skipped" | null;
+  // Phase 3.1 — the companies.id a job_sources row is/would-be linked to via
+  // job_sources.company_id. Populated as soon as it's knowable: immediately
+  // for a matched existing company (even in dry-run), only after a NEW
+  // company's insert actually succeeds (null in dry-run, since nothing was
+  // created to link to yet). Never set to a fabricated/guessed id.
+  job_source_company_id?: string | null;
+  // Phase 3.1 — the job_sources.id of the row created/updated for this
+  // candidate, when known (non-dry-run only — dry-run never writes a row,
+  // so there is no id to report). Used by the Scout→ingest handoff to
+  // scope runImportJobsPipeline to exactly the sources Company Scout just
+  // touched, never "every active source".
+  job_source_id?: string | null;
   reject_reason: string | null;
   error: string | null;
   ats_resolution?: AtsResolutionResult | null;
 }
 
-interface ScoutRunResult {
+// Exported (Phase 3.1) so the Scout→ingest handoff (company-scout-ingest.functions.ts)
+// can type its own result without re-declaring this shape.
+export interface ScoutRunResult {
   run_id: string;
   dry_run: boolean;
   levels_run: ExpansionLevel[];
@@ -581,6 +595,24 @@ export async function processCandidate(params: {
     outcome.outcome = "updated";
   }
 
+  // ---- COMPANY_ID LINKAGE (Phase 3.1) ----
+  // The company this job_sources row should be linked to, in
+  // job_sources.company_id:
+  //   - an EXISTING (matched) company's id is known immediately — even in
+  //     dry-run, since nothing needs to be inserted to know it.
+  //   - a NEW company's real id is only known once its `companies` insert
+  //     has actually succeeded — never guessable, never fabricated. In
+  //     dry-run this correctly stays null (nothing was created to link to);
+  //     the outcome's `would_create` / `matched_by` fields already make the
+  //     intended linkage legible without inventing a placeholder id.
+  // If a NEW company's insert fails, the function already returned above
+  // (outcome.outcome = "error") before reaching this point — so a
+  // job_sources row is structurally never created for a company that
+  // failed to persist.
+  outcome.job_source_company_id = isNewCompany
+    ? (dryRun ? null : outcome.matched_existing_company_id)
+    : match.matched!.id;
+
   // ---- JOB_SOURCE UPSERT ----
   // Only for validated, non-excluded, sufficiently-strong companies, and only
   // when caps allow. INACTIVE (us_excluded) or LOW_YIELD companies are
@@ -607,24 +639,37 @@ export async function processCandidate(params: {
   }
 
   if (sourceAlreadyExists) {
-    await supabase
+    // "Source update: existing job_source gets company_id repaired/set if
+    // missing" (Phase 3.1) — this update always writes the current
+    // company_id, so a pre-Phase-3.1 row (company_id null) gets linked the
+    // next time Company Scout revisits it, exactly like status/ats already
+    // get refreshed here. .select("id").single() added (Phase 3.1) purely
+    // so the Scout→ingest handoff (runCompanyScoutAndIngest) knows exactly
+    // which job_sources row to hand to the ingest pipeline — it does not
+    // change what gets written.
+    const { data: updated, error: updErr } = await supabase
       .from("job_sources")
-      .update({ status: "active", ats: det.platform })
+      .update({ status: "active", ats: det.platform, company_id: outcome.job_source_company_id })
       .eq("user_id", userId)
-      .eq("careers_url", careersUrl);
+      .eq("careers_url", careersUrl)
+      .select("id")
+      .single();
+    if (!updErr) outcome.job_source_id = updated?.id ?? null;
     outcome.job_source_action = "updated";
   } else {
-    const { error: srcErr } = await supabase.from("job_sources").insert({
+    const { data: inserted, error: srcErr } = await supabase.from("job_sources").insert({
       user_id: userId,
       name: candidate.name,
       careers_url: careersUrl,
       ats: det.platform,
       status: "active",
+      company_id: outcome.job_source_company_id,
       notes: `Discovered by Company Scout · level ${candidate.discovery_level} · ${candidate.discovery_source} · ${new Date().toISOString().slice(0, 10)}`,
-    } as any);
+    } as any).select("id").single();
     if (srcErr) {
       outcome.error = srcErr.message;
     } else {
+      outcome.job_source_id = inserted?.id ?? null;
       outcome.job_source_action = "added";
       existingJobSourceUrls.add(canonicalUrl!);
     }
@@ -779,11 +824,27 @@ export async function refreshExistingCompany(params: {
 // ----------------------------------------------------------------------------
 // Main orchestrator.
 // ----------------------------------------------------------------------------
-export const runCompanyScout = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => RunScoutInput.parse(d))
-  .handler(async ({ data, context }): Promise<ScoutRunResult> => {
-    const { supabase, userId } = context;
+// Plain, injectable core (Phase 3.1 final stabilization) — mirrors the
+// importJobsNow → runImportJobsPipeline extraction. A direct call to the
+// createServerFn-wrapped runCompanyScout from another server function's
+// handler is not a same-process call in this project: vitest.config.ts
+// deliberately omits the tanstackStart compiler plugin, so
+// createServerFn(...).handler(fn) never receives the build-time
+// __executeServer closure that plugin generates — it runs the client-side
+// middleware branch with an empty context instead, never reaching
+// requireSupabaseAuth's actual auth resolution. The Scout→ingest handoff
+// (company-scout-ingest.functions.ts) calls this core directly with its own
+// already-authenticated supabase/userId instead of going through
+// runCompanyScout.
+export interface RunCompanyScoutCoreParams {
+  supabase: any;
+  userId: string;
+  data: z.infer<typeof RunScoutInput>;
+}
+
+export async function runCompanyScoutCore(params: RunCompanyScoutCoreParams): Promise<ScoutRunResult> {
+  const { supabase, userId, data } = params;
+  {
     const startedAt = Date.now();
     const dryRun = data.dry_run;
     const caps = clampSafetyCaps({
@@ -1184,6 +1245,17 @@ export const runCompanyScout = createServerFn({ method: "POST" })
       candidates: candidateOutcomes,
       duration_ms: Date.now() - startedAt,
     };
+  }
+}
+
+// Thin auth/context wrapper — obtains the authenticated context via
+// requireSupabaseAuth, then delegates entirely to runCompanyScoutCore. This
+// is the only externally-reachable Company Scout run entrypoint.
+export const runCompanyScout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => RunScoutInput.parse(d))
+  .handler(async ({ data, context }): Promise<ScoutRunResult> => {
+    return runCompanyScoutCore({ supabase: context.supabase, userId: context.userId, data });
   });
 
 // ----------------------------------------------------------------------------
