@@ -171,6 +171,33 @@ beforeEach(() => {
   mockFetchByPlatform.mockReset();
 });
 
+// Fills in Phase 2.6 v2.1/v2.2's budget-telemetry fields with sensible
+// defaults so integration-test fixtures only need to specify what each test
+// actually cares about (attemptCount, resolutionStatus, etc).
+function fakeAtsResolution(overrides: Partial<AtsResolutionResult> & Pick<AtsResolutionResult,
+  "resolved" | "resolutionStatus" | "provider" | "careersUrl" | "slug" | "confidence" | "resolutionMethod"
+>): AtsResolutionResult {
+  const attemptCount = overrides.attemptCount ?? 0;
+  return {
+    validationEvidence: [],
+    careerPageChecked: false,
+    detectedUnsupportedProvider: null,
+    validatedJobCount: null,
+    attemptsBySource: { canonical_link: 0, career_page_link: 0, career_page_redirect: 0, known_url_pattern: 0, ai_hint_validated: 0 },
+    attemptBudgetMax: 8,
+    attemptBudgetUsed: attemptCount,
+    attemptBudgetRemaining: 8 - attemptCount,
+    successfulAttemptsBySource: { canonical_link: 0, career_page_link: 0, career_page_redirect: 0, known_url_pattern: 0, ai_hint_validated: 0 },
+    failedAttemptsBySource: { canonical_link: 0, career_page_link: 0, career_page_redirect: 0, known_url_pattern: 0, ai_hint_validated: 0 },
+    aiCandidatesGenerated: 0,
+    aiCandidatesValidated: 0,
+    aiCandidatesSuccessful: 0,
+    detectedProviderHint: null,
+    attemptCount,
+    ...overrides,
+  };
+}
+
 describe("processCandidate — dry run", () => {
   it("makes ZERO insert/update calls to companies or job_sources, yet still returns would_create + would_add", async () => {
     mockFetchByPlatform.mockResolvedValue(strongJobSample());
@@ -426,19 +453,97 @@ describe("processCandidate — live run", () => {
 // unit tests (direct/career-page-link/pattern/AI resolution, safety caps,
 // etc.), which use the same dependency-injection approach.
 // ----------------------------------------------------------------------------
+
+describe("production candidate prioritization", () => {
+  it("prioritizes supported-ATS candidates when the candidate pool is oversupplied", () => {
+    const candidates = [
+      { name: "Unknown A", ats_provider_guess: null },
+      { name: "Unknown B", ats_provider_guess: null },
+      { name: "Greenhouse A", ats_provider_guess: "Greenhouse" },
+      { name: "Ashby A", ats_provider_guess: "Ashby" },
+      { name: "Lever A", ats_provider_guess: "Lever" },
+      { name: "Breezy A", ats_provider_guess: "Breezy" },
+    ];
+
+    const hasSupportedAtsHint = (c: any) =>
+      c.ats_provider_guess === "Greenhouse" ||
+      c.ats_provider_guess === "Lever" ||
+      c.ats_provider_guess === "Ashby" ||
+      c.ats_provider_guess === "Breezy";
+
+    const supported = candidates.filter(hasSupportedAtsHint);
+    const exploratory = candidates.filter((c) => !hasSupportedAtsHint(c));
+
+    const targetCandidateCount = 5;
+    const exploratoryTarget = Math.max(
+      1,
+      Math.floor(targetCandidateCount * 0.2)
+    );
+    const supportedTarget =
+      targetCandidateCount - exploratoryTarget;
+
+    const selected = [
+      ...supported.slice(0, supportedTarget),
+      ...exploratory.slice(0, exploratoryTarget),
+    ];
+
+    expect(selected).toHaveLength(5);
+    expect(selected.filter(hasSupportedAtsHint)).toHaveLength(4);
+    expect(selected.filter((c) => !hasSupportedAtsHint(c))).toHaveLength(1);
+  });
+
+  it("preserves an exploratory candidate when Unknown-ATS inventory exists", () => {
+    const supported = [
+      { name: "Greenhouse A", ats_provider_guess: "Greenhouse" },
+      { name: "Greenhouse B", ats_provider_guess: "Greenhouse" },
+      { name: "Ashby A", ats_provider_guess: "Ashby" },
+      { name: "Lever A", ats_provider_guess: "Lever" },
+    ];
+
+    const exploratory = [
+      { name: "Unknown A", ats_provider_guess: null },
+      { name: "Unknown B", ats_provider_guess: null },
+    ];
+
+    const targetCandidateCount = 4;
+
+    const exploratoryTarget =
+      targetCandidateCount > 0 && exploratory.length > 0
+        ? Math.max(1, Math.floor(targetCandidateCount * 0.2))
+        : 0;
+
+    const supportedTarget =
+      targetCandidateCount - exploratoryTarget;
+
+    const selected = [
+      ...supported.slice(0, supportedTarget),
+      ...exploratory.slice(0, exploratoryTarget),
+    ];
+
+    expect(selected).toHaveLength(4);
+    expect(
+      selected.some((c) => c.ats_provider_guess == null)
+    ).toBe(true);
+  });
+});
+
 describe("processCandidate — ATS Resolver integration (Phase 2.6)", () => {
   it("promotes an Unknown-platform candidate to the normal pipeline once the injected resolver verifies a supported ATS endpoint", async () => {
     mockFetchByPlatform.mockResolvedValue(strongJobSample());
     const supabase = createMockSupabase();
     const existingIndex = buildExistingCompanyIndex([]);
-    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => ({
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => fakeAtsResolution({
       resolved: true,
+      resolutionStatus: "resolved",
       provider: "Greenhouse",
       careersUrl: "https://boards.greenhouse.io/zapier",
       slug: "zapier",
       confidence: "high",
       resolutionMethod: "career_page_link",
-      validationEvidence: [],
+      attemptCount: 1,
+      careerPageChecked: true,
+      validatedJobCount: 5,
+      attemptsBySource: { canonical_link: 0, career_page_link: 1, career_page_redirect: 0, known_url_pattern: 0, ai_hint_validated: 0 },
     }));
 
     const outcome = await processCandidate({
@@ -477,14 +582,16 @@ describe("processCandidate — ATS Resolver integration (Phase 2.6)", () => {
   it("rejects as unsupported_ats:Unknown when the injected resolver cannot verify any supported ATS endpoint", async () => {
     const supabase = createMockSupabase();
     const existingIndex = buildExistingCompanyIndex([]);
-    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => ({
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => fakeAtsResolution({
       resolved: false,
+      resolutionStatus: "unresolved",
       provider: null,
       careersUrl: null,
       slug: null,
       confidence: "low",
       resolutionMethod: "unresolved",
-      validationEvidence: [],
+      attemptCount: 8,
+      careerPageChecked: true,
     }));
 
     const outcome = await processCandidate({
@@ -517,9 +624,9 @@ describe("processCandidate — ATS Resolver integration (Phase 2.6)", () => {
   it("does NOT invoke the resolver for explicitly-rejected/walled platforms (e.g. Workday) — only for Unknown", async () => {
     const supabase = createMockSupabase();
     const existingIndex = buildExistingCompanyIndex([]);
-    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => ({
-      resolved: false, provider: null, careersUrl: null, slug: null,
-      confidence: "low", resolutionMethod: "unresolved", validationEvidence: [],
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => fakeAtsResolution({
+      resolved: false, resolutionStatus: "unresolved", provider: null, careersUrl: null, slug: null,
+      confidence: "low", resolutionMethod: "unresolved",
     }));
 
     const outcome = await processCandidate({
@@ -545,5 +652,244 @@ describe("processCandidate — ATS Resolver integration (Phase 2.6)", () => {
     expect(fakeAtsResolver).not.toHaveBeenCalled();
     expect(outcome.outcome).toBe("rejected");
     expect(outcome.reject_reason).toBe("unsupported_ats:Workday");
+  });
+
+  it("Phase 2.6 v2: a resolver-detected unsupported provider (resolutionStatus: unsupported_provider) is rejected with that specific provider — never becomes a job source", async () => {
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => fakeAtsResolution({
+      resolved: false,
+      resolutionStatus: "unsupported_provider",
+      provider: null,
+      careersUrl: null,
+      slug: null,
+      confidence: "low",
+      resolutionMethod: "unresolved",
+      attemptCount: 3,
+      careerPageChecked: true,
+      detectedUnsupportedProvider: "Workday",
+    }));
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Legacy Careers Co",
+        domain_guess: "legacycareers.com",
+        // Generic careers page — detectAts() alone reports Unknown, so the
+        // resolver runs and discovers the page links to Workday.
+        careers_url_guess: "https://legacycareers.com/jobs",
+        discovery_level: 4,
+        discovery_source: "manual",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: false,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      atsResolver: fakeAtsResolver,
+    });
+
+    expect(fakeAtsResolver).toHaveBeenCalledTimes(1);
+    expect(outcome.outcome).toBe("rejected");
+    // The specific detected provider is preserved, not just a generic Unknown.
+    expect(outcome.reject_reason).toBe("unsupported_ats:Workday");
+    expect(outcome.ats_resolution?.resolutionStatus).toBe("unsupported_provider");
+    expect(outcome.ats_resolution?.detectedUnsupportedProvider).toBe("Workday");
+    expect(supabase.calls).toEqual([]);
+    expect(mockFetchByPlatform).not.toHaveBeenCalled();
+  });
+
+  it("Phase 2.6 v2.2: a resolver-detected stale/inactive company (resolutionStatus: stale_or_inactive_company) is rejected with that reason — never becomes a job source", async () => {
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => fakeAtsResolution({
+      resolved: false,
+      resolutionStatus: "stale_or_inactive_company",
+      provider: null,
+      careersUrl: null,
+      slug: null,
+      confidence: "low",
+      resolutionMethod: "unresolved",
+      attemptCount: 6,
+      careerPageChecked: true,
+    }));
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Defunct Product Co",
+        domain_guess: "defunctproduct.com",
+        careers_url_guess: "https://defunctproduct.com/careers",
+        discovery_level: 4,
+        discovery_source: "manual",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: false,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      atsResolver: fakeAtsResolver,
+    });
+
+    expect(fakeAtsResolver).toHaveBeenCalledTimes(1);
+    expect(outcome.outcome).toBe("rejected");
+    expect(outcome.reject_reason).toBe("stale_or_inactive_company");
+    expect(outcome.ats_resolution?.resolutionStatus).toBe("stale_or_inactive_company");
+    expect(outcome.job_source_action).toBeNull();
+    expect(supabase.calls).toEqual([]);
+    expect(mockFetchByPlatform).not.toHaveBeenCalled();
+  });
+
+  it("Phase 2.6 v2.2: a resolver finding no supported-ATS evidence at all (resolutionStatus: no_supported_ats_evidence) is rejected with that reason — never becomes a job source", async () => {
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+    const fakeAtsResolver = vi.fn(async (): Promise<AtsResolutionResult> => fakeAtsResolution({
+      resolved: false,
+      resolutionStatus: "no_supported_ats_evidence",
+      provider: null,
+      careersUrl: null,
+      slug: null,
+      confidence: "low",
+      resolutionMethod: "unresolved",
+      attemptCount: 4,
+      careerPageChecked: true,
+    }));
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Enterprise Custom Stack Co",
+        domain_guess: "enterprisecustom.com",
+        careers_url_guess: "https://enterprisecustom.com/careers",
+        discovery_level: 4,
+        discovery_source: "manual",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: false,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      atsResolver: fakeAtsResolver,
+    });
+
+    expect(fakeAtsResolver).toHaveBeenCalledTimes(1);
+    expect(outcome.outcome).toBe("rejected");
+    expect(outcome.reject_reason).toBe("no_supported_ats_evidence");
+    expect(outcome.ats_resolution?.resolutionStatus).toBe("no_supported_ats_evidence");
+    expect(outcome.job_source_action).toBeNull();
+    expect(supabase.calls).toEqual([]);
+    expect(mockFetchByPlatform).not.toHaveBeenCalled();
+  });
+});
+
+describe("processCandidate — remote eligibility sampling", () => {
+  it("prioritizes a US-remote job even when it appears after the first five ATS results", async () => {
+    const buriedUsRemoteJob: NormJob = {
+      external_id: "job-6",
+      title: "Customer Success Manager",
+      location: "Remote - US",
+      description_html: "",
+      description_text: "This is a Remote - US position. Must be based in the United States.",
+      url: "https://boards.greenhouse.io/acme/jobs/6",
+      posted_at: null,
+      salary_min: 90000,
+      salary_max: 110000,
+      salary_estimated: false,
+    };
+
+    const firstFiveUnknown: NormJob[] = Array.from({ length: 5 }, (_, i) => ({
+      external_id: `job-${i + 1}`,
+      title: `Generic Role ${i + 1}`,
+      location: "Office",
+      description_html: "",
+      description_text: "Join our growing team.",
+      url: `https://boards.greenhouse.io/acme/jobs/${i + 1}`,
+      posted_at: null,
+      salary_min: 90000,
+      salary_max: 110000,
+      salary_estimated: false,
+    }));
+
+    mockFetchByPlatform.mockResolvedValue([
+      ...firstFiveUnknown,
+      buriedUsRemoteJob,
+    ]);
+
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Acme",
+        domain_guess: "acme.com",
+        careers_url_guess: "https://boards.greenhouse.io/acme",
+        discovery_level: 2,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: true,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+    });
+
+    expect(outcome.remote_eligibility_class).toBe("mixed_role_dependent");
+    expect(outcome.outcome).toBe("would_create");
+  });
+
+  it("keeps a company unknown when no job contains US or remote eligibility evidence", async () => {
+    const unknownJobs: NormJob[] = Array.from({ length: 8 }, (_, i) => ({
+      external_id: `job-${i + 1}`,
+      title: `Generic Role ${i + 1}`,
+      location: "Office",
+      description_html: "",
+      description_text: "Join our growing team.",
+      url: `https://boards.greenhouse.io/acme/jobs/${i + 1}`,
+      posted_at: null,
+      salary_min: 90000,
+      salary_max: 110000,
+      salary_estimated: false,
+    }));
+
+    mockFetchByPlatform.mockResolvedValue(unknownJobs);
+
+    const supabase = createMockSupabase();
+    const existingIndex = buildExistingCompanyIndex([]);
+
+    const outcome = await processCandidate({
+      supabase,
+      userId: "user-1",
+      candidate: {
+        name: "Acme",
+        domain_guess: "acme.com",
+        careers_url_guess: "https://boards.greenhouse.io/acme",
+        discovery_level: 2,
+        discovery_source: "ats_pattern",
+        discovery_reason: "test fixture",
+      },
+      existingIndex,
+      existingJobSourceUrls: new Set<string>(),
+      priors: NEUTRAL_PRIORS,
+      dryRun: true,
+      remainingNewCompanySlots: 25,
+      remainingNewSourceSlots: 10,
+      fetcher: mockFetchByPlatform,
+    });
+
+    expect(outcome.remote_eligibility_class).toBe("unknown");
   });
 });

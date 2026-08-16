@@ -17,6 +17,7 @@
 // ============================================================================
 
 import { openAIFetch } from "./openai-fetch";
+import { normalizeCompanyName } from "./company-discovery";
 
 export interface AiCandidateCompany {
   name: string;
@@ -42,12 +43,16 @@ export interface AiCandidateGenerationResult {
   };
 }
 
-const CANDIDATE_SYSTEM = `You are a company-discovery research assistant for a job-search automation tool. \
+// Exported for unit testing (company-discovery-ai.test.ts) — a direct
+// regression check that the model is explicitly told not to repeat
+// companies, without needing to mock the OpenAI call itself.
+export const CANDIDATE_SYSTEM = `You are a company-discovery research assistant for a job-search automation tool. \
 Given a targeting brief, suggest REAL, currently-operating companies that plausibly match it. \
 Never invent companies. If you are not confident a company is real and currently operating, omit it \
 rather than guess. Prefer companies you have high confidence use Greenhouse, Lever, Ashby, or Breezy \
 for hiring, but it is fine to include companies where you are unsure of their ATS — that will be \
-verified separately. Return STRICT JSON only.`;
+verified separately. Every company returned in a single candidate batch MUST be unique. Never return \
+the same company more than once. Return STRICT JSON only.`;
 
 async function callOpenAiJson(params: {
   apiKey: string;
@@ -85,6 +90,23 @@ async function callOpenAiJson(params: {
     parsed,
     usage: { prompt_tokens: usage.prompt_tokens ?? 0, completion_tokens: usage.completion_tokens ?? 0 },
   };
+}
+
+// Collapses AI-returned duplicates by normalized company name (reusing the
+// exact same normalization Company Scout's dedup index uses elsewhere) —
+// the model is explicitly instructed not to repeat companies within a
+// batch, but this is a deterministic backstop in case it does anyway.
+// Exported for direct unit testing (company-discovery-ai.test.ts).
+export function dedupeByNormalizedName<T extends { name: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    const key = normalizeCompanyName(item.name) ?? item.name.toLowerCase().trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
 }
 
 /** Best-effort usage logging — mirrors enrichCompany's pattern exactly. Never throws. */
@@ -128,7 +150,20 @@ Companies already known (do NOT resuggest these): ${params.excludeNames.slice(0,
 
 Suggest up to ${Math.min(params.limit, 25)} real companies matching the brief.
 
-For each company, also give your best guess at BOTH a generic careers page AND, if you specifically know it, a DIRECT supported-ATS job-board URL (Greenhouse/Lever/Ashby/Breezy) — but it is fine and expected to leave the ATS fields null/"Unknown" when you don't know; that will be verified separately and never trusted on your word alone.
+DISCOVERY STRATEGY:
+- Optimize first for REAL, currently-operating companies that plausibly match the targeting brief.
+- Prefer companies likely to have active hiring in the requested role families and geography.
+- Maximize company diversity. Avoid repeatedly returning the same famous employers across runs.
+- Do not resuggest companies from the exclusion list.
+- ATS information is OPTIONAL metadata only. A separate deterministic resolver is authoritative for ATS detection and validation.
+- Never infer an ATS merely from company size, industry, reputation, or historical memory.
+- Only provide ats_provider_guess, ats_url_guess, or ats_slug_guess when you have strong confidence in a DIRECT Greenhouse, Lever, Ashby, or Breezy board.
+- A generic company careers page is NEVER an ATS URL. If you only know the generic careers page, set all ATS guess fields to null.
+- If uncertain whether an ATS relationship is current, use null.
+- Incorrect ATS guesses are worse than Unknown/null.
+- It is acceptable for most candidates to have null ATS guesses because deterministic discovery will test supported ATS platforms independently.
+
+For each company, provide its generic careers page when reasonably known. Provide direct supported-ATS metadata only when strongly known.
 
 Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "careers_url_guess": string|null, "reasoning": string (1 sentence), "confidence": "high"|"medium"|"low", "ats_provider_guess": "Greenhouse"|"Lever"|"Ashby"|"Breezy"|"Unknown"|null, "ats_url_guess": string|null (a DIRECT ATS board URL, e.g. https://boards.greenhouse.io/{slug} — NOT just the generic careers page again; null if unsure), "ats_slug_guess": string|null } ] }`;
 
@@ -141,24 +176,84 @@ Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "c
 
   await logAiUsage(params.supabase, params.userId, "company_discovery_candidates", "gpt-4o-mini", usage, true);
 
-  const candidates: AiCandidateCompany[] = Array.isArray(parsed.candidates)
-    ? parsed.candidates
-        .filter((c: any) => c && typeof c.name === "string" && c.name.trim().length > 0)
-        .map((c: any) => ({
-          name: String(c.name).trim(),
-          domain_guess: c.domain_guess ? String(c.domain_guess).trim() : null,
-          careers_url_guess: c.careers_url_guess ? String(c.careers_url_guess).trim() : null,
-          reasoning: typeof c.reasoning === "string" ? c.reasoning.slice(0, 300) : "",
-          confidence: (["high", "medium", "low"] as const).includes(c.confidence) ? c.confidence : "low",
-          ats_provider_guess: (["Greenhouse", "Lever", "Ashby", "Breezy"] as const).includes(c.ats_provider_guess) ? c.ats_provider_guess : null,
-          ats_url_guess: typeof c.ats_url_guess === "string" && c.ats_url_guess.trim() ? c.ats_url_guess.trim() : null,
-          ats_slug_guess: typeof c.ats_slug_guess === "string" && c.ats_slug_guess.trim() ? c.ats_slug_guess.trim() : null,
-        }))
-    : [];
+  const candidates: AiCandidateCompany[] = dedupeByNormalizedName(
+    Array.isArray(parsed.candidates)
+      ? parsed.candidates
+          .filter((c: any) => c && typeof c.name === "string" && c.name.trim().length > 0)
+          .map((c: any) => ({
+            name: String(c.name).trim(),
+            domain_guess: c.domain_guess ? String(c.domain_guess).trim() : null,
+            careers_url_guess: c.careers_url_guess ? String(c.careers_url_guess).trim() : null,
+            reasoning: typeof c.reasoning === "string" ? c.reasoning.slice(0, 300) : "",
+            confidence: (["high", "medium", "low"] as const).includes(c.confidence) ? c.confidence : "low",
+            ats_provider_guess: (["Greenhouse", "Lever", "Ashby", "Breezy"] as const).includes(c.ats_provider_guess) ? c.ats_provider_guess : null,
+            ats_url_guess: typeof c.ats_url_guess === "string" && c.ats_url_guess.trim() ? c.ats_url_guess.trim() : null,
+            ats_slug_guess: typeof c.ats_slug_guess === "string" && c.ats_slug_guess.trim() ? c.ats_slug_guess.trim() : null,
+          }))
+      : []
+  );
+
+  const requestedLimit = Math.max(0, Math.min(params.limit, 25));
+
+  const supported = candidates.filter((c) =>
+    ["Greenhouse", "Lever", "Ashby", "Breezy"].includes(
+      c.ats_provider_guess ?? ""
+    )
+  );
+
+  const exploratory = candidates.filter(
+    (c) => !["Greenhouse", "Lever", "Ashby", "Breezy"].includes(
+      c.ats_provider_guess ?? ""
+    )
+  );
+
+  // Deterministic 80/20 discovery mix:
+  // - Prefer supported ATS candidates for most slots.
+  // - Preserve a controlled exploration lane for Unknown ATS candidates.
+  // - Backfill unused capacity from either bucket rather than returning
+  //   fewer candidates solely because the AI did not hit the requested mix.
+  const explorationTarget =
+    requestedLimit > 0
+      ? Math.max(1, Math.floor(requestedLimit * 0.20))
+      : 0;
+
+  const supportedTarget = Math.max(
+    0,
+    requestedLimit - explorationTarget
+  );
+
+  const selectedSupported = supported.slice(0, supportedTarget);
+  const selectedExploratory = exploratory.slice(0, explorationTarget);
+
+  const selected = [
+    ...selectedSupported,
+    ...selectedExploratory,
+  ];
+
+  if (selected.length < requestedLimit) {
+    const alreadySelected = new Set(selected);
+
+    const backfill = [
+      ...supported.slice(selectedSupported.length),
+      ...exploratory.slice(selectedExploratory.length),
+    ];
+
+    for (const candidate of backfill) {
+      if (selected.length >= requestedLimit) break;
+      if (alreadySelected.has(candidate)) continue;
+
+      selected.push(candidate);
+      alreadySelected.add(candidate);
+    }
+  }
 
   return {
-    candidates,
-    provenance: { model: "gpt-4o-mini", prompt_summary: params.brief, generated_at: new Date().toISOString() },
+    candidates: selected,
+    provenance: {
+      model: "gpt-4o-mini",
+      prompt_summary: params.brief,
+      generated_at: new Date().toISOString(),
+    },
   };
 }
 
@@ -217,7 +312,7 @@ Return JSON: { "candidates": [ { "name": string, "domain_guess": string|null, "c
     : [];
 
   return {
-    candidates,
+    candidates: dedupeByNormalizedName(candidates),
     provenance: { model: "gpt-4o-mini", prompt_summary: `similar to ${profile.name}`, generated_at: new Date().toISOString() },
     sharedAttributes: {
       industry: profile.industry,
@@ -278,6 +373,17 @@ Return JSON: { "eligibility_class": "us_confirmed"|"global_us_eligible"|"north_a
   };
 }
 
+export type AiAtsEvidenceType = "known_board" | "careers_page" | "company_history" | "slug_inference" | "other";
+
+export interface AiAtsRankedCandidate {
+  provider: "Greenhouse" | "Lever" | "Ashby" | "Breezy";
+  slug: string | null;
+  ats_url: string | null;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+  evidence_type: AiAtsEvidenceType;
+}
+
 // ----------------------------------------------------------------------------
 // Phase 2.6 addendum — ATS Resolver Stage 4b (src/lib/ats-resolver.ts): a
 // last-resort AI guess at a company's supported-ATS job-board URL, used only
@@ -286,8 +392,18 @@ Return JSON: { "eligibility_class": "us_confirmed"|"global_us_eligible"|"north_a
 // failed. IMPORTANT: this function's output is NEVER treated as validated —
 // ats-resolver.ts independently re-checks every field this returns against
 // the real ATS fetcher before accepting anything. This function's only job
-// is to produce a candidate guess, restricted to exactly the 4 supported
-// providers or "Unknown".
+// is to produce candidate guesses, restricted to exactly the 4 supported
+// providers.
+//
+// Phase 2.6 v2.2: returns a RANKED LIST of at most 3 candidates instead of a
+// single guess — a live run showed the single-guess contract often produced
+// nothing usable at all. The model is explicitly told its own knowledge may
+// be stale (a company can switch ATS providers after its training cutoff)
+// and that an independent system validates every candidate against live
+// data before anything is ever trusted — so it should propose its best
+// leads, ranked, rather than committing to one answer or refusing outright.
+// An empty list is an entirely valid, expected response when the model has
+// no genuine lead.
 // ----------------------------------------------------------------------------
 export async function generateAtsGuessAI(params: {
   supabase: any;
@@ -296,34 +412,47 @@ export async function generateAtsGuessAI(params: {
   companyName: string;
   domain: string | null;
   careersUrl: string | null;
-}): Promise<{ provider: string | null; url: string | null; slug: string | null }> {
+}): Promise<AiAtsRankedCandidate[]> {
   const userPrompt = `Company: ${params.companyName}
 Domain: ${params.domain ?? "unknown"}
 Known careers page (generic — NOT necessarily an ATS job board): ${params.careersUrl ?? "unknown"}
 
-We need to know whether this company uses one of exactly these four applicant-tracking systems for hiring: Greenhouse, Lever, Ashby, or Breezy. Return only one of "Greenhouse", "Lever", "Ashby", "Breezy", or "Unknown" — never any other ATS name, and never guess if you aren't reasonably confident.
+We need to know whether this company uses one of exactly these four applicant-tracking systems for hiring: Greenhouse, Lever, Ashby, or Breezy.
 
-If you know it, give the DIRECT ATS job-board URL — e.g. https://boards.greenhouse.io/{slug}, https://jobs.lever.co/{slug}, https://jobs.ashbyhq.com/{slug}, or https://{slug}.breezy.hr. Do NOT simply repeat the generic careers page URL above as your answer — if all you know is the generic page, return "Unknown" with null url/slug instead.
+Your own knowledge may be OUT OF DATE — companies switch ATS providers, get acquired, or shut down after your training cutoff. You are NOT approving anything; a separate, independent system will validate every candidate you propose against live data before it is ever trusted. So propose your best leads rather than refusing outright, but never fabricate certainty, and it is completely fine to return an empty candidates list if you genuinely have no lead.
 
-Return JSON: { "ats_provider": "Greenhouse"|"Lever"|"Ashby"|"Breezy"|"Unknown", "ats_url": string|null, "ats_slug": string|null }`;
+Return up to 3 candidates, ranked strongest first. For each: the provider (one of exactly Greenhouse/Lever/Ashby/Breezy — never any other ATS name), your best guess at the tenant slug, the DIRECT ATS job-board URL if you know it (e.g. https://boards.greenhouse.io/{slug}, https://jobs.lever.co/{slug}, https://jobs.ashbyhq.com/{slug}, https://{slug}.breezy.hr — never just the generic careers page repeated back), a confidence level, a one-sentence reason, and an evidence_type describing WHY you believe it: "known_board" (you recall the actual board URL), "careers_page" (inferred from the generic careers page shape), "company_history" (recalled from general knowledge about the company), "slug_inference" (guessed the slug pattern only), or "other".
+
+Return JSON: { "candidates": [ { "provider": "Greenhouse"|"Lever"|"Ashby"|"Breezy", "slug": string|null, "ats_url": string|null, "confidence": "high"|"medium"|"low", "reasoning": string, "evidence_type": "known_board"|"careers_page"|"company_history"|"slug_inference"|"other" } ] }`;
 
   const { parsed, usage } = await callOpenAiJson({
     apiKey: params.apiKey,
     label: `discovery:ats-resolve:${params.companyName.slice(0, 24)}`,
     systemPrompt:
-      "You identify which applicant-tracking system (if any of exactly Greenhouse, Lever, Ashby, or Breezy) a company uses, and its direct job-board URL. Never invent a URL. Never return a generic careers page as if it were an ATS board URL. Prefer \"Unknown\" over a low-confidence guess. Return STRICT JSON only.",
+      "You identify which applicant-tracking system (if any of exactly Greenhouse, Lever, Ashby, or Breezy) a company uses, and its direct job-board URL. Never invent a URL. Never return a generic careers page as if it were an ATS board URL. Your knowledge may be stale — propose ranked candidates for independent validation rather than asserting certainty. An empty candidate list is a valid answer when you have no genuine lead. Return STRICT JSON only.",
     userPrompt,
   });
 
   await logAiUsage(params.supabase, params.userId, "company_discovery_ats_resolution", "gpt-4o-mini", usage, true);
 
   const validProviders = ["Greenhouse", "Lever", "Ashby", "Breezy"];
-  const provider = validProviders.includes(parsed.ats_provider) ? parsed.ats_provider : null;
-  return {
-    provider,
-    url: typeof parsed.ats_url === "string" && parsed.ats_url.trim() ? parsed.ats_url.trim() : null,
-    slug: typeof parsed.ats_slug === "string" && parsed.ats_slug.trim() ? parsed.ats_slug.trim() : null,
-  };
+  const validEvidenceTypes: AiAtsEvidenceType[] = ["known_board", "careers_page", "company_history", "slug_inference", "other"];
+
+  const candidates: AiAtsRankedCandidate[] = Array.isArray(parsed.candidates)
+    ? parsed.candidates
+        .filter((c: any) => c && validProviders.includes(c.provider))
+        .slice(0, 3)
+        .map((c: any) => ({
+          provider: c.provider,
+          slug: typeof c.slug === "string" && c.slug.trim() ? c.slug.trim() : null,
+          ats_url: typeof c.ats_url === "string" && c.ats_url.trim() ? c.ats_url.trim() : null,
+          confidence: (["high", "medium", "low"] as const).includes(c.confidence) ? c.confidence : "low",
+          reasoning: typeof c.reasoning === "string" ? c.reasoning.slice(0, 300) : "",
+          evidence_type: validEvidenceTypes.includes(c.evidence_type) ? c.evidence_type : "other",
+        }))
+    : [];
+
+  return candidates;
 }
 
 // ----------------------------------------------------------------------------

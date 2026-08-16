@@ -429,6 +429,97 @@ describe("computeCompanyOpportunityScore", () => {
     expect(result.score).toBeGreaterThanOrEqual(0);
   });
 
+
+  it("renormalizes observable evidence for a cold-start company instead of penalizing missing history", () => {
+    const result = computeCompanyOpportunityScore({
+      roleRelevance: evaluateRoleRelevance([
+        "Business Analyst",
+        "Customer Success Manager",
+        "Operations Coordinator",
+      ]),
+      remoteEligibility: {
+        eligibilityClass: "us_confirmed",
+        confidence: "high",
+      },
+      compensationQualityRatio: 1,
+      eligibleJobCount: 15,
+      growthSignal: null,
+      avgJobQuality: null,
+      applicationCount: 0,
+      responseCount: 0,
+      interviewCount: 0,
+      atsReliability: 100,
+      daysSinceLastJobSeen: 0,
+    });
+
+    expect(result.score).toBeGreaterThanOrEqual(90);
+    expect(statusForOpportunityScore(result.score, false)).toBe("HIGH_PRIORITY");
+
+    expect(result.usedNeutralPriorsFor).toContain(
+      "historicalJobQuality"
+    );
+  });
+
+  it("does not give weak observable evidence a free cold-start boost", () => {
+    const result = computeCompanyOpportunityScore({
+      roleRelevance: evaluateRoleRelevance([
+        "Backend Engineer",
+        "DevOps Engineer",
+      ]),
+      remoteEligibility: {
+        eligibilityClass: "us_excluded",
+        confidence: "high",
+      },
+      compensationQualityRatio: 0,
+      eligibleJobCount: 1,
+      growthSignal: null,
+      avgJobQuality: null,
+      applicationCount: 0,
+      responseCount: 0,
+      interviewCount: 0,
+      atsReliability: 50,
+      daysSinceLastJobSeen: 30,
+    });
+
+    expect(result.score).toBeLessThan(55);
+    expect(statusForOpportunityScore(result.score, true)).toBe("INACTIVE");
+  });
+
+  it("keeps the established-company full-history scoring path intact", () => {
+    const result = computeCompanyOpportunityScore({
+      roleRelevance: evaluateRoleRelevance([
+        "Business Analyst",
+        "Customer Success Manager",
+      ]),
+      remoteEligibility: {
+        eligibilityClass: "us_confirmed",
+        confidence: "high",
+      },
+      compensationQualityRatio: 0.8,
+      eligibleJobCount: 10,
+      growthSignal: 75,
+      avgJobQuality: 85,
+      applicationCount: 10,
+      responseCount: 4,
+      interviewCount: 2,
+      atsReliability: 90,
+      daysSinceLastJobSeen: 2,
+    });
+
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+
+    expect(result.usedNeutralPriorsFor).not.toContain(
+      "historicalJobQuality"
+    );
+    expect(result.usedNeutralPriorsFor).not.toContain(
+      "responseRate"
+    );
+    expect(result.usedNeutralPriorsFor).not.toContain(
+      "interviewConversion"
+    );
+  });
+
   it("has no output field that touches job-level scoring — result shape is score/breakdown/usedNeutralPriorsFor only", () => {
     const result = computeCompanyOpportunityScore({
       roleRelevance: null,
@@ -546,6 +637,59 @@ describe("evaluateRoleRelevance", () => {
     const r = evaluateRoleRelevance(["Senior Backend Engineer", "iOS Developer", "Sales Executive"]);
     expect(r.relevant).toBe(false);
     expect(r.matchedCategories).toEqual([]);
+  });
+
+  it("reports matching job count and total jobs in addition to match rate", () => {
+    const r = evaluateRoleRelevance([
+      "Business Analyst",
+      "Customer Success Manager",
+      "Backend Engineer",
+      "Account Executive",
+    ]);
+
+    expect(r.matchedJobCount).toBe(2);
+    expect(r.totalJobs).toBe(4);
+    expect(r.matchRate).toBeCloseTo(0.5, 5);
+  });
+
+  it("recognizes substantial absolute role availability at a diversified large employer", () => {
+    const titles = [
+      ...Array.from({ length: 19 }, (_, i) =>
+        i % 3 === 0
+          ? "Customer Success Manager"
+          : i % 3 === 1
+          ? "Operations Coordinator"
+          : "Project Manager"
+      ),
+      ...Array.from({ length: 177 }, () => "Software Engineer"),
+    ];
+
+    const relevance = evaluateRoleRelevance(titles);
+
+    const result = computeCompanyOpportunityScore({
+      roleRelevance: relevance,
+      remoteEligibility: {
+        eligibilityClass: "us_confirmed",
+        confidence: "high",
+      },
+      compensationQualityRatio: 0.8,
+      eligibleJobCount: 196,
+      growthSignal: null,
+      avgJobQuality: null,
+      applicationCount: 0,
+      responseCount: 0,
+      interviewCount: 0,
+      atsReliability: null,
+      daysSinceLastJobSeen: 0,
+    });
+
+    expect(relevance.matchedJobCount).toBe(19);
+    expect(relevance.matchRate).toBeCloseTo(19 / 196, 5);
+
+    // A diversified large employer with 19 relevant openings should not be
+    // treated as having nearly-zero role availability.
+    expect(result.breakdown.roleAvailability).toBeGreaterThan(10);
+    expect(result.score).toBeGreaterThanOrEqual(75);
   });
 
   it("returns not-relevant for an empty sample rather than throwing", () => {

@@ -50,6 +50,9 @@ import {
   allocateDiscoveryBudget,
   DEFAULT_DISCOVERY_MIX,
   NEUTRAL_PRIORS,
+  normalizeDomain,
+  canonicalizeCareersUrl,
+  normalizeCompanyName,
   type PopulationPriors,
   type ExpansionLevel,
 } from "../src/lib/company-discovery";
@@ -177,8 +180,50 @@ async function main() {
   }
   console.log(`Level 1 (refresh): ${refreshCandidates.length} companies processed.\n`);
 
+  function dedupeRawCandidates<T extends {
+    name: string;
+    domain_guess: string | null;
+    careers_url_guess: string | null;
+  }>(items: T[]): T[] {
+    const seenDomains = new Set<string>();
+    const seenUrls = new Set<string>();
+    const seenNames = new Set<string>();
+    const result: T[] = [];
+
+    for (const item of items) {
+      const domain = normalizeDomain(item.domain_guess);
+      const url = canonicalizeCareersUrl(item.careers_url_guess);
+      const name = normalizeCompanyName(item.name);
+
+      const duplicate =
+        (domain != null && seenDomains.has(domain)) ||
+        (url != null && seenUrls.has(url)) ||
+        (name != null && seenNames.has(name));
+
+      if (duplicate) continue;
+
+      if (domain) seenDomains.add(domain);
+      if (url) seenUrls.add(url);
+      if (name) seenNames.add(name);
+
+      result.push(item);
+    }
+
+    return result;
+  }
+
   // ---- Levels 2-6: new candidates -------------------------------------------
-  type RawCandidate = { name: string; domain_guess: string | null; careers_url_guess: string | null; discovery_level: ExpansionLevel; discovery_source: string; discovery_reason: string };
+  type RawCandidate = {
+    name: string;
+    domain_guess: string | null;
+    careers_url_guess: string | null;
+    discovery_level: ExpansionLevel;
+    discovery_source: string;
+    discovery_reason: string;
+    ats_provider_guess?: "Greenhouse" | "Lever" | "Ashby" | "Breezy" | null;
+    ats_url_guess?: string | null;
+    ats_slug_guess?: string | null;
+  };
   let candidates: RawCandidate[] = [];
 
   if (candidatesFile) {
@@ -201,15 +246,79 @@ async function main() {
           supabase, userId, apiKey: process.env.OPENAI_API_KEY!,
           brief: "SaaS and technology companies with US-remote-eligible roles in operations, business analysis, customer success, or program/project coordination — the target job categories for this tool.",
           excludeNames,
-          limit: Math.max(0, budget.newlyDiscovered),
+          // Oversample discovery. The budget controls how many candidates we
+          // evaluate, not how many possibilities the AI is allowed to surface.
+          // This gives us enough inventory to prefer supported ATS candidates
+          // while still retaining a small exploratory Unknown-ATS lane.
+          limit: Math.min(
+            25,
+            Math.max(
+              budget.newlyDiscovered,
+              Math.ceil(budget.newlyDiscovered * 2)
+            )
+          ),
         });
-        for (const c of (aiResult?.candidates ?? [])) {
-          candidates.push({
-            name: c.name, domain_guess: c.domain_guess, careers_url_guess: c.careers_url_guess,
-            discovery_level: 2, discovery_source: "ai_candidate_generation", discovery_reason: `${c.reasoning} (AI confidence: ${c.confidence})`,
+
+        const generated = (aiResult?.candidates ?? []);
+
+        // Phase 2.6 diagnostic: expose the raw AI ATS hints so we can compare
+        // what discovery proposed against what the deterministic resolver
+        // actually verified.
+        console.log("\n=== RAW AI DISCOVERY CANDIDATES ===");
+        for (const c of generated) {
+          console.log({
+            name: c.name,
+            confidence: c.confidence,
+            ats_provider_guess: c.ats_provider_guess ?? null,
+            ats_url_guess: c.ats_url_guess ?? null,
+            ats_slug_guess: c.ats_slug_guess ?? null,
+            careers_url_guess: c.careers_url_guess ?? null,
           });
         }
-        console.log(`AI candidate generation: ${aiResult?.candidates?.length ?? 0} candidates added.\n`);
+        console.log("=== END RAW AI DISCOVERY CANDIDATES ===\n");
+
+        // ATS guesses are untrusted discovery metadata. Candidate ordering
+        // should therefore follow AI company relevance/diversity rather than
+        // an unverified ATS guess. The deterministic ATS resolver below is
+        // authoritative and decides whether a company can become a source.
+        const targetCount = Math.max(0, budget.newlyDiscovered);
+
+        const selected = [];
+        const selectedNames = new Set<string>();
+
+        for (const c of generated) {
+          if (selected.length >= targetCount) break;
+
+          const key = c.name.trim().toLowerCase();
+          if (!key || selectedNames.has(key)) continue;
+
+          selected.push(c);
+          selectedNames.add(key);
+        }
+
+        for (const c of selected) {
+          candidates.push({
+            name: c.name,
+            domain_guess: c.domain_guess,
+            careers_url_guess: c.careers_url_guess,
+            discovery_level: 2,
+            discovery_source: "ai_candidate_generation",
+            discovery_reason: `${c.reasoning} (AI confidence: ${c.confidence})`,
+            ats_provider_guess: c.ats_provider_guess ?? null,
+            ats_url_guess: c.ats_url_guess ?? null,
+            ats_slug_guess: c.ats_slug_guess ?? null,
+          });
+        }
+
+        const aiAtsHintCount = generated.filter(
+          (c) => c.ats_provider_guess != null
+        ).length;
+
+        console.log(
+          `AI candidate generation: ${generated.length} generated; ` +
+          `${aiAtsHintCount} optional ATS hints; ` +
+          `${selected.length} unique candidates selected for deterministic ATS resolution.\n`
+        );
       } catch (e: any) {
         console.error(`  [isolated failure] AI candidate generation: ${e?.message ?? e}`);
       }
@@ -220,7 +329,7 @@ async function main() {
     console.log("No new-candidate source provided (--candidates-file / --use-ai) — only Level 1 refresh ran. This is expected for a first smoke-test invocation; provide one of those flags for Levels 2-6.\n");
   }
 
-  candidates = candidates.slice(0, caps.maxCandidatesEvaluatedPerRun - refreshCandidates.length);
+  candidates = dedupeRawCandidates(candidates).slice(0, caps.maxCandidatesEvaluatedPerRun - refreshCandidates.length);
 
   let remainingNewCompanySlots = caps.maxNewCompaniesValidatedPerRun;
   let remainingNewSourceSlots = caps.maxNewJobSourcesPerRun;
@@ -274,8 +383,8 @@ async function main() {
       const k = o.reject_reason ?? o.error ?? "unknown"; acc[k] = (acc[k] ?? 0) + 1; return acc;
     }, {}),
     us_remote_confirmed: outcomes.filter((o) => o.remote_eligibility_class === "us_confirmed").length,
-    us_remote_probable: outcomes.filter((o) => o.remote_eligibility_class === "global_us_eligible" || o.remote_eligibility_class === "north_america").length,
-    us_remote_unknown: outcomes.filter((o) => o.remote_eligibility_class === "unknown" || o.remote_eligibility_class === "mixed_role_dependent").length,
+    us_remote_probable: outcomes.filter((o) => o.remote_eligibility_class === "global_us_eligible" || o.remote_eligibility_class === "north_america" || o.remote_eligibility_class === "mixed_role_dependent").length,
+    us_remote_unknown: outcomes.filter((o) => o.remote_eligibility_class === "unknown").length,
     us_remote_excluded: outcomes.filter((o) => o.remote_eligibility_class === "us_excluded").length,
     proposed_new_job_sources: newSources.length,
     proposed_source_updates: outcomes.filter((o) => o.job_source_action === "would_update").length,
@@ -285,6 +394,99 @@ async function main() {
     ats_mix: outcomes.reduce((acc: Record<string, number>, o) => {
       const k = o.ats_provider ?? "none"; acc[k] = (acc[k] ?? 0) + 1; return acc;
     }, {}),
+    // Phase 2.6 v2 — ATS Resolver telemetry. Only candidates that actually
+    // reached the resolver (i.e. detectAts() reported "Unknown" on the raw
+    // careers URL) are counted here; a candidate whose raw URL was already
+    // a supported ATS board never touches the resolver at all.
+    //
+    // Phase 2.6 v2.1 adds budget-behavior aggregates (average/max attempts,
+    // how many candidates hit the cap, and per-source ATTEMPT counts — not
+    // just resolution-WIN counts — so a Dry Run report can show whether the
+    // AI-hint / career-page stages are actually being exercised, not just
+    // whether they ever won).
+    //
+    // Phase 2.6 v2.2 adds: honest unresolved-status breakdown
+    // (no_supported_ats_evidence / stale_or_inactive_company, distinct from
+    // a generic "unresolved"), win/loss attempt tallies per source
+    // (successful_attempts_by_source / failed_attempts_by_source /
+    // resolution_yield_by_source — is a stage's network cost actually
+    // earning its keep?), attempts_before_resolution (how much budget a
+    // WINNING resolution typically costs), and AI ranked-candidate funnel
+    // counts (generated -> validated -> successful).
+    ats_resolution: (() => {
+      const attempted = outcomes.filter((o) => o.ats_resolution != null);
+      const resolved = attempted.filter((o) => o.ats_resolution!.resolved);
+      const countByMethod = (methods: string[]) =>
+        attempted.filter((o) => methods.includes(o.ats_resolution!.resolutionMethod)).length;
+      const attemptCounts = attempted.map((o) => o.ats_resolution!.attemptCount);
+      const sumAttemptsBySource = (
+        tallyKey: "attemptsBySource" | "successfulAttemptsBySource" | "failedAttemptsBySource",
+        sources: Array<keyof NonNullable<CandidateOutcome["ats_resolution"]>["attemptsBySource"]>
+      ) =>
+        attempted.reduce((sum, o) => sum + sources.reduce((s, src) => s + (o.ats_resolution![tallyKey][src] ?? 0), 0), 0);
+      const sourceGroups: Record<string, Array<keyof NonNullable<CandidateOutcome["ats_resolution"]>["attemptsBySource"]>> = {
+        career_page: ["career_page_link", "career_page_redirect", "canonical_link"],
+        known_pattern: ["known_url_pattern"],
+        ai_hint: ["ai_hint_validated"],
+      };
+      const successfulAttemptsByGroup: Record<string, number> = {};
+      const failedAttemptsByGroup: Record<string, number> = {};
+      const yieldByGroup: Record<string, number | null> = {};
+      for (const [group, sources] of Object.entries(sourceGroups)) {
+        const won = sumAttemptsBySource("successfulAttemptsBySource", sources);
+        const lost = sumAttemptsBySource("failedAttemptsBySource", sources);
+        successfulAttemptsByGroup[group] = won;
+        failedAttemptsByGroup[group] = lost;
+        yieldByGroup[group] = won + lost > 0 ? Math.round((100 * won) / (won + lost)) : null;
+      }
+      const resolvedAttemptCounts = resolved.map((o) => o.ats_resolution!.attemptCount);
+      return {
+        ats_resolution_attempted_count: attempted.length,
+        ats_resolution_rate: attempted.length
+          ? Math.round((100 * resolved.length) / attempted.length)
+          : null,
+        career_page_resolution_count: countByMethod(["career_page_link", "career_page_redirect", "canonical_link"]),
+        known_pattern_resolution_count: countByMethod(["known_url_pattern"]),
+        ai_hint_resolution_count: countByMethod(["ai_hint_validated"]),
+        unresolved_count: attempted.filter((o) => o.ats_resolution!.resolutionStatus === "unresolved").length,
+        unsupported_provider_count: attempted.filter((o) => o.ats_resolution!.resolutionStatus === "unsupported_provider").length,
+        // Phase 2.6 v2.2 — honest unresolved-status breakdown.
+        no_supported_ats_evidence_count: attempted.filter((o) => o.ats_resolution!.resolutionStatus === "no_supported_ats_evidence").length,
+        stale_or_inactive_company_count: attempted.filter((o) => o.ats_resolution!.resolutionStatus === "stale_or_inactive_company").length,
+        detected_unsupported_providers: attempted.reduce((acc: Record<string, number>, o) => {
+          const p = o.ats_resolution!.detectedUnsupportedProvider;
+          if (p) acc[p] = (acc[p] ?? 0) + 1;
+          return acc;
+        }, {}),
+        detected_provider_hints: attempted.reduce((acc: Record<string, number>, o) => {
+          const p = o.ats_resolution!.detectedProviderHint;
+          if (p) acc[p] = (acc[p] ?? 0) + 1;
+          return acc;
+        }, {}),
+        // Phase 2.6 v2.1 — budget-allocation telemetry.
+        average_attempts_per_candidate: attemptCounts.length
+          ? Math.round((attemptCounts.reduce((a, b) => a + b, 0) / attemptCounts.length) * 10) / 10
+          : null,
+        max_attempts_observed: attemptCounts.length ? Math.max(...attemptCounts) : null,
+        candidates_exhausting_attempt_budget: attempted.filter(
+          (o) => o.ats_resolution!.attemptBudgetUsed >= o.ats_resolution!.attemptBudgetMax
+        ).length,
+        ai_hint_attempt_count: sumAttemptsBySource("attemptsBySource", ["ai_hint_validated"]),
+        career_page_attempt_count: sumAttemptsBySource("attemptsBySource", ["career_page_link", "career_page_redirect", "canonical_link"]),
+        known_pattern_attempt_count: sumAttemptsBySource("attemptsBySource", ["known_url_pattern"]),
+        // Phase 2.6 v2.2 — attempt economics (point 6): is each stage's
+        // network cost actually earning its keep?
+        successful_attempts_by_source: successfulAttemptsByGroup,
+        failed_attempts_by_source: failedAttemptsByGroup,
+        resolution_yield_by_source: yieldByGroup, // % of that source's attempts that actually won, per group
+        attempts_before_resolution: resolvedAttemptCounts.length
+          ? Math.round((resolvedAttemptCounts.reduce((a, b) => a + b, 0) / resolvedAttemptCounts.length) * 10) / 10
+          : null,
+        ai_candidates_generated: attempted.reduce((sum, o) => sum + o.ats_resolution!.aiCandidatesGenerated, 0),
+        ai_candidates_validated: attempted.reduce((sum, o) => sum + o.ats_resolution!.aiCandidatesValidated, 0),
+        ai_candidates_successful: attempted.reduce((sum, o) => sum + o.ats_resolution!.aiCandidatesSuccessful, 0),
+      };
+    })(),
     original_seed_escape: {
       new_candidates_from_original_seed: newCandidateOutcomes.length - escapedFromSeed.length,
       new_candidates_genuinely_new: escapedFromSeed.length,

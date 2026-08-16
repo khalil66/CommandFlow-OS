@@ -155,7 +155,7 @@ export function normalizeCompanyName(name: string | null | undefined): string | 
   const cleaned = name
     .toLowerCase()
     .replace(/[.,]/g, "")
-    .replace(/\b(inc|incorporated|corp|corporation|co|ltd|llc|plc|gmbh|sa|ag)\b\.?/g, "")
+    .replace(/\b(inc|incorporated|corp|corporation|co|ltd|llc|plc|gmbh|sa|ag|technologies|holdings)\b\.?/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
@@ -298,7 +298,7 @@ const US_EXCLUDE_PATTERNS: RegExp[] = [
 ];
 
 const US_CONFIRM_PATTERNS: RegExp[] = [
-  /\bremote\s*[-–—:]?\s*(us|u\.s\.|usa|united states)\b/i,
+  /\bremote\s*[-–—:,]?\s*(us|u\.s\.|usa|united states)\b/i,
   /\bmust be (based|located)\s+in\s+(the\s+)?(us|u\.s\.|united states)\b/i,
   /\bauthorized to work in the (us|u\.s\.|united states)\b/i,
   /\bus[- ]based\s*(only|required)?\b/i,
@@ -306,13 +306,13 @@ const US_CONFIRM_PATTERNS: RegExp[] = [
 ];
 
 const NORTH_AMERICA_PATTERNS: RegExp[] = [
-  /\bremote\s*[-–—:]?\s*(north america|na)\b/i,
+  /\bremote\s*[-–—:,]?\s*(north america|na)\b/i,
   /\b(us|u\.s\.)\s+(and|or|\/)\s+canada\b/i,
   /\bcanada\s+(and|or|\/)\s+(us|u\.s\.)\b/i,
 ];
 
 const GLOBAL_PATTERNS: RegExp[] = [
-  /\bremote\s*[-–—:]?\s*(worldwide|global|anywhere)\b/i,
+  /\bremote\s*[-–—:,]?\s*(worldwide|global|anywhere)\b/i,
   /\bwork from anywhere\b/i,
 ];
 
@@ -441,14 +441,19 @@ export function aggregateCompanyRemoteEligibility(
         confirmedResults.map((r) => r.eligibilityClass)
       );
 
-      // Preserve the exact class when all confirmed jobs agree.
-      // If confirmed jobs use different US-compatible classes
-      // (e.g. us_confirmed + north_america), eligibility varies by role.
+      // Preserve the exact class when every confirmed job agrees.
+      if (classes.size === 1) {
+        return {
+          companyClass: confirmedResults[0].eligibilityClass,
+          confidence: "high",
+          shouldDeprioritize: false,
+        };
+      }
+
+      // Different confirmed US-compatible subclasses still share the same
+      // company-level fact: every sampled role confirms a US hiring path.
       return {
-        companyClass:
-          classes.size === 1
-            ? confirmedResults[0].eligibilityClass
-            : "mixed_role_dependent",
+        companyClass: "us_confirmed",
         confidence: "high",
         shouldDeprioritize: false,
       };
@@ -520,11 +525,21 @@ const ROLE_KEYWORDS: Record<(typeof PRODUCTION_ROLE_CATEGORIES)[number], RegExp>
 export interface RoleRelevanceResult {
   relevant: boolean;
   matchedCategories: string[];
-  matchRate: number; // fraction of sampled titles that matched at least one category
+  matchRate: number; // fraction of titles that matched at least one category
+  matchedJobCount: number; // number of titles matching at least one production category
+  totalJobs: number; // total titles evaluated
 }
 
 export function evaluateRoleRelevance(jobTitles: string[]): RoleRelevanceResult {
-  if (jobTitles.length === 0) return { relevant: false, matchedCategories: [], matchRate: 0 };
+  if (jobTitles.length === 0) {
+    return {
+      relevant: false,
+      matchedCategories: [],
+      matchRate: 0,
+      matchedJobCount: 0,
+      totalJobs: 0,
+    };
+  }
 
   const matched = new Set<string>();
   let matchingTitles = 0;
@@ -543,7 +558,18 @@ export function evaluateRoleRelevance(jobTitles: string[]): RoleRelevanceResult 
     relevant: matched.size > 0,
     matchedCategories: Array.from(matched),
     matchRate,
+    matchedJobCount: matchingTitles,
+    totalJobs: jobTitles.length,
   };
+}
+
+/**
+ * True when a single job title matches at least one CommandFlow production
+ * role category. Reuses the exact same category logic as evaluateRoleRelevance
+ * so compensation/scoring cannot drift from role relevance.
+ */
+export function isProductionRoleTitle(title: string): boolean {
+  return evaluateRoleRelevance([title]).relevant;
 }
 
 // ----------------------------------------------------------------------------
@@ -568,9 +594,9 @@ export interface OpportunityScoreInputs {
   roleRelevance: RoleRelevanceResult | null;
   // 15% — US-remote compatibility
   remoteEligibility: { eligibilityClass: RemoteEligibilityClass; confidence: "high" | "medium" | "low" } | null;
-  // 15% — compensation quality: fraction of sampled postings meeting/exceeding SALARY_FLOOR (0-1), or null if unknown
+  // 15% — compensation quality: fraction of relevant salary-known postings meeting/exceeding SALARY_FLOOR (0-1), or null if unknown
   compensationQualityRatio: number | null;
-  // 10% — hiring activity: eligible_job_count on the company row
+  // 10% — hiring activity: count of currently-open postings matching CommandFlow production role categories
   eligibleJobCount: number | null;
   // 10% — growth signal: 0-100 if available (from AI/company size trend), else null for neutral prior
   growthSignal: number | null;
@@ -635,7 +661,23 @@ export function computeCompanyOpportunityScore(
   const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
   const roleAvailability = i.roleRelevance
-    ? clamp(i.roleRelevance.matchRate * 100)
+    ? (() => {
+        // Availability is both breadth AND actual opportunity volume.
+        //
+        // Ratio prevents large employers from winning purely through size.
+        // Count prevents large employers with many genuinely relevant roles
+        // from being penalized because they also hire heavily in other areas.
+        //
+        // Ten relevant postings is treated as full absolute availability;
+        // additional matching jobs do not increase the score further.
+        const ratioScore = clamp(i.roleRelevance.matchRate * 100);
+        const countScore = clamp(i.roleRelevance.matchedJobCount * 10);
+
+        return clamp(
+          ratioScore * 0.5 +
+          countScore * 0.5
+        );
+      })()
     : (usedNeutralPriorsFor.push("roleAvailability"), 40);
 
   const usRemoteCompat = (() => {
@@ -646,7 +688,11 @@ export function computeCompanyOpportunityScore(
     if (eligibilityClass === "us_confirmed") return 100;
     if (eligibilityClass === "global_us_eligible") return 90;
     if (eligibilityClass === "north_america") return 80;
-    if (eligibilityClass === "mixed_role_dependent") return 50;
+    // High-confidence mixed means the company has at least one explicitly
+    // US-compatible hiring path, while other roles may be geo-restricted or
+    // unknown. Strong sourcing signal, but individual jobs must still pass
+    // their own eligibility gates.
+    if (eligibilityClass === "mixed_role_dependent") return 80;
     usedNeutralPriorsFor.push("usRemoteCompat");
     return 40;
   })();
@@ -698,8 +744,58 @@ export function computeCompanyOpportunityScore(
     careerPageFreshness: careerPageFreshness * OPPORTUNITY_WEIGHTS.careerPageFreshness,
   };
 
-  const score = clamp(Object.values(breakdown).reduce((a, b) => a + b, 0));
-  return { score: Math.round(score * 100) / 100, breakdown, usedNeutralPriorsFor };
+  const rawScore = Object.values(breakdown).reduce((a, b) => a + b, 0);
+
+  // Cold-start companies have no application history yet. Do not make
+  // historical factors act as a permanent score penalty before we've had
+  // an opportunity to apply to the company.
+  //
+  // For companies below HISTORY_MIN_APPLICATIONS, score only factors backed
+  // by currently observable evidence and renormalize their active weights
+  // to a 0-100 scale.
+  //
+  // Established companies continue to use the original full 10-factor
+  // weighted model unchanged.
+  let score: number;
+
+  if (!hasHistory) {
+    const activeFactors: Array<[keyof typeof OPPORTUNITY_WEIGHTS, boolean]> = [
+      ["roleAvailability", i.roleRelevance != null],
+      ["usRemoteCompat", i.remoteEligibility != null],
+      ["compensationQuality", i.compensationQualityRatio != null],
+      ["hiringActivity", i.eligibleJobCount != null],
+      ["companyGrowth", i.growthSignal != null],
+      ["atsReliability", i.atsReliability != null],
+      ["careerPageFreshness", i.daysSinceLastJobSeen != null],
+    ];
+
+    const activeWeight = activeFactors.reduce(
+      (sum, [factor, active]) =>
+        sum + (active ? OPPORTUNITY_WEIGHTS[factor] : 0),
+      0
+    );
+
+    const activeScore = activeFactors.reduce(
+      (sum, [factor, active]) =>
+        sum + (active ? breakdown[factor] : 0),
+      0
+    );
+
+    // If absolutely no current evidence exists, preserve the legacy
+    // prior-based result rather than manufacturing a score from zero weight.
+    score =
+      activeWeight > 0
+        ? clamp(activeScore / activeWeight)
+        : clamp(rawScore);
+  } else {
+    score = clamp(rawScore);
+  }
+
+  return {
+    score: Math.round(score * 100) / 100,
+    breakdown,
+    usedNeutralPriorsFor,
+  };
 }
 
 /** Maps a score to a discovery_status band — used after scoring, before dedup/upsert. */

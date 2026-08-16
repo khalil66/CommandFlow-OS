@@ -48,6 +48,7 @@ import {
   classifyRemoteEligibility,
   aggregateCompanyRemoteEligibility,
   evaluateRoleRelevance,
+  isProductionRoleTitle,
   isDiscoverySupportedAts,
   computeCompanyOpportunityScore,
   statusForOpportunityScore,
@@ -78,6 +79,8 @@ export interface CandidateOutcome {
   outcome: "would_create" | "would_update" | "created" | "updated" | "refreshed" | "rejected" | "error";
   discovery_status: CompanyDiscoveryStatus | null;
   opportunity_score: number | null;
+  opportunity_breakdown?: Record<string, number> | null;
+  opportunity_neutral_priors?: string[] | null;
   remote_eligibility_class: string | null;
   matched_existing_company_id: string | null;
   matched_by: string | null;
@@ -115,6 +118,125 @@ const RunScoutInput = z.object({
 });
 
 const SAMPLE_JOBS_PER_CANDIDATE = 5;
+
+function dedupeRawCandidates<T extends {
+  name: string;
+  domain_guess: string | null;
+  careers_url_guess: string | null;
+}>(items: T[]): T[] {
+  const seenDomains = new Set<string>();
+  const seenUrls = new Set<string>();
+  const seenNames = new Set<string>();
+  const result: T[] = [];
+
+  for (const item of items) {
+    const domain = normalizeDomain(item.domain_guess);
+    const url = canonicalizeCareersUrl(item.careers_url_guess);
+    const name = normalizeCompanyName(item.name);
+
+    const duplicate =
+      (domain != null && seenDomains.has(domain)) ||
+      (url != null && seenUrls.has(url)) ||
+      (name != null && seenNames.has(name));
+
+    if (duplicate) continue;
+
+    if (domain) seenDomains.add(domain);
+    if (url) seenUrls.add(url);
+    if (name) seenNames.add(name);
+
+    result.push(item);
+  }
+
+  return result;
+}
+
+function remoteEligibilitySampleScore(job: NormJob): number {
+  // Sampling should be location-first. Full job descriptions frequently
+  // contain US legal/pay/equal-opportunity boilerplate even for roles whose
+  // actual location is Italy, India, Germany, etc.
+  const location = `${job.location ?? ""}`.toLowerCase();
+  const description = `${job.description_text ?? ""}`.toLowerCase();
+
+  let score = 0;
+
+  // Strongest evidence: the posting's structured/display location itself.
+  if (/\bremote\b/.test(location)) score += 5;
+
+  if (/\b(united states|u\.s\.|usa|us-based|u\.s\.-based)\b/i.test(location)) {
+    score += 12;
+  }
+
+  if (/\bnorth america\b/i.test(location)) {
+    score += 10;
+  }
+
+  if (/\bremote[-,\s]*(us|usa|united states)\b/i.test(location)) {
+    score += 15;
+  }
+
+  // Global/worldwide location wording can be useful, but is weaker than
+  // explicit US/North-America evidence.
+  if (/\b(worldwide|global)\b/i.test(location)) {
+    score += 4;
+  }
+
+  // Description evidence is deliberately weak. It can break ties but cannot
+  // overpower an explicitly foreign structured location.
+  const explicitlyForeignLocation =
+    /\b(italy|india|germany|ireland|spain|france|brazil|mexico|australia|united kingdom|uk|uae|ksa|austria|netherlands|poland|japan)\b/i.test(
+      location
+    ) &&
+    !/\b(united states|u\.s\.|usa|north america)\b/i.test(location);
+
+  if (!explicitlyForeignLocation) {
+    if (/\bremote\b/i.test(description)) score += 1;
+    if (/\bnorth america\b/i.test(description)) score += 2;
+    if (
+      /\b(remote[-,\s]*(us|usa|united states)|must be based in the united states|us-based|u\.s\.-based)\b/i.test(
+        description
+      )
+    ) {
+      score += 3;
+    }
+  }
+
+  return score;
+}
+
+function selectRemoteEligibilitySample(
+  jobs: NormJob[],
+  limit = SAMPLE_JOBS_PER_CANDIDATE
+): NormJob[] {
+  return [...jobs]
+    .map((job, index) => ({
+      job,
+      index,
+      score: remoteEligibilitySampleScore(job),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, limit)
+    .map((x) => x.job);
+}
+
+/**
+ * Company-level remote evidence should inspect the complete ATS feed.
+ *
+ * This does NOT weaken job-level eligibility. It only answers whether the
+ * employer has at least one explicitly confirmed US-compatible hiring path.
+ *
+ * Individual jobs must still pass their own eligibility checks before
+ * application / Auto Apply.
+ */
+function analyzeCompanyRemoteEligibility(jobs: NormJob[]) {
+  const results = jobs.map((job) =>
+    classifyRemoteEligibility(
+      `${job.location ?? ""} ${job.description_text ?? ""}`
+    )
+  );
+
+  return aggregateCompanyRemoteEligibility(results);
+}
 
 // ----------------------------------------------------------------------------
 // Population priors — cold-start-safe medians from the user's own history.
@@ -260,7 +382,21 @@ export async function processCandidate(params: {
         careersUrl = resolution.careersUrl;
         outcome.careers_url = careersUrl;
       } else {
-        outcome.reject_reason = `unsupported_ats:${det.platform}`;
+        // Preserve the resolver's more specific finding (Phase 2.6 v2.2)
+        // rather than always reporting the generic "Unknown" it started
+        // from: a recognized-but-unsupported ATS keeps the specific
+        // provider name; a careers page that redirected to a dead end, or
+        // one that was fetched but showed no ATS evidence at all, gets its
+        // own honest reject reason instead of being lumped in with every
+        // other Unknown.
+        outcome.reject_reason =
+          resolution.resolutionStatus === "unsupported_provider"
+            ? `unsupported_ats:${resolution.detectedUnsupportedProvider ?? det.platform}`
+            : resolution.resolutionStatus === "stale_or_inactive_company"
+            ? "stale_or_inactive_company"
+            : resolution.resolutionStatus === "no_supported_ats_evidence"
+            ? "no_supported_ats_evidence"
+            : `unsupported_ats:${det.platform}`;
         return outcome;
       }
     } else {
@@ -289,14 +425,14 @@ export async function processCandidate(params: {
     return outcome;
   }
 
-  const sample = jobs.slice(0, SAMPLE_JOBS_PER_CANDIDATE);
+  const sample = selectRemoteEligibilitySample(jobs);
 
   // ---- REMOTE-ELIGIBILITY ANALYSIS ----
   outcome.stage_reached = "remote_eligibility";
-  const perJobEligibility = sample.map((j) =>
-    classifyRemoteEligibility(`${j.location ?? ""} ${j.description_text}`)
-  );
-  const aggregate = aggregateCompanyRemoteEligibility(perJobEligibility);
+  // Company-level eligibility scans the complete ATS feed so a valid
+  // US hiring path is not missed merely because it fell outside the small
+  // prioritized sample.
+  const aggregate = analyzeCompanyRemoteEligibility(jobs);
   outcome.remote_eligibility_class = aggregate.companyClass;
   const usExcluded = aggregate.companyClass === "us_excluded";
   const companyUsRemoteCapable =
@@ -310,17 +446,36 @@ export async function processCandidate(params: {
 
   // ---- ROLE-RELEVANCE ANALYSIS ----
   outcome.stage_reached = "role_relevance";
-  const roleRelevance = evaluateRoleRelevance(sample.map((j) => j.title));
+  const roleRelevance = evaluateRoleRelevance(jobs.map((j) => j.title));
 
   // ---- COMPANY OPPORTUNITY SCORING ----
   outcome.stage_reached = "opportunity_scoring";
-  const compensationHits = sample.filter((j) => (j.salary_min ?? 0) >= SALARY_FLOOR).length;
+  // Compensation is evaluated only across jobs that:
+  //   1. match CommandFlow's target role categories, and
+  //   2. expose usable salary information.
+  //
+  // Remote-eligibility sampling is intentionally separate; a five-job remote
+  // evidence sample should not determine company compensation quality.
+  const relevantSalaryJobs = jobs.filter(
+    (j) =>
+      isProductionRoleTitle(j.title) &&
+      j.salary_min != null
+  );
+
+  const compensationHits = relevantSalaryJobs.filter(
+    (j) => (j.salary_min ?? 0) >= SALARY_FLOOR
+  ).length;
   const scoreResult = computeCompanyOpportunityScore(
     {
       roleRelevance,
       remoteEligibility: { eligibilityClass: aggregate.companyClass, confidence: aggregate.confidence },
-      compensationQualityRatio: sample.length ? compensationHits / sample.length : null,
-      eligibleJobCount: jobs.length,
+      compensationQualityRatio:
+        relevantSalaryJobs.length
+          ? compensationHits / relevantSalaryJobs.length
+          : null,
+      // Hiring activity should represent opportunities relevant to the
+      // CommandFlow target-role universe, not the employer's entire ATS feed.
+      eligibleJobCount: roleRelevance.matchedJobCount,
       growthSignal: null, // neutral prior — no AI growth-signal call in this phase; see Known Limitations
       avgJobQuality: null,
       applicationCount: 0, // brand-new candidate — always cold-start
@@ -332,6 +487,8 @@ export async function processCandidate(params: {
     priors
   );
   outcome.opportunity_score = scoreResult.score;
+  outcome.opportunity_breakdown = scoreResult.breakdown;
+  outcome.opportunity_neutral_priors = scoreResult.usedNeutralPriorsFor;
   const discoveryStatus = statusForOpportunityScore(scoreResult.score, usExcluded);
   outcome.discovery_status = discoveryStatus;
 
@@ -377,7 +534,7 @@ export async function processCandidate(params: {
     career_page_active: true,
     last_job_seen_at: new Date().toISOString(),
     last_checked_at: new Date().toISOString(),
-    eligible_job_count: jobs.length,
+    eligible_job_count: roleRelevance.matchedJobCount,
     company_opportunity_score: scoreResult.score,
     discovery_status: discoveryStatus,
     discovery_source: candidate.discovery_source,
@@ -532,9 +689,9 @@ export async function refreshExistingCompany(params: {
     return outcome;
   }
 
-  const sample = jobs.slice(0, SAMPLE_JOBS_PER_CANDIDATE);
-  const perJobEligibility = sample.map((j) => classifyRemoteEligibility(`${j.location ?? ""} ${j.description_text}`));
-  const aggregate = aggregateCompanyRemoteEligibility(perJobEligibility);
+  const sample = selectRemoteEligibilitySample(jobs);
+  // Refresh path uses the same full-feed company-level evidence scan.
+  const aggregate = analyzeCompanyRemoteEligibility(jobs);
   outcome.remote_eligibility_class = aggregate.companyClass;
   const usExcluded = aggregate.companyClass === "us_excluded";
   const companyUsRemoteCapable =
@@ -545,15 +702,34 @@ export async function refreshExistingCompany(params: {
       aggregate.companyClass === "north_america" ||
       aggregate.companyClass === "mixed_role_dependent"
     );
-  const roleRelevance = evaluateRoleRelevance(sample.map((j) => j.title));
-  const compensationHits = sample.filter((j) => (j.salary_min ?? 0) >= SALARY_FLOOR).length;
+  const roleRelevance = evaluateRoleRelevance(jobs.map((j) => j.title));
+  // Compensation is evaluated only across jobs that:
+  //   1. match CommandFlow's target role categories, and
+  //   2. expose usable salary information.
+  //
+  // Remote-eligibility sampling is intentionally separate; a five-job remote
+  // evidence sample should not determine company compensation quality.
+  const relevantSalaryJobs = jobs.filter(
+    (j) =>
+      isProductionRoleTitle(j.title) &&
+      j.salary_min != null
+  );
+
+  const compensationHits = relevantSalaryJobs.filter(
+    (j) => (j.salary_min ?? 0) >= SALARY_FLOOR
+  ).length;
 
   const scoreResult = computeCompanyOpportunityScore(
     {
       roleRelevance,
       remoteEligibility: { eligibilityClass: aggregate.companyClass, confidence: aggregate.confidence },
-      compensationQualityRatio: sample.length ? compensationHits / sample.length : null,
-      eligibleJobCount: jobs.length,
+      compensationQualityRatio:
+        relevantSalaryJobs.length
+          ? compensationHits / relevantSalaryJobs.length
+          : null,
+      // Hiring activity should represent opportunities relevant to the
+      // CommandFlow target-role universe, not the employer's entire ATS feed.
+      eligibleJobCount: roleRelevance.matchedJobCount,
       growthSignal: null,
       avgJobQuality: company.avg_job_quality ?? null,
       applicationCount: company.application_count ?? 0,
@@ -565,11 +741,13 @@ export async function refreshExistingCompany(params: {
     priors
   );
   outcome.opportunity_score = scoreResult.score;
+  outcome.opportunity_breakdown = scoreResult.breakdown;
+  outcome.opportunity_neutral_priors = scoreResult.usedNeutralPriorsFor;
   const discoveryStatus = statusForOpportunityScore(scoreResult.score, usExcluded);
   outcome.discovery_status = discoveryStatus;
 
   const updatePayload = {
-    eligible_job_count: jobs.length,
+    eligible_job_count: roleRelevance.matchedJobCount,
     company_opportunity_score: scoreResult.score,
     discovery_status: discoveryStatus,
     us_remote_allowed: companyUsRemoteCapable,
@@ -748,7 +926,21 @@ export const runCompanyScout = createServerFn({ method: "POST" })
       for (const b of activeBriefs) {
         try {
           const result = await generateCandidateCompanies({
-            supabase, userId, apiKey, brief: b.brief, excludeNames, limit: perLevelSlots,
+            supabase,
+            userId,
+            apiKey,
+            brief: b.brief,
+            excludeNames,
+            // Oversample the discovery pool so ATS-aware prioritization has
+            // enough inventory to choose from. Evaluation safety caps remain
+            // unchanged; this only increases candidate possibilities.
+            limit: Math.min(
+              25,
+              Math.max(
+                perLevelSlots,
+                Math.ceil(perLevelSlots * 2)
+              )
+            ),
           });
           levelsRun.add(b.level);
           for (const c of result.candidates) {
@@ -802,7 +994,80 @@ export const runCompanyScout = createServerFn({ method: "POST" })
       }
     }
 
-    rawCandidates = rawCandidates.slice(0, newCandidateSlots);
+    // ------------------------------------------------------------------------
+    // Candidate-pool prioritization.
+    //
+    // AI discovery is intentionally broader than the number of companies we
+    // can evaluate in one run. Prefer candidates carrying a supported-ATS hint
+    // while preserving an exploration lane for Unknown ATS companies.
+    //
+    // IMPORTANT:
+    // These ATS fields remain UNTRUSTED hints. processCandidate() / the ATS
+    // resolver still independently verifies the endpoint before a company can
+    // become an active source.
+    // ------------------------------------------------------------------------
+    const dedupedRawCandidates = dedupeRawCandidates(rawCandidates);
+
+    const hasSupportedAtsHint = (c: RawCandidate) =>
+      c.ats_provider_guess === "Greenhouse" ||
+      c.ats_provider_guess === "Lever" ||
+      c.ats_provider_guess === "Ashby" ||
+      c.ats_provider_guess === "Breezy";
+
+    const supportedCandidates = dedupedRawCandidates.filter(hasSupportedAtsHint);
+    const exploratoryCandidates = dedupedRawCandidates.filter(
+      (c) => !hasSupportedAtsHint(c)
+    );
+
+    const targetCandidateCount = Math.max(0, newCandidateSlots);
+
+    // Preserve approximately 20% of evaluation capacity for long-tail
+    // discovery. At least one exploratory candidate survives whenever there
+    // is candidate capacity and exploratory inventory exists.
+    const exploratoryTarget =
+      targetCandidateCount > 0 && exploratoryCandidates.length > 0
+        ? Math.max(1, Math.floor(targetCandidateCount * 0.2))
+        : 0;
+
+    const supportedTarget = Math.max(
+      0,
+      targetCandidateCount - exploratoryTarget
+    );
+
+    const selectedRawCandidates: RawCandidate[] = [
+      ...supportedCandidates.slice(0, supportedTarget),
+      ...exploratoryCandidates.slice(0, exploratoryTarget),
+    ];
+
+    // Backfill if either bucket could not fill its allocation. This guarantees
+    // we do not waste available evaluation capacity simply because one side of
+    // the supported/exploratory split was undersupplied.
+    const selectedKeys = new Set(
+      selectedRawCandidates.map(
+        (c) =>
+          normalizeDomain(c.domain_guess) ??
+          canonicalizeCareersUrl(c.careers_url_guess) ??
+          normalizeCompanyName(c.name) ??
+          c.name.toLowerCase().trim()
+      )
+    );
+
+    for (const candidate of dedupedRawCandidates) {
+      if (selectedRawCandidates.length >= targetCandidateCount) break;
+
+      const key =
+        normalizeDomain(candidate.domain_guess) ??
+        canonicalizeCareersUrl(candidate.careers_url_guess) ??
+        normalizeCompanyName(candidate.name) ??
+        candidate.name.toLowerCase().trim();
+
+      if (selectedKeys.has(key)) continue;
+
+      selectedRawCandidates.push(candidate);
+      selectedKeys.add(key);
+    }
+
+    rawCandidates = selectedRawCandidates;
 
     // ---- Process each new candidate through NORMALIZATION → JOB_SOURCE UPSERT ----
     for (const rc of rawCandidates) {
