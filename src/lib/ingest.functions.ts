@@ -353,11 +353,31 @@ export async function runImportJobsPipeline(params: RunImportJobsPipelineParams)
           console.log(`[ingest] ${src.name} (${det.platform}) fetched=${jobs.length}`);
 
           // Ensure company row exists + run trust verification
+          //
+          // Phase 3.2, Step 12: prefer job_sources.company_id (set by
+          // Company Scout, Phase 3.1) when present — a direct id lookup,
+          // still scoped to this user, so a source's linkage is never
+          // trusted across users even if it were ever corrupted. Falls back
+          // to the pre-existing name-based lookup when company_id is null
+          // (every source created before Phase 3.1) OR when the linked id
+          // no longer resolves (e.g. a rare cross-user mismatch) — same
+          // fallback behavior as every source has always had, so historical
+          // sources are unaffected either way.
           let companyId: string | null = null;
           {
-            const { data: existing } = await supabase.from("companies")
-              .select("id, trust_score, verification_status")
-              .eq("user_id", userId).eq("name", src.name).maybeSingle();
+            let existing: { id: string; trust_score: any; verification_status: any } | null = null;
+            if (src.company_id) {
+              const { data: byId } = await supabase.from("companies")
+                .select("id, trust_score, verification_status")
+                .eq("user_id", userId).eq("id", src.company_id).maybeSingle();
+              existing = byId ?? null;
+            }
+            if (!existing) {
+              const { data: byName } = await supabase.from("companies")
+                .select("id, trust_score, verification_status")
+                .eq("user_id", userId).eq("name", src.name).maybeSingle();
+              existing = byName ?? null;
+            }
             if (existing) {
               companyId = existing.id;
             } else {

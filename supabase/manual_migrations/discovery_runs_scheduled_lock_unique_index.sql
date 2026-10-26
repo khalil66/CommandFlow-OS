@@ -1,0 +1,57 @@
+-- Phase 3.2 hardening — atomic scheduler lock claim: the actual
+-- enforcement mechanism. HAND-RUN ONLY. Do not add this file to
+-- supabase/migrations/ and do not run it via `supabase migration up` /
+-- `db push` — see the explanation below.
+--
+-- STATUS: PREPARED, NOT YET APPLIED. Run manually (Supabase SQL Editor, or
+-- `psql`) only after:
+--   1. supabase/migrations/20261026025804_scheduled_lock_heartbeat_and_preflight.sql
+--      has been applied (adds heartbeat_at; its own DO block will also
+--      re-confirm no duplicate open-lock rows exist as of that moment).
+--   2. You have confirmed, right before running this statement, that no
+--      meaningful time has passed since step 1's preflight check (that
+--      check is a point-in-time snapshot, not a guarantee — see its
+--      comment). If in doubt, re-run that file's DO block by hand
+--      immediately before this statement.
+--
+-- WHY THIS IS HAND-RUN, NOT A TRACKED MIGRATION: `CREATE INDEX
+-- CONCURRENTLY` cannot run inside a transaction block, and Supabase CLI
+-- migration execution (`migration up` / `db push`) is, at best,
+-- inconsistently confirmed to support it across versions/commands (a
+-- historical bug meant it failed outright; a 2026-06-30 CLI release
+-- claims a fix for `migration up`/`down` specifically, `db push` coverage
+-- unconfirmed). Rather than depend on getting that CLI-version guess
+-- right, this statement is run directly against the database, outside
+-- migration tooling entirely — mirroring this repo's own existing
+-- convention for supabase/scheduler_setup/company_scout_schedule_pg_cron.sql.
+--
+-- THIS INDEX — NOT THE PREFLIGHT CHECK IN THE TRACKED MIGRATION — IS THE
+-- FINAL, REAL ENFORCEMENT. A preflight check run in a separate, earlier
+-- transaction can never fully close the window between "checked: no
+-- duplicates" and "index now exists" — only the index itself, once
+-- created, makes a second concurrent open-lock row for the same user
+-- physically impossible (the INSERT fails atomically with Postgres error
+-- 23505 instead of silently succeeding). DO NOT ENABLE PRODUCTION
+-- SCHEDULING (COMMAND_FLOW_SCHEDULE_ENABLED) UNTIL THIS INDEX EXISTS AND
+-- HAS BEEN VERIFIED — e.g.:
+--   SELECT indexname, indexdef FROM pg_indexes
+--     WHERE tablename = 'discovery_runs'
+--       AND indexname = 'discovery_runs_scheduled_open_lock_uidx';
+-- Confirm a row is returned AND that the index is not left in an invalid
+-- state (an interrupted CONCURRENTLY build leaves an invalid index behind
+-- rather than cleanly rolling back — see this file's own rollback for how
+-- to clear that before retrying):
+--   SELECT indexrelid::regclass, indisvalid FROM pg_index
+--     WHERE indexrelid = 'public.discovery_runs_scheduled_open_lock_uidx'::regclass;
+-- indisvalid must be TRUE.
+--
+-- SAFE / ADDITIVE: a single CREATE UNIQUE INDEX. No column, table, row, or
+-- RLS policy is altered. The partial predicate (triggered_by='scheduled'
+-- AND run_finished_at IS NULL) matches only rows the Phase 3.2 scheduler's
+-- own lock-acquire insert ever creates — verified by code review that no
+-- other insert into discovery_runs anywhere in this codebase ever writes
+-- run_finished_at: null (Company Scout's own audit-log insert always sets
+-- run_started_at and run_finished_at together, in the same statement).
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS discovery_runs_scheduled_open_lock_uidx
+  ON public.discovery_runs (user_id)
+  WHERE triggered_by = 'scheduled' AND run_finished_at IS NULL;

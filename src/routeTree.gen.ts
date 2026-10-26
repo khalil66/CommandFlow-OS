@@ -46,6 +46,7 @@ import { Route as AdminRecoveryRouteImport } from './routes/admin-recovery'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
 import { Route as ApiPublicHooksRetryQueueRouteImport } from './routes/api/public/hooks/retry-queue'
+import { Route as ApiPublicHooksCompanyScoutScheduleRouteImport } from './routes/api/public/hooks/company-scout-schedule'
 
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
@@ -233,6 +234,12 @@ const ApiPublicHooksRetryQueueRoute =
     path: '/api/public/hooks/retry-queue',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksCompanyScoutScheduleRoute =
+  ApiPublicHooksCompanyScoutScheduleRouteImport.update({
+    id: '/api/public/hooks/company-scout-schedule',
+    path: '/api/public/hooks/company-scout-schedule',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -271,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
+  '/api/public/hooks/company-scout-schedule': typeof ApiPublicHooksCompanyScoutScheduleRoute
   '/api/public/hooks/retry-queue': typeof ApiPublicHooksRetryQueueRoute
 }
 export interface FileRoutesByTo {
@@ -310,6 +318,7 @@ export interface FileRoutesByTo {
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
+  '/api/public/hooks/company-scout-schedule': typeof ApiPublicHooksCompanyScoutScheduleRoute
   '/api/public/hooks/retry-queue': typeof ApiPublicHooksRetryQueueRoute
 }
 export interface FileRoutesById {
@@ -350,6 +359,7 @@ export interface FileRoutesById {
   '/system': typeof SystemRoute
   '/tracker': typeof TrackerRoute
   '/packet/$jobId': typeof PacketJobIdRoute
+  '/api/public/hooks/company-scout-schedule': typeof ApiPublicHooksCompanyScoutScheduleRoute
   '/api/public/hooks/retry-queue': typeof ApiPublicHooksRetryQueueRoute
 }
 export interface FileRouteTypes {
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tracker'
     | '/packet/$jobId'
+    | '/api/public/hooks/company-scout-schedule'
     | '/api/public/hooks/retry-queue'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tracker'
     | '/packet/$jobId'
+    | '/api/public/hooks/company-scout-schedule'
     | '/api/public/hooks/retry-queue'
   id:
     | '__root__'
@@ -469,6 +481,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tracker'
     | '/packet/$jobId'
+    | '/api/public/hooks/company-scout-schedule'
     | '/api/public/hooks/retry-queue'
   fileRoutesById: FileRoutesById
 }
@@ -509,6 +522,7 @@ export interface RootRouteChildren {
   SystemRoute: typeof SystemRoute
   TrackerRoute: typeof TrackerRoute
   PacketJobIdRoute: typeof PacketJobIdRoute
+  ApiPublicHooksCompanyScoutScheduleRoute: typeof ApiPublicHooksCompanyScoutScheduleRoute
   ApiPublicHooksRetryQueueRoute: typeof ApiPublicHooksRetryQueueRoute
 }
 
@@ -773,6 +787,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRetryQueueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/company-scout-schedule': {
+      id: '/api/public/hooks/company-scout-schedule'
+      path: '/api/public/hooks/company-scout-schedule'
+      fullPath: '/api/public/hooks/company-scout-schedule'
+      preLoaderRoute: typeof ApiPublicHooksCompanyScoutScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -813,8 +834,20 @@ const rootRouteChildren: RootRouteChildren = {
   SystemRoute: SystemRoute,
   TrackerRoute: TrackerRoute,
   PacketJobIdRoute: PacketJobIdRoute,
+  ApiPublicHooksCompanyScoutScheduleRoute:
+    ApiPublicHooksCompanyScoutScheduleRoute,
   ApiPublicHooksRetryQueueRoute: ApiPublicHooksRetryQueueRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

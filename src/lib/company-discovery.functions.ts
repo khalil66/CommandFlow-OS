@@ -840,10 +840,18 @@ export interface RunCompanyScoutCoreParams {
   supabase: any;
   userId: string;
   data: z.infer<typeof RunScoutInput>;
+  // Phase 3.2 hardening: which caller originated this run, for
+  // discovery_runs.triggered_by attribution below. Defaults to "manual" so
+  // every existing caller (runCompanyScout's createServerFn wrapper, and
+  // the Phase 3.1 Scout->ingest handoff's default runScout closure when
+  // invoked interactively) is unaffected. Only the Phase 3.2 scheduler
+  // (company-scout-schedule.functions.ts) ever passes "scheduled".
+  triggeredBy?: "manual" | "scheduled";
 }
 
 export async function runCompanyScoutCore(params: RunCompanyScoutCoreParams): Promise<ScoutRunResult> {
   const { supabase, userId, data } = params;
+  const triggeredBy = params.triggeredBy ?? "manual"; // Phase 3.2 hardening: attribution, see RunCompanyScoutCoreParams above
   {
     const startedAt = Date.now();
     const dryRun = data.dry_run;
@@ -1211,7 +1219,7 @@ export async function runCompanyScoutCore(params: RunCompanyScoutCoreParams): Pr
         run_started_at: new Date(startedAt).toISOString(),
         run_finished_at: new Date().toISOString(),
         expansion_level: levelsRun.size === 1 ? [...levelsRun][0] : null,
-        triggered_by: "manual",
+        triggered_by: triggeredBy,
         ats_provider: data.ats_provider ?? null,
         companies_found: candidateOutcomes.length,
         companies_approved: companiesValidated,

@@ -165,6 +165,88 @@ describe("I. Scout → ingest handoff", () => {
     expect(result.ingest_skipped_reason).toBeNull();
   });
 
+  describe("ownership-fencing checkpoint (Final Production Safety Corrections — OPTIONAL shouldContinue)", () => {
+    it("shouldContinue returning false immediately before ingestion skips it entirely — ingest stays null, reason is 'ownership_lost', and Scout's own result is still returned in full (not discarded)", async () => {
+      const candidates = [fakeCandidate({ name: "Acme", job_source_action: "added", job_source_id: "src-acme", ats_provider: "Greenhouse" })];
+      const runScout = vi.fn(async () => fakeScoutResult(candidates, false));
+      const shouldContinue = vi.fn(() => false);
+      const result = await runScoutAndIngestCore({
+        supabase: {}, userId: "user-1", dryRun: false, ingestAfterScout: true,
+        runScout, runIngest: NEVER_INGEST, shouldContinue,
+      });
+      expect(shouldContinue).toHaveBeenCalledTimes(1);
+      expect(result.ingest).toBeNull();
+      expect(result.ingest_skipped_reason).toBe("ownership_lost");
+      // Scout itself still ran to completion and its result is fully
+      // reported — this checkpoint never retroactively discards or
+      // rewrites what Scout already produced, it only stops ingestion
+      // (the SECOND write-producing phase) from starting.
+      expect(result.scout.companies_validated).toBe(fakeScoutResult(candidates, false).companies_validated);
+      expect(result.eligible_candidates).toHaveLength(1);
+    });
+
+    it("shouldContinue returning true behaves identically to omitting it entirely — ingestion proceeds normally", async () => {
+      const candidates = [fakeCandidate({ name: "Acme", job_source_action: "added", job_source_id: "src-acme", ats_provider: "Greenhouse" })];
+      const runScout = vi.fn(async () => fakeScoutResult(candidates, false));
+      const runIngest = vi.fn(async () => ({
+        runs: [], totals: { found: 1, imported: 1, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 }, relaxed: false,
+      } as RunImportJobsPipelineResult));
+      const shouldContinue = vi.fn(() => true);
+      const result = await runScoutAndIngestCore({
+        supabase: {}, userId: "user-1", dryRun: false, ingestAfterScout: true,
+        runScout, runIngest, shouldContinue,
+      });
+      expect(shouldContinue).toHaveBeenCalledTimes(1);
+      expect(runIngest).toHaveBeenCalledTimes(1);
+      expect(result.ingest_skipped_reason).toBeNull();
+      expect(result.ingest?.totals.imported).toBe(1);
+    });
+
+    it("every existing manual caller — which never passes shouldContinue at all — keeps ingesting exactly as before; the checkpoint is a strict no-op when the param is omitted", async () => {
+      const candidates = [fakeCandidate({ name: "Acme", job_source_action: "added", job_source_id: "src-acme", ats_provider: "Greenhouse" })];
+      const runScout = vi.fn(async () => fakeScoutResult(candidates, false));
+      const runIngest = vi.fn(async () => ({
+        runs: [], totals: { found: 1, imported: 1, duplicate: 0, skipped: 0, rejected: 0, manual_review: 0 }, relaxed: false,
+      } as RunImportJobsPipelineResult));
+      const result = await runScoutAndIngestCore({
+        supabase: {}, userId: "user-1", dryRun: false, ingestAfterScout: true,
+        runScout, runIngest, // shouldContinue intentionally omitted
+      });
+      expect(runIngest).toHaveBeenCalledTimes(1);
+      expect(result.ingest_skipped_reason).toBeNull();
+      expect(result.ingest?.totals.imported).toBe(1);
+    });
+
+    it("shouldContinue is never consulted when ingestion would already have been skipped for an unrelated reason (dry_run / not_requested / no_eligible_sources) — no pointless extra call", async () => {
+      const dryRunCandidates = [fakeCandidate({ job_source_action: "would_add", job_source_id: null })];
+      const shouldContinueA = vi.fn(() => true);
+      await runScoutAndIngestCore({
+        supabase: {}, userId: "user-1", dryRun: true, ingestAfterScout: true,
+        runScout: vi.fn(async () => fakeScoutResult(dryRunCandidates, true)), runIngest: NEVER_INGEST,
+        shouldContinue: shouldContinueA,
+      });
+      expect(shouldContinueA).not.toHaveBeenCalled();
+
+      const liveCandidates = [fakeCandidate({ job_source_action: "added", job_source_id: "src-1" })];
+      const shouldContinueB = vi.fn(() => true);
+      await runScoutAndIngestCore({
+        supabase: {}, userId: "user-1", dryRun: false, ingestAfterScout: false,
+        runScout: vi.fn(async () => fakeScoutResult(liveCandidates, false)), runIngest: NEVER_INGEST,
+        shouldContinue: shouldContinueB,
+      });
+      expect(shouldContinueB).not.toHaveBeenCalled();
+
+      const noEligibleCandidates = [fakeCandidate({ job_source_action: "skipped", job_source_id: null, ats_provider: null })];
+      const shouldContinueC = vi.fn(() => true);
+      await runScoutAndIngestCore({
+        supabase: {}, userId: "user-1", dryRun: false, ingestAfterScout: true,
+        runScout: vi.fn(async () => fakeScoutResult(noEligibleCandidates, false)), runIngest: NEVER_INGEST,
+        shouldContinue: shouldContinueC,
+      });
+      expect(shouldContinueC).not.toHaveBeenCalled();
+    });
+  });
+
   it("a candidate resolved to an unsupported/no ATS is never included in the eligible set, even if job_source_action looks otherwise eligible", async () => {
     const candidates = [fakeCandidate({ job_source_action: "added", job_source_id: "src-1", ats_provider: null })];
     const runScout = vi.fn(async () => fakeScoutResult(candidates, false));

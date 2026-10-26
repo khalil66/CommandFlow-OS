@@ -108,6 +108,9 @@ interface FakeIngestDbConfig {
   existingDedupeHashes?: Set<string>;
   applicationDedupeHashes?: Set<string>;
   existingCompaniesByName?: Map<string, { id: string; trust_score?: number; verification_status?: string }>;
+  // Phase 3.2, Step 12 — separate id-keyed lookup so tests can prove
+  // job_sources.company_id is preferred over the name-based fallback.
+  existingCompaniesById?: Map<string, { id: string; trust_score?: number; verification_status?: string }>;
   jobListingsInsertError?: (payload: any) => { code?: string; message?: string } | null;
 }
 
@@ -117,6 +120,8 @@ function createFakeIngestSupabase(config: FakeIngestDbConfig = {}) {
   const insertedImportLogs: any[] = [];
   let nextCompanyId = 1;
   const companiesByName = config.existingCompaniesByName ?? new Map();
+  const companiesById = config.existingCompaniesById ?? new Map();
+  const companiesLookupCalls: Array<{ by: "id" | "name"; value: any }> = [];
 
   function from(table: string) {
     if (table === "user_settings") {
@@ -204,21 +209,46 @@ function createFakeIngestSupabase(config: FakeIngestDbConfig = {}) {
 
     if (table === "companies") {
       return {
-        select: (_cols: string) => ({
-          eq: (_col1: string, _val1: any) => ({
-            eq: (_col2: string, nameVal: any) => ({
-              async maybeSingle() {
-                const existing = companiesByName.get(nameVal);
+        // Flexible filter accumulation (Phase 3.2, Step 12) — the real
+        // pipeline now issues TWO distinct 2-.eq() lookups against this
+        // table (id-based, when job_sources.company_id is present; name-
+        // based, as the pre-existing fallback), both always scoped by
+        // user_id first. Recording [col, val] pairs (rather than assuming
+        // position) lets this fake correctly route each lookup by which
+        // column was actually filtered on, matching the real query text.
+        select: (_cols: string) => {
+          const filters: Array<[string, any]> = [];
+          const builder: any = {
+            eq(col: string, val: any) { filters.push([col, val]); return builder; },
+            async maybeSingle() {
+              const idFilter = filters.find(([c]) => c === "id");
+              const nameFilter = filters.find(([c]) => c === "name");
+              if (idFilter) {
+                companiesLookupCalls.push({ by: "id", value: idFilter[1] });
+                const existing = companiesById.get(idFilter[1]);
+                if (existing) return { data: existing, error: null };
+                // Falls through to a name lookup only if the caller ALSO
+                // filtered by name in the same chain (it doesn't, today) —
+                // otherwise an id that doesn't resolve returns null, exactly
+                // like a real deleted/cross-user id would.
+                return { data: null, error: null };
+              }
+              if (nameFilter) {
+                companiesLookupCalls.push({ by: "name", value: nameFilter[1] });
+                const existing = companiesByName.get(nameFilter[1]);
                 return { data: existing ?? null, error: null };
-              },
-            }),
-          }),
-        }),
+              }
+              return { data: null, error: null };
+            },
+          };
+          return builder;
+        },
         insert: (payload: any) => ({
           select: (_cols: string) => ({
             async single() {
               const id = `new-company-${nextCompanyId++}`;
               companiesByName.set(payload.name, { id });
+              companiesById.set(id, { id });
               return { data: { id }, error: null };
             },
           }),
@@ -243,7 +273,7 @@ function createFakeIngestSupabase(config: FakeIngestDbConfig = {}) {
     throw new Error(`createFakeIngestSupabase: unexpected table "${table}"`);
   }
 
-  return { from, insertedJobListings, jobSourceUpdates, insertedImportLogs };
+  return { from, insertedJobListings, jobSourceUpdates, insertedImportLogs, companiesLookupCalls };
 }
 
 // A minimal, always-healthy AI health check for tests that don't care about
@@ -289,6 +319,81 @@ describe("Phase 3.1 — ingest safety contract, pinned against the real runImpor
     const result = await runImportJobsPipeline({ supabase, userId: "user-1", fetcher, openAiHealthCheck: fakeHealthyOpenAi });
     expect(fetcher).not.toHaveBeenCalled();
     expect(result.totals.rejected).toBe(1);
+  });
+});
+
+describe("M. company_id read-side lookup (Phase 3.2, Step 12)", () => {
+  const fetchableJob = (): NormJob => ({
+    external_id: "job-1", title: "Operations Analyst", location: "Remote - US",
+    description_html: "", description_text: "A".repeat(300),
+    url: "https://boards.greenhouse.io/acme/jobs/1", posted_at: new Date().toISOString(),
+    salary_min: 90000, salary_max: 110000, salary_estimated: false,
+  });
+
+  it("O. a job_source with company_id set is looked up by id, not by name — even when a differently-named company row would otherwise match by name", async () => {
+    const fetcher = vi.fn(async () => [fetchableJob()]);
+    const supabase = createFakeIngestSupabase({
+      jobSources: [
+        { id: "src-1", user_id: "user-1", name: "Acme Inc", careers_url: "https://boards.greenhouse.io/acme", ats: "Greenhouse", status: "active", company_id: "company-abc" },
+      ],
+      existingCompaniesById: new Map([["company-abc", { id: "company-abc", trust_score: 96, verification_status: "verified" }]]),
+      // A DIFFERENT company happens to be registered under this source's
+      // display name — proves the id lookup wins and the name lookup for
+      // "Acme Inc" is never even attempted.
+      existingCompaniesByName: new Map([["Acme Inc", { id: "wrong-company-by-name", trust_score: 10, verification_status: "manual_review" }]]),
+    });
+    const result = await runImportJobsPipeline({ supabase, userId: "user-1", fetcher, openAiHealthCheck: fakeHealthyOpenAi });
+    expect(supabase.companiesLookupCalls).toEqual([{ by: "id", value: "company-abc" }]);
+    expect(result.totals.imported).toBe(1);
+    expect(supabase.insertedJobListings).toHaveLength(1);
+    expect(supabase.insertedJobListings[0].company_id).toBe("company-abc");
+  });
+
+  it("P. a job_source with company_id null falls back to the existing name-based lookup — historical (pre-Phase-3.1) sources are unaffected", async () => {
+    const fetcher = vi.fn(async () => [fetchableJob()]);
+    const supabase = createFakeIngestSupabase({
+      jobSources: [
+        { id: "src-1", user_id: "user-1", name: "Acme Inc", careers_url: "https://boards.greenhouse.io/acme", ats: "Greenhouse", status: "active", company_id: null },
+      ],
+      existingCompaniesByName: new Map([["Acme Inc", { id: "company-by-name", trust_score: 96, verification_status: "verified" }]]),
+    });
+    const result = await runImportJobsPipeline({ supabase, userId: "user-1", fetcher, openAiHealthCheck: fakeHealthyOpenAi });
+    expect(supabase.companiesLookupCalls).toEqual([{ by: "name", value: "Acme Inc" }]);
+    expect(result.totals.imported).toBe(1);
+    expect(supabase.insertedJobListings).toHaveLength(1);
+    expect(supabase.insertedJobListings[0].company_id).toBe("company-by-name");
+  });
+
+  it("an invalid/deleted linked company_id (id lookup resolves to nothing) safely falls back rather than crashing — though as a NEW company, not a name re-match, since the id lookup and name lookup are not chained in the same query", async () => {
+    const fetcher = vi.fn(async () => [fetchableJob()]);
+    const supabase = createFakeIngestSupabase({
+      jobSources: [
+        { id: "src-1", user_id: "user-1", name: "Acme Inc", careers_url: "https://boards.greenhouse.io/acme", ats: "Greenhouse", status: "active", company_id: "does-not-exist" },
+      ],
+      existingCompaniesById: new Map(), // id resolves to nothing — company was deleted / never existed
+    });
+    const result = await runImportJobsPipeline({ supabase, userId: "user-1", fetcher, openAiHealthCheck: fakeHealthyOpenAi });
+    expect(supabase.companiesLookupCalls[0]).toEqual({ by: "id", value: "does-not-exist" });
+    // No crash — the pipeline still completes and inserts the job, against
+    // a freshly created company row (the pre-existing "insert if not found"
+    // path), never leaving companyId null or throwing.
+    expect(result.totals.rejected).toBe(0);
+    expect(result.totals.imported).toBe(1);
+    expect(supabase.insertedJobListings).toHaveLength(1);
+    expect(supabase.insertedJobListings[0].company_id).toMatch(/^new-company-/);
+  });
+
+  it("job_sources without a company_id column at all (undefined, not null — matches a raw select('*') on a pre-migration row) also falls back to name lookup, never throws", async () => {
+    const fetcher = vi.fn(async () => [] as NormJob[]);
+    const supabase = createFakeIngestSupabase({
+      jobSources: [
+        { id: "src-1", user_id: "user-1", name: "Acme Inc", careers_url: "https://boards.greenhouse.io/acme", ats: "Greenhouse", status: "active" }, // no company_id key
+      ],
+    });
+    await expect(
+      runImportJobsPipeline({ supabase, userId: "user-1", fetcher, openAiHealthCheck: fakeHealthyOpenAi })
+    ).resolves.toBeDefined();
+    expect(supabase.companiesLookupCalls[0]?.by).toBe("name");
   });
 });
 

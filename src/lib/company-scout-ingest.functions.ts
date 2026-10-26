@@ -35,6 +35,27 @@
 //     application creation) still requires the existing, separate Smart
 //     Apply pipeline to run, exactly as it does for every other source.
 //
+// OWNERSHIP FENCING (Phase 3.2 Final Production Safety Corrections round):
+// runScoutAndIngestCore accepts an OPTIONAL `shouldContinue` callback,
+// checked exactly once, right after Scout finishes and immediately before
+// ingestion (the second of this handoff's two write-producing phases)
+// would start. Every existing manual caller leaves this unset, so
+// `params.shouldContinue` is `undefined` and the check is skipped
+// entirely — behavior for every pre-existing caller is byte-for-byte
+// unchanged. The scheduler (company-scout-schedule.functions.ts) is the
+// only caller that passes it, wired to its own heartbeat-lease ownership
+// flag, so a run that loses its lease WHILE Scout is executing never goes
+// on to start ingestion once Scout returns.
+//
+// THIS DOES NOT, AND CANNOT, CANCEL AN ALREADY-RUNNING SCOUT CALL: Company
+// Scout itself (runScout above) exposes no cancellation token, and this
+// checkpoint is only ever consulted AFTER `await runScout(...)` has
+// already resolved — see the FENCING comment in
+// company-scout-schedule.functions.ts for the full reasoning (including
+// why a true Postgres advisory lock was considered and rejected). This
+// narrows the previously-reported fencing gap by exactly one write-
+// producing phase (ingestion); it does not close it.
+//
 // TESTABILITY: mirrors the same dependency-injection pattern Phase 3.1 used
 // for importJobsNow → runImportJobsPipeline. runScoutAndIngestCore() takes
 // `runScout`/`runIngest` as injectable params (both default to the real
@@ -86,6 +107,12 @@ export interface RunScoutAndIngestParams {
     max_new_companies_validated?: number;
     max_new_job_sources?: number;
   };
+  // Phase 3.2 hardening: forwarded as-is to runCompanyScoutCore's own
+  // discovery_runs.triggered_by attribution (see company-discovery.functions.ts).
+  // Omitted/undefined by every existing caller -> defaults to "manual" there.
+  // Only the Phase 3.2 scheduler (company-scout-schedule.functions.ts) passes
+  // "scheduled" here.
+  triggeredBy?: "manual" | "scheduled";
   // DI seams (Phase 3.1) — both default to the real production functions.
   // Tests inject fakes; production never overrides these.
   runScout?: (input: {
@@ -96,6 +123,11 @@ export interface RunScoutAndIngestParams {
     max_new_job_sources?: number;
   }) => Promise<ScoutRunResult>;
   runIngest?: typeof runImportJobsPipeline;
+  // Phase 3.2 Final Production Safety Corrections — OPTIONAL ownership-
+  // fencing checkpoint. See the OWNERSHIP FENCING note in this file's
+  // header. Omitted by every existing manual caller (undefined — no
+  // behavior change); only the scheduler passes it.
+  shouldContinue?: () => boolean;
 }
 
 export interface RunScoutAndIngestResult {
@@ -112,7 +144,11 @@ export interface RunScoutAndIngestResult {
   // True only when ingestion was both requested AND had eligible sources
   // to act on but did NOT run (e.g. dry_run=true) — lets a caller
   // distinguish "nothing to ingest" from "declined to ingest".
-  ingest_skipped_reason: "dry_run" | "not_requested" | "no_eligible_sources" | null;
+  // "ownership_lost": the optional `shouldContinue` checkpoint (see the
+  // OWNERSHIP FENCING header note) reported false immediately before
+  // ingestion would have started. Only ever possible when a caller
+  // actually passes `shouldContinue` — no existing manual caller does.
+  ingest_skipped_reason: "dry_run" | "not_requested" | "no_eligible_sources" | "ownership_lost" | null;
 }
 
 function isSupportedAtsProvider(ats: string | null): ats is (typeof SUPPORTED_ATS_PROVIDERS)[number] {
@@ -125,7 +161,7 @@ function isSupportedAtsProvider(ats: string | null): ats is (typeof SUPPORTED_AT
 export async function runScoutAndIngestCore(params: RunScoutAndIngestParams): Promise<RunScoutAndIngestResult> {
   const dryRun = params.dryRun ?? true; // default-safe: dry-run unless explicitly disabled
   const ingestAfterScout = params.ingestAfterScout ?? false; // default-safe: explicit opt-in only
-  const runScout = params.runScout ?? ((input) => runCompanyScoutCore({ supabase: params.supabase, userId: params.userId, data: input }));
+  const runScout = params.runScout ?? ((input) => runCompanyScoutCore({ supabase: params.supabase, userId: params.userId, data: input, triggeredBy: params.triggeredBy }));
   const runIngest = params.runIngest ?? runImportJobsPipeline;
 
   // ---- 1. Run Company Scout (the real, unmodified entrypoint) ----
@@ -175,6 +211,16 @@ export async function runScoutAndIngestCore(params: RunScoutAndIngestParams): Pr
   }
   if (eligibleSourceIds.length === 0) {
     return { scout: scoutResult, eligible_candidates: eligibleCandidates, ingest: null, ingest_skipped_reason: "no_eligible_sources" };
+  }
+
+  // ---- Ownership-fencing checkpoint (Phase 3.2 Final Production Safety
+  // Corrections) — see the OWNERSHIP FENCING header note. Checked exactly
+  // once, here, after Scout has already finished and immediately before
+  // the second write-producing phase (ingestion) would start. Does NOT
+  // retroactively undo anything Scout itself already wrote; Scout's own
+  // result above is still returned in full either way. ----
+  if (params.shouldContinue && !params.shouldContinue()) {
+    return { scout: scoutResult, eligible_candidates: eligibleCandidates, ingest: null, ingest_skipped_reason: "ownership_lost" };
   }
 
   const ingestResult = await runIngest({

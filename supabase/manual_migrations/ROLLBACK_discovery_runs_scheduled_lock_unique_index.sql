@@ -1,0 +1,16 @@
+-- ROLLBACK for supabase/manual_migrations/discovery_runs_scheduled_lock_unique_index.sql
+-- HAND-RUN ONLY — same reasoning as the forward statement: DROP INDEX
+-- CONCURRENTLY has the identical "cannot run inside a transaction block"
+-- restriction as CREATE INDEX CONCURRENTLY.
+--
+-- Safe/reversible: dropping an index never discards data. Also correct to
+-- run if the forward statement above failed partway through (Postgres
+-- leaves an INVALID index behind on a failed/interrupted CONCURRENTLY
+-- build, rather than cleanly rolling back) — IF NOT EXISTS plus this same
+-- statement safely clears an invalid index too, so you can always run this
+-- before retrying the forward statement after any failure.
+--
+-- After this runs, the scheduler lock has NO database-level exclusivity
+-- guarantee — only the pre-existing read-then-insert fast path remains.
+-- Do not enable production scheduling in that state.
+DROP INDEX CONCURRENTLY IF EXISTS discovery_runs_scheduled_open_lock_uidx;
