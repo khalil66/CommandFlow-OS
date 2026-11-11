@@ -128,8 +128,8 @@ export const decideApplication = createServerFn({ method: "POST" })
     // and surface the exact error so the row stays visible.
     let packetError: string | null = null;
     try {
-      const { generatePacket } = await import("./packet.functions");
-      await generatePacket({ data: { job_id: current.job_id } });
+      const { generatePacketCore } = await import("./packet-generation.server");
+      await generatePacketCore(supabase, userId, current.job_id);
     } catch (e: any) {
       packetError = e?.message ?? String(e);
     }
