@@ -9,207 +9,47 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TrackerRouteImport } from './routes/tracker'
-import { Route as SystemRouteImport } from './routes/system'
-import { Route as SourcesRouteImport } from './routes/sources'
-import { Route as SmartApplyRouteImport } from './routes/smart-apply'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SandboxRouteImport } from './routes/sandbox'
-import { Route as SafeAutoSubmitRouteImport } from './routes/safe-auto-submit'
-import { Route as ReviewRouteImport } from './routes/review'
-import { Route as ResumeVariantsRouteImport } from './routes/resume-variants'
-import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
-import { Route as ResumeRouteImport } from './routes/resume'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RecruitersRouteImport } from './routes/recruiters'
-import { Route as QueueRouteImport } from './routes/queue'
-import { Route as PortfolioRouteImport } from './routes/portfolio'
-import { Route as PipelineRouteImport } from './routes/pipeline'
-import { Route as OutcomesRouteImport } from './routes/outcomes'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as MonitoringRouteImport } from './routes/monitoring'
-import { Route as LegitimacyRouteImport } from './routes/legitimacy'
-import { Route as HighProbabilityRouteImport } from './routes/high-probability'
-import { Route as FollowUpsRouteImport } from './routes/follow-ups'
-import { Route as ExecutiveRouteImport } from './routes/executive'
-import { Route as EngagementRouteImport } from './routes/engagement'
-import { Route as DemoRouteImport } from './routes/demo'
-import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
-import { Route as CompaniesRouteImport } from './routes/companies'
-import { Route as CaseStudyRouteImport } from './routes/case-study'
-import { Route as BatchesRouteImport } from './routes/batches'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AtsRouteImport } from './routes/ats'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as AiQueueRouteImport } from './routes/ai-queue'
-import { Route as AdminRecoveryRouteImport } from './routes/admin-recovery'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRecoveryRouteImport } from './routes/admin-recovery'
+import { Route as AiQueueRouteImport } from './routes/ai-queue'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AtsRouteImport } from './routes/ats'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BatchesRouteImport } from './routes/batches'
+import { Route as CaseStudyRouteImport } from './routes/case-study'
+import { Route as CompaniesRouteImport } from './routes/companies'
+import { Route as CompanyIntelligenceRouteImport } from './routes/company-intelligence'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as EngagementRouteImport } from './routes/engagement'
+import { Route as ExecutiveRouteImport } from './routes/executive'
+import { Route as FollowUpsRouteImport } from './routes/follow-ups'
+import { Route as HighProbabilityRouteImport } from './routes/high-probability'
+import { Route as LegitimacyRouteImport } from './routes/legitimacy'
+import { Route as MonitoringRouteImport } from './routes/monitoring'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as OutcomesRouteImport } from './routes/outcomes'
+import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as PortfolioRouteImport } from './routes/portfolio'
+import { Route as QueueRouteImport } from './routes/queue'
+import { Route as RecruitersRouteImport } from './routes/recruiters'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ResumeRouteImport } from './routes/resume'
+import { Route as ResumeDiffRouteImport } from './routes/resume-diff'
+import { Route as ResumeVariantsRouteImport } from './routes/resume-variants'
+import { Route as ReviewRouteImport } from './routes/review'
+import { Route as SafeAutoSubmitRouteImport } from './routes/safe-auto-submit'
+import { Route as SandboxRouteImport } from './routes/sandbox'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SmartApplyRouteImport } from './routes/smart-apply'
+import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as SystemRouteImport } from './routes/system'
+import { Route as TrackerRouteImport } from './routes/tracker'
 import { Route as PacketJobIdRouteImport } from './routes/packet.$jobId'
 import { Route as ApiPublicHooksRetryQueueRouteImport } from './routes/api/public/hooks/retry-queue'
 
-const TrackerRoute = TrackerRouteImport.update({
-  id: '/tracker',
-  path: '/tracker',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SystemRoute = SystemRouteImport.update({
-  id: '/system',
-  path: '/system',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SourcesRoute = SourcesRouteImport.update({
-  id: '/sources',
-  path: '/sources',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SmartApplyRoute = SmartApplyRouteImport.update({
-  id: '/smart-apply',
-  path: '/smart-apply',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SandboxRoute = SandboxRouteImport.update({
-  id: '/sandbox',
-  path: '/sandbox',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SafeAutoSubmitRoute = SafeAutoSubmitRouteImport.update({
-  id: '/safe-auto-submit',
-  path: '/safe-auto-submit',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewRoute = ReviewRouteImport.update({
-  id: '/review',
-  path: '/review',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResumeVariantsRoute = ResumeVariantsRouteImport.update({
-  id: '/resume-variants',
-  path: '/resume-variants',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResumeDiffRoute = ResumeDiffRouteImport.update({
-  id: '/resume-diff',
-  path: '/resume-diff',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResumeRoute = ResumeRouteImport.update({
-  id: '/resume',
-  path: '/resume',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecruitersRoute = RecruitersRouteImport.update({
-  id: '/recruiters',
-  path: '/recruiters',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QueueRoute = QueueRouteImport.update({
-  id: '/queue',
-  path: '/queue',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortfolioRoute = PortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PipelineRoute = PipelineRouteImport.update({
-  id: '/pipeline',
-  path: '/pipeline',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OutcomesRoute = OutcomesRouteImport.update({
-  id: '/outcomes',
-  path: '/outcomes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MonitoringRoute = MonitoringRouteImport.update({
-  id: '/monitoring',
-  path: '/monitoring',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LegitimacyRoute = LegitimacyRouteImport.update({
-  id: '/legitimacy',
-  path: '/legitimacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HighProbabilityRoute = HighProbabilityRouteImport.update({
-  id: '/high-probability',
-  path: '/high-probability',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FollowUpsRoute = FollowUpsRouteImport.update({
-  id: '/follow-ups',
-  path: '/follow-ups',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutiveRoute = ExecutiveRouteImport.update({
-  id: '/executive',
-  path: '/executive',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EngagementRoute = EngagementRouteImport.update({
-  id: '/engagement',
-  path: '/engagement',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoRoute = DemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompanyIntelligenceRoute = CompanyIntelligenceRouteImport.update({
-  id: '/company-intelligence',
-  path: '/company-intelligence',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompaniesRoute = CompaniesRouteImport.update({
-  id: '/companies',
-  path: '/companies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CaseStudyRoute = CaseStudyRouteImport.update({
-  id: '/case-study',
-  path: '/case-study',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BatchesRoute = BatchesRouteImport.update({
-  id: '/batches',
-  path: '/batches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AtsRoute = AtsRouteImport.update({
-  id: '/ats',
-  path: '/ats',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AiQueueRoute = AiQueueRouteImport.update({
-  id: '/ai-queue',
-  path: '/ai-queue',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRecoveryRoute = AdminRecoveryRouteImport.update({
@@ -217,9 +57,169 @@ const AdminRecoveryRoute = AdminRecoveryRouteImport.update({
   path: '/admin-recovery',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AiQueueRoute = AiQueueRouteImport.update({
+  id: '/ai-queue',
+  path: '/ai-queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AtsRoute = AtsRouteImport.update({
+  id: '/ats',
+  path: '/ats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BatchesRoute = BatchesRouteImport.update({
+  id: '/batches',
+  path: '/batches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaseStudyRoute = CaseStudyRouteImport.update({
+  id: '/case-study',
+  path: '/case-study',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompaniesRoute = CompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompanyIntelligenceRoute = CompanyIntelligenceRouteImport.update({
+  id: '/company-intelligence',
+  path: '/company-intelligence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EngagementRoute = EngagementRouteImport.update({
+  id: '/engagement',
+  path: '/engagement',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutiveRoute = ExecutiveRouteImport.update({
+  id: '/executive',
+  path: '/executive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FollowUpsRoute = FollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HighProbabilityRoute = HighProbabilityRouteImport.update({
+  id: '/high-probability',
+  path: '/high-probability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegitimacyRoute = LegitimacyRouteImport.update({
+  id: '/legitimacy',
+  path: '/legitimacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitoringRoute = MonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutcomesRoute = OutcomesRouteImport.update({
+  id: '/outcomes',
+  path: '/outcomes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelineRoute = PipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioRoute = PortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueueRoute = QueueRouteImport.update({
+  id: '/queue',
+  path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruitersRoute = RecruitersRouteImport.update({
+  id: '/recruiters',
+  path: '/recruiters',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeRoute = ResumeRouteImport.update({
+  id: '/resume',
+  path: '/resume',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeDiffRoute = ResumeDiffRouteImport.update({
+  id: '/resume-diff',
+  path: '/resume-diff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeVariantsRoute = ResumeVariantsRouteImport.update({
+  id: '/resume-variants',
+  path: '/resume-variants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SafeAutoSubmitRoute = SafeAutoSubmitRouteImport.update({
+  id: '/safe-auto-submit',
+  path: '/safe-auto-submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxRoute = SandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SmartApplyRoute = SmartApplyRouteImport.update({
+  id: '/smart-apply',
+  path: '/smart-apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackerRoute = TrackerRouteImport.update({
+  id: '/tracker',
+  path: '/tracker',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PacketJobIdRoute = PacketJobIdRouteImport.update({
@@ -514,235 +514,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/tracker': {
-      id: '/tracker'
-      path: '/tracker'
-      fullPath: '/tracker'
-      preLoaderRoute: typeof TrackerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/system': {
-      id: '/system'
-      path: '/system'
-      fullPath: '/system'
-      preLoaderRoute: typeof SystemRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sources': {
-      id: '/sources'
-      path: '/sources'
-      fullPath: '/sources'
-      preLoaderRoute: typeof SourcesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/smart-apply': {
-      id: '/smart-apply'
-      path: '/smart-apply'
-      fullPath: '/smart-apply'
-      preLoaderRoute: typeof SmartApplyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sandbox': {
-      id: '/sandbox'
-      path: '/sandbox'
-      fullPath: '/sandbox'
-      preLoaderRoute: typeof SandboxRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/safe-auto-submit': {
-      id: '/safe-auto-submit'
-      path: '/safe-auto-submit'
-      fullPath: '/safe-auto-submit'
-      preLoaderRoute: typeof SafeAutoSubmitRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review': {
-      id: '/review'
-      path: '/review'
-      fullPath: '/review'
-      preLoaderRoute: typeof ReviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/resume-variants': {
-      id: '/resume-variants'
-      path: '/resume-variants'
-      fullPath: '/resume-variants'
-      preLoaderRoute: typeof ResumeVariantsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/resume-diff': {
-      id: '/resume-diff'
-      path: '/resume-diff'
-      fullPath: '/resume-diff'
-      preLoaderRoute: typeof ResumeDiffRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/resume': {
-      id: '/resume'
-      path: '/resume'
-      fullPath: '/resume'
-      preLoaderRoute: typeof ResumeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recruiters': {
-      id: '/recruiters'
-      path: '/recruiters'
-      fullPath: '/recruiters'
-      preLoaderRoute: typeof RecruitersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/queue': {
-      id: '/queue'
-      path: '/queue'
-      fullPath: '/queue'
-      preLoaderRoute: typeof QueueRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portfolio': {
-      id: '/portfolio'
-      path: '/portfolio'
-      fullPath: '/portfolio'
-      preLoaderRoute: typeof PortfolioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pipeline': {
-      id: '/pipeline'
-      path: '/pipeline'
-      fullPath: '/pipeline'
-      preLoaderRoute: typeof PipelineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/outcomes': {
-      id: '/outcomes'
-      path: '/outcomes'
-      fullPath: '/outcomes'
-      preLoaderRoute: typeof OutcomesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitoring': {
-      id: '/monitoring'
-      path: '/monitoring'
-      fullPath: '/monitoring'
-      preLoaderRoute: typeof MonitoringRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/legitimacy': {
-      id: '/legitimacy'
-      path: '/legitimacy'
-      fullPath: '/legitimacy'
-      preLoaderRoute: typeof LegitimacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/high-probability': {
-      id: '/high-probability'
-      path: '/high-probability'
-      fullPath: '/high-probability'
-      preLoaderRoute: typeof HighProbabilityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/follow-ups': {
-      id: '/follow-ups'
-      path: '/follow-ups'
-      fullPath: '/follow-ups'
-      preLoaderRoute: typeof FollowUpsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executive': {
-      id: '/executive'
-      path: '/executive'
-      fullPath: '/executive'
-      preLoaderRoute: typeof ExecutiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/engagement': {
-      id: '/engagement'
-      path: '/engagement'
-      fullPath: '/engagement'
-      preLoaderRoute: typeof EngagementRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo': {
-      id: '/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof DemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/company-intelligence': {
-      id: '/company-intelligence'
-      path: '/company-intelligence'
-      fullPath: '/company-intelligence'
-      preLoaderRoute: typeof CompanyIntelligenceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/companies': {
-      id: '/companies'
-      path: '/companies'
-      fullPath: '/companies'
-      preLoaderRoute: typeof CompaniesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/case-study': {
-      id: '/case-study'
-      path: '/case-study'
-      fullPath: '/case-study'
-      preLoaderRoute: typeof CaseStudyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/batches': {
-      id: '/batches'
-      path: '/batches'
-      fullPath: '/batches'
-      preLoaderRoute: typeof BatchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ats': {
-      id: '/ats'
-      path: '/ats'
-      fullPath: '/ats'
-      preLoaderRoute: typeof AtsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ai-queue': {
-      id: '/ai-queue'
-      path: '/ai-queue'
-      fullPath: '/ai-queue'
-      preLoaderRoute: typeof AiQueueRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-recovery': {
@@ -752,11 +528,235 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRecoveryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/ai-queue': {
+      id: '/ai-queue'
+      path: '/ai-queue'
+      fullPath: '/ai-queue'
+      preLoaderRoute: typeof AiQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ats': {
+      id: '/ats'
+      path: '/ats'
+      fullPath: '/ats'
+      preLoaderRoute: typeof AtsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/batches': {
+      id: '/batches'
+      path: '/batches'
+      fullPath: '/batches'
+      preLoaderRoute: typeof BatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/case-study': {
+      id: '/case-study'
+      path: '/case-study'
+      fullPath: '/case-study'
+      preLoaderRoute: typeof CaseStudyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/companies': {
+      id: '/companies'
+      path: '/companies'
+      fullPath: '/companies'
+      preLoaderRoute: typeof CompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/company-intelligence': {
+      id: '/company-intelligence'
+      path: '/company-intelligence'
+      fullPath: '/company-intelligence'
+      preLoaderRoute: typeof CompanyIntelligenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/engagement': {
+      id: '/engagement'
+      path: '/engagement'
+      fullPath: '/engagement'
+      preLoaderRoute: typeof EngagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executive': {
+      id: '/executive'
+      path: '/executive'
+      fullPath: '/executive'
+      preLoaderRoute: typeof ExecutiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/follow-ups': {
+      id: '/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/follow-ups'
+      preLoaderRoute: typeof FollowUpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/high-probability': {
+      id: '/high-probability'
+      path: '/high-probability'
+      fullPath: '/high-probability'
+      preLoaderRoute: typeof HighProbabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legitimacy': {
+      id: '/legitimacy'
+      path: '/legitimacy'
+      fullPath: '/legitimacy'
+      preLoaderRoute: typeof LegitimacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitoring': {
+      id: '/monitoring'
+      path: '/monitoring'
+      fullPath: '/monitoring'
+      preLoaderRoute: typeof MonitoringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/outcomes': {
+      id: '/outcomes'
+      path: '/outcomes'
+      fullPath: '/outcomes'
+      preLoaderRoute: typeof OutcomesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipeline': {
+      id: '/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof PipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio': {
+      id: '/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/queue': {
+      id: '/queue'
+      path: '/queue'
+      fullPath: '/queue'
+      preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiters': {
+      id: '/recruiters'
+      path: '/recruiters'
+      fullPath: '/recruiters'
+      preLoaderRoute: typeof RecruitersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume': {
+      id: '/resume'
+      path: '/resume'
+      fullPath: '/resume'
+      preLoaderRoute: typeof ResumeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume-diff': {
+      id: '/resume-diff'
+      path: '/resume-diff'
+      fullPath: '/resume-diff'
+      preLoaderRoute: typeof ResumeDiffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume-variants': {
+      id: '/resume-variants'
+      path: '/resume-variants'
+      fullPath: '/resume-variants'
+      preLoaderRoute: typeof ResumeVariantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/safe-auto-submit': {
+      id: '/safe-auto-submit'
+      path: '/safe-auto-submit'
+      fullPath: '/safe-auto-submit'
+      preLoaderRoute: typeof SafeAutoSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox': {
+      id: '/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof SandboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/smart-apply': {
+      id: '/smart-apply'
+      path: '/smart-apply'
+      fullPath: '/smart-apply'
+      preLoaderRoute: typeof SmartApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tracker': {
+      id: '/tracker'
+      path: '/tracker'
+      fullPath: '/tracker'
+      preLoaderRoute: typeof TrackerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/packet/$jobId': {
