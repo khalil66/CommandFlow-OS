@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { useNavigate, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Briefcase } from "lucide-react";
 
-export const Route = createFileRoute("/reset-password")({ component: ResetPasswordPage });
+export const Route = createFileRoute("/reset-password")({
+  head: () => pageMetadata("Reset Password", "Reset Password for secure CommandFlow OS account access."), component: ResetPasswordPage });
 
 function ResetPasswordPage() {
   const nav = useNavigate();

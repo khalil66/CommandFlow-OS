@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,7 +28,8 @@ import { exportApplicationPdf } from "@/lib/pdf-export";
 import { projectsForRole } from "@/lib/portfolio";
 import { SalaryBadge } from "@/components/salary-badge";
 
-export const Route = createFileRoute("/queue")({ component: QueuePage });
+export const Route = createFileRoute("/queue")({
+  head: () => pageMetadata("Job Queue", "Job Queue for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: QueuePage });
 
 function QueuePage() {
   const [tab, setTab] = useState("high");

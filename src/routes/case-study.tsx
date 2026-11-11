@@ -25,6 +25,7 @@ const CASE_STUDY_TOUR: TourStep[] = [
 export const Route = createFileRoute("/case-study")({
   head: () => ({
     meta: [
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Case Study — CommandFlowOS Recruiting Intelligence" },
       { name: "description", content: "Executive case study: an AI-assisted recruiting intelligence platform combining ATS verification, company trust scoring, resume optimization, and analytics — all under a manual-review safety model." },
       { property: "og:title", content: "AI-Powered Recruiting Intelligence — Case Study" },

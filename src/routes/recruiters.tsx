@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,7 +12,8 @@ import { Loader2, Plus, Trash2, Users, TrendingUp, Clock, Award } from "lucide-r
 import { toast } from "sonner";
 import { listRecruiters, upsertRecruiter, deleteRecruiter, getRecruiterStats } from "@/lib/recruiters.functions";
 
-export const Route = createFileRoute("/recruiters")({ component: RecruitersPage });
+export const Route = createFileRoute("/recruiters")({
+  head: () => pageMetadata("Recruiter Contacts", "Recruiter Contacts for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: RecruitersPage });
 
 function StatCard({ icon: Icon, label, value, sub, accent }: any) {
   return (

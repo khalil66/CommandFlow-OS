@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -23,7 +24,8 @@ import {
 } from "@/lib/ingest.functions";
 import { updateSettings } from "@/lib/settings.functions";
 
-export const Route = createFileRoute("/smart-apply")({ component: SmartApplyPage });
+export const Route = createFileRoute("/smart-apply")({
+  head: () => pageMetadata("Smart Apply", "Smart Apply for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: SmartApplyPage });
 
 const ACTION_STYLES: Record<string, string> = {
   auto_approved: "bg-success/15 text-success border-success/30",

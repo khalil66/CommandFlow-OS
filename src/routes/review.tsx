@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -21,7 +22,8 @@ import { withRetry } from "@/lib/api-utils";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 import { EmptyChart } from "@/components/chart-card";
 
-export const Route = createFileRoute("/review")({ component: Review });
+export const Route = createFileRoute("/review")({
+  head: () => pageMetadata("Manual Application Review", "Manual Application Review for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Review });
 
 type TabKey = "manual_review" | "approved" | "rejected" | "safety_blocked" | "skipped_cap";
 

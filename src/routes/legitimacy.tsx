@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { ScoreBar } from "@/components/score-bar";
 import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 
-export const Route = createFileRoute("/legitimacy")({ component: Legit });
+export const Route = createFileRoute("/legitimacy")({
+  head: () => pageMetadata("Company Verification", "Company Verification for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Legit });
 
 function Legit() {
   const [name, setName] = useState("");

@@ -13,6 +13,7 @@ import { GuidedTour, StartTourButton, type TourStep } from "@/components/guided-
 export const Route = createFileRoute("/demo")({
   head: () => ({
     meta: [
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Recruiter Demo — CommandFlowOS" },
       { name: "description", content: "Public demo of CommandFlowOS: smart job apply, recruiter pipeline, analytics, resume diff, and company intelligence." },
       { property: "og:title", content: "CommandFlowOS — Recruiter Demo" },

@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,7 +25,8 @@ import { exportApplicationPdf } from "@/lib/pdf-export";
 import { supabase } from "@/integrations/supabase/client";
 import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
 
-export const Route = createFileRoute("/")({ component: Dashboard });
+export const Route = createFileRoute("/")({
+  head: () => pageMetadata("Dashboard", "Dashboard for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Dashboard });
 
 function MetricCard({ icon: Icon, label, value, sub, accent, hint }: any) {
   return (

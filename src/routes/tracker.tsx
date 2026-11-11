@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,7 +19,8 @@ import { withRetry } from "@/lib/api-utils";
 import { Loader2, Send, MessageSquare, Copy } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/tracker")({ component: Tracker });
+export const Route = createFileRoute("/tracker")({
+  head: () => pageMetadata("Application Tracker", "Application Tracker for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Tracker });
 
 const STATUS_OPTS = [
   "queued", "manual_review", "approved",

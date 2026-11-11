@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,6 +18,7 @@ import { getOpenAiHealth, validateOpenAi } from "@/lib/openai-validate.functions
 import { humanizeReason, EmptyChart } from "@/components/chart-card";
 
 export const Route = createFileRoute("/monitoring")({
+  head: () => pageMetadata("Production Monitoring", "Production Monitoring for CommandFlow OS recruiting operations, with private account access and manual application approval."),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });

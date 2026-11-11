@@ -28,6 +28,7 @@ const SANDBOX_TOUR: TourStep[] = [
 export const Route = createFileRoute("/sandbox")({
   head: () => ({
     meta: [
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Public Sandbox — CommandFlowOS Demo" },
       { name: "description", content: "Interactive recruiter-safe demo of the CommandFlowOS pipeline. Fully simulated data, no production access." },
       { property: "og:title", content: "CommandFlowOS — Live Sandbox" },

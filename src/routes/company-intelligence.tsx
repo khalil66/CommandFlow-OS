@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -8,7 +9,8 @@ import { Loader2, Sparkles, Building2, AlertTriangle, TrendingUp, Users2, Globe2
 import { toast } from "sonner";
 import { listCompaniesForIntel, enrichCompany } from "@/lib/intelligence.functions";
 
-export const Route = createFileRoute("/company-intelligence")({ component: CompanyIntelligencePage });
+export const Route = createFileRoute("/company-intelligence")({
+  head: () => pageMetadata("Company Intelligence", "Company Intelligence for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: CompanyIntelligencePage });
 
 function CompanyIntelligencePage() {
   const listFn = useServerFn(listCompaniesForIntel);

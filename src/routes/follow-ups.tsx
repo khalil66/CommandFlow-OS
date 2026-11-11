@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,7 +11,8 @@ import { toast } from "sonner";
 import { listFollowUps, completeFollowUp, setFollowUp } from "@/lib/engine.functions";
 import { withRetry } from "@/lib/api-utils";
 
-export const Route = createFileRoute("/follow-ups")({ component: FollowUps });
+export const Route = createFileRoute("/follow-ups")({
+  head: () => pageMetadata("Follow-Ups", "Follow-Ups for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: FollowUps });
 
 function FollowUps() {
   const listFn = useServerFn(listFollowUps);

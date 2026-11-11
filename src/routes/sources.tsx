@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,7 +21,8 @@ import {
 } from "@/lib/ingest.functions";
 import { getSettings, updateSettings } from "@/lib/settings.functions";
 
-export const Route = createFileRoute("/sources")({ component: SourcesPage });
+export const Route = createFileRoute("/sources")({
+  head: () => pageMetadata("Job Sources", "Job Sources for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: SourcesPage });
 
 const ATS_LIST: Array<{ key: string; label: string; defaultCap: number }> = [
   { key: "Greenhouse", label: "Greenhouse", defaultCap: 50 },
