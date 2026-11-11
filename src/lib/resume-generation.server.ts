@@ -269,10 +269,8 @@ async function legacyTailorResume(
     .select("kind, success")
     .eq("user_id", userId)
     .gte("created_at", since.toISOString());
-  const resumeUsed = (usageToday ?? []).filter((r: any) => r.kind === "resume" && r.success).length;
-  const coverUsed = (usageToday ?? []).filter(
-    (r: any) => r.kind === "cover_letter" && r.success,
-  ).length;
+  const resumeUsed = (usageToday ?? []).filter((r) => r.kind === "resume" && r.success).length;
+  const coverUsed = (usageToday ?? []).filter((r) => r.kind === "cover_letter" && r.success).length;
   if (resumeUsed >= 25)
     throw new Error("Daily resume generation limit reached (25/day). Resets at 00:00 UTC.");
   if (coverUsed >= 25) throw new Error("Daily cover letter generation limit reached (25/day).");
@@ -327,15 +325,15 @@ Return JSON with:
       },
       { label: `resume:${data.company.slice(0, 24)}` },
     );
-  } catch (e: any) {
+  } catch (e) {
     await supabase.from("openai_usage").insert({
       user_id: userId,
       kind: "resume",
       model,
       success: false,
-      error: `${e?.code ?? "error"}: ${(e?.message ?? String(e)).slice(0, 200)}`,
+      error: `error: ${e instanceof Error ? e.message.slice(0, 200) : "Generation failed"}`,
       job_id: data.job_id ?? null,
-    } as any);
+    });
     throw e;
   }
   const json = await resp.json();
@@ -418,7 +416,7 @@ Return JSON with:
       completion_tokens: 0,
       estimated_cost_cents: costCents / 2,
     },
-  ] as any);
+  ]);
 
   return { ...out, resume_id, cover_id };
 }

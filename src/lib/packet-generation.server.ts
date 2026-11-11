@@ -146,7 +146,7 @@ async function buildPacket(supabase: SupabaseClient<Database>, userId: string, j
         .eq("id", job.company_id)
         .eq("user_id", userId)
         .maybeSingle()
-    : { data: null as any };
+    : { data: null };
 
   // 1. Resume generation calls a server-only helper, never an RPC stub.
   // Cache: if we already generated a resume + cover for this job in the last 7 days
@@ -171,7 +171,7 @@ async function buildPacket(supabase: SupabaseClient<Database>, userId: string, j
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle()
-    : { data: null as any };
+    : { data: null };
 
   let tailored: Awaited<ReturnType<typeof tailorResumeInternal>>;
   if (cachedResume && cachedCover) {
@@ -189,7 +189,7 @@ async function buildPacket(supabase: SupabaseClient<Database>, userId: string, j
       links: { portfolio: PORTFOLIO_URL, linkedin: "https://www.linkedin.com/in/khalilhickson" },
       resume_id: cachedResume.id,
       cover_id: cachedCover.id,
-    } as any;
+    };
   } else {
     tailored = await tailorResumeInternal(supabase, userId, {
       title: job.title,
@@ -203,45 +203,60 @@ async function buildPacket(supabase: SupabaseClient<Database>, userId: string, j
 
   // 2. Interview prep / why-this-company
   const portfolio = projectsForRole(job.role_category ?? job.title)[0] ?? null;
-  let prep: any = {};
-  try {
-    const prepResponse = await callPrep({
-      title: job.title,
-      company: job.company_name,
-      category: job.role_category ?? null,
-      description: job.description ?? "",
-      ats: job.ats ?? null,
-      portfolio_project: portfolio,
-      trust_score: company?.trust_score ?? 80,
-      interview_probability: job.interview_probability ?? 0,
-      is_remote_first: company?.is_remote_first ?? true,
-      mba_friendly: company?.mba_friendly ?? false,
-      funding_stage: company?.funding_stage ?? null,
-    });
-    const tokens = prepResponse.usage;
-    const { error: usageError } = await supabase.from("openai_usage").insert({
-      user_id: userId,
-      job_id: job.id,
-      kind: "interview_prep",
-      model: "gpt-4o-mini",
-      success: true,
-      prompt_tokens: tokens.prompt_tokens ?? 0,
-      completion_tokens: tokens.completion_tokens ?? 0,
-      estimated_cost_cents:
-        (tokens.prompt_tokens ?? 0) * 0.000015 + (tokens.completion_tokens ?? 0) * 0.00006,
-    });
-    if (usageError) throw new Error("Interview preparation usage could not be recorded");
-    prep = prepOutputSchema.parse(prepResponse.content);
-  } catch (error) {
-    const { error: logError } = await supabase.from("automation_logs").insert({
-      user_id: userId,
-      job_id: job.id,
-      action: "tailor_resume",
-      status: "failed",
-      details: { stage: "interview_preparation", reason: "packet_prep_failed" },
-    });
-    if (logError) console.error("Interview preparation failure could not be recorded");
-    throw error;
+  let prep: z.infer<typeof prepOutputSchema>;
+  const { data: storedPrep } = await supabase
+    .from("interview_prep")
+    .select("brief")
+    .eq("user_id", userId)
+    .eq("job_id", job.id)
+    .gte("generated_at", cacheCutoff)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const cachedPrep = prepOutputSchema.safeParse(storedPrep?.brief);
+  const reusedPrep = cachedPrep.success;
+  if (cachedPrep.success) {
+    prep = cachedPrep.data;
+  } else {
+    try {
+      const prepResponse = await callPrep({
+        title: job.title,
+        company: job.company_name,
+        category: job.role_category ?? null,
+        description: job.description ?? "",
+        ats: job.ats ?? null,
+        portfolio_project: portfolio,
+        trust_score: company?.trust_score ?? 80,
+        interview_probability: job.interview_probability ?? 0,
+        is_remote_first: company?.is_remote_first ?? true,
+        mba_friendly: company?.mba_friendly ?? false,
+        funding_stage: company?.funding_stage ?? null,
+      });
+      const tokens = prepResponse.usage;
+      const { error: usageError } = await supabase.from("openai_usage").insert({
+        user_id: userId,
+        job_id: job.id,
+        kind: "interview_prep",
+        model: "gpt-4o-mini",
+        success: true,
+        prompt_tokens: tokens.prompt_tokens ?? 0,
+        completion_tokens: tokens.completion_tokens ?? 0,
+        estimated_cost_cents:
+          (tokens.prompt_tokens ?? 0) * 0.000015 + (tokens.completion_tokens ?? 0) * 0.00006,
+      });
+      if (usageError) throw new Error("Interview preparation usage could not be recorded");
+      prep = prepOutputSchema.parse(prepResponse.content);
+    } catch (error) {
+      const { error: logError } = await supabase.from("automation_logs").insert({
+        user_id: userId,
+        job_id: job.id,
+        action: "tailor_resume",
+        status: "failed",
+        details: { stage: "interview_preparation", reason: "packet_prep_failed" },
+      });
+      if (logError) console.error("Interview preparation failure could not be recorded");
+      throw error;
+    }
   }
 
   // 3. Quality score
@@ -302,16 +317,18 @@ async function buildPacket(supabase: SupabaseClient<Database>, userId: string, j
     throw new Error("Packet requires an existing manual-review application and saved artifacts");
   }
   const validatedPrep = prepOutputSchema.parse(prep);
-  const { error: prepError } = await supabase.from("interview_prep").insert({
-    user_id: userId,
-    application_id: application.id,
-    job_id: job.id,
-    brief: validatedPrep,
-    recruiter_questions: validatedPrep.recruiter_questions,
-    technical_questions: validatedPrep.technical_questions,
-    star_answers: validatedPrep.star_examples,
-  });
-  if (prepError) throw new Error("Interview preparation could not be saved");
+  if (!reusedPrep) {
+    const { error: prepError } = await supabase.from("interview_prep").insert({
+      user_id: userId,
+      application_id: application.id,
+      job_id: job.id,
+      brief: validatedPrep,
+      recruiter_questions: validatedPrep.recruiter_questions,
+      technical_questions: validatedPrep.technical_questions,
+      star_answers: validatedPrep.star_examples,
+    });
+    if (prepError) throw new Error("Interview preparation could not be saved");
+  }
   await validateSavedPacket(supabase, userId, job.id, application.id);
 
   return {
