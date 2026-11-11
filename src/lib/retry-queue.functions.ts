@@ -91,14 +91,21 @@ export const listRetryQueue = createServerFn({ method: "GET" })
       .select(
         `id, job_id, kind, status, retry_attempts, max_attempts,
                next_retry_at, last_retry_at, retry_reason, retry_status, last_error,
-               history, created_at, updated_at,
-               job_listings (id, title, company_name, ats)`,
+               history, created_at, updated_at`,
       )
       .eq("user_id", userId)
       .order("next_retry_at", { ascending: true })
       .limit(200);
     if (error) throw new Error(error.message);
-    return { items: data ?? [] };
+    const rows = data ?? [];
+    const jobIds = [...new Set(rows.map(row => row.job_id))];
+    const { data: jobs, error: jobError } = jobIds.length
+      ? await supabase.from("job_listings").select("id, title, company_name, ats")
+          .eq("user_id", userId).in("id", jobIds)
+      : { data: [], error: null };
+    if (jobError) throw new Error(jobError.message);
+    const byId = new Map((jobs ?? []).map(job => [job.id, job]));
+    return { items: rows.map(row => ({ ...row, job_listings: byId.get(row.job_id) ?? null })) };
   });
 
 export const getRetryQueueMetrics = createServerFn({ method: "GET" })
