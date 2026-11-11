@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,8 @@ import { Gauge, AlertCircle, ShieldCheck, Loader2, MessageSquare, Send, Rocket, 
 import { OptimizationSweepButton } from "@/components/optimization-sweep-button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-export const Route = createFileRoute("/settings")({ component: Settings });
+export const Route = createFileRoute("/settings")({
+  head: () => pageMetadata("Settings", "Settings for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Settings });
 
 const ROLE_CATEGORY_OPTS = ["data","operations","customer_success","technical_support","product_pm","saas","other"];
 const ATS_OPTS = ["greenhouse","lever","ashby","breezy","workday","taleo","sap","icims","other"];

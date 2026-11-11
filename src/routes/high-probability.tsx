@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,7 +13,8 @@ import { getJobPacket } from "@/lib/jobs.functions";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 import { withRetry } from "@/lib/api-utils";
 
-export const Route = createFileRoute("/high-probability")({ component: HighProb });
+export const Route = createFileRoute("/high-probability")({
+  head: () => pageMetadata("High-Probability Jobs", "High-Probability Jobs for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: HighProb });
 
 function HighProb() {
   const listFn = useServerFn(listHighProbabilityJobs);

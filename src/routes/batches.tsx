@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,7 +10,8 @@ import { toast } from "sonner";
 import { listBatches, runDailyBatch } from "@/lib/engine.functions";
 import { withRetry } from "@/lib/api-utils";
 
-export const Route = createFileRoute("/batches")({ component: BatchesPage });
+export const Route = createFileRoute("/batches")({
+  head: () => pageMetadata("Daily Batches", "Daily Batches for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: BatchesPage });
 
 const SCHEDULE = [
   { day: "Monday", category: "SaaS startups" },

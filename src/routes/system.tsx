@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -13,7 +14,8 @@ import {
   Shield, Activity, ListChecks,
 } from "lucide-react";
 
-export const Route = createFileRoute("/system")({ component: SystemHealth });
+export const Route = createFileRoute("/system")({
+  head: () => pageMetadata("System Health", "System Health for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: SystemHealth });
 
 const E2E_CHECKLIST = [
   { area: "Auth", items: [

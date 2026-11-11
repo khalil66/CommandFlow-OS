@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +21,7 @@ const EXEC_TOUR: TourStep[] = [
 ];
 
 export const Route = createFileRoute("/executive")({
-  head: () => ({ meta: [{ title: "Executive Command Center" }] }),
+  head: () => pageMetadata("Executive Command Center", "Executive Command Center for CommandFlow OS recruiting operations, with private account access and manual application approval."),
   component: ExecutivePage,
 });
 

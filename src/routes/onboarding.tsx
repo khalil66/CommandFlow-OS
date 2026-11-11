@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -13,7 +14,8 @@ import { withRetry } from "@/lib/api-utils";
 import { toast } from "sonner";
 import { Loader2, ChevronRight, Check } from "lucide-react";
 
-export const Route = createFileRoute("/onboarding")({ component: Onboarding });
+export const Route = createFileRoute("/onboarding")({
+  head: () => pageMetadata("Profile Setup", "Profile Setup for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Onboarding });
 
 const ROLE_CATEGORIES = [
   { id: "data", label: "Data Analyst" },

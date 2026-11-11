@@ -1,8 +1,10 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, XCircle } from "lucide-react";
 
-export const Route = createFileRoute("/ats")({ component: ATSPage });
+export const Route = createFileRoute("/ats")({
+  head: () => pageMetadata("ATS Compatibility", "ATS Compatibility for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: ATSPage });
 
 const supported = [
   { name: "Greenhouse", note: "Boards.greenhouse.io · Fully automatable" },

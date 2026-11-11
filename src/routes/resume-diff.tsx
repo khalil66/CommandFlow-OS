@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,8 +10,9 @@ import { getResumeDiff } from "@/lib/intelligence.functions";
 import { listResumes } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/resume-diff")({
+  head: () => pageMetadata("Resume Comparison", "Resume Comparison for CommandFlow OS recruiting operations, with private account access and manual application approval."),
   component: ResumeDiffPage,
-  validateSearch: (s: Record<string, unknown>) => ({
+  validateSearch: (s: Record<string, unknown>): { resume_id?: string; variant_key?: string } => ({
     resume_id: typeof s.resume_id === "string" ? s.resume_id : undefined,
     variant_key: typeof s.variant_key === "string" ? s.variant_key : undefined,
   }),

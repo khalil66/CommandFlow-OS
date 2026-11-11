@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,7 +12,8 @@ import { toast } from "sonner";
 import { generatePacket, getLatestPacket, decideApplication } from "@/lib/packet.functions";
 import { exportApplicationPdf } from "@/lib/pdf-export";
 
-export const Route = createFileRoute("/packet/$jobId")({ component: PacketPage });
+export const Route = createFileRoute("/packet/$jobId")({
+  head: () => pageMetadata("Application Packet", "Application Packet for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: PacketPage });
 
 function confidenceVariant(c: string) {
   if (c === "Strong Match") return "default";

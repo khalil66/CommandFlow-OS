@@ -13,6 +13,7 @@ import { CinematicHero, GlassStat, Reveal } from "@/components/cinematic-hero";
 export const Route = createFileRoute("/portfolio")({
   head: () => ({
     meta: [
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Portfolio — AI-Powered Recruiting Intelligence Platform" },
       {
         name: "description",

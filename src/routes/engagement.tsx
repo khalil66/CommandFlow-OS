@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +10,8 @@ import {
 import { Activity, Eye, MousePointerClick, Smartphone, Monitor, Loader2, TrendingUp } from "lucide-react";
 import { ChartCard, EmptyChart, chartTooltipStyle, chartAxisProps } from "@/components/chart-card";
 
-export const Route = createFileRoute("/engagement")({ component: EngagementPage });
+export const Route = createFileRoute("/engagement")({
+  head: () => pageMetadata("Recruiter Engagement", "Recruiter Engagement for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: EngagementPage });
 
 type EventRow = {
   id: string;

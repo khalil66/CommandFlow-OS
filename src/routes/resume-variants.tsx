@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -13,7 +14,7 @@ import { Sparkles, TrendingUp, Trophy, Calendar, Layers } from "lucide-react";
 import { EmptyChart } from "@/components/chart-card";
 
 export const Route = createFileRoute("/resume-variants")({
-  head: () => ({ meta: [{ title: "Resume Variant Optimizer" }] }),
+  head: () => pageMetadata("Resume Variant Optimizer", "Resume Variant Optimizer for CommandFlow OS recruiting operations, with private account access and manual application approval."),
   component: ResumeVariantsPage,
 });
 

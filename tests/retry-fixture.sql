@@ -1,0 +1,15 @@
+CREATE ROLE anon;
+CREATE ROLE authenticated;
+CREATE ROLE service_role BYPASSRLS;
+CREATE SCHEMA auth;
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claim.role',true),''),'anon') $$;
+GRANT USAGE ON SCHEMA auth TO anon,authenticated,service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon,authenticated,service_role;
+CREATE TABLE public.job_listings(id uuid PRIMARY KEY,user_id uuid NOT NULL);
+CREATE TABLE public.resume_versions(id uuid PRIMARY KEY,user_id uuid,job_id uuid,summary text,bullets text[]);
+CREATE TABLE public.cover_letters(id uuid PRIMARY KEY,user_id uuid,job_id uuid,body text);
+CREATE TABLE public.applications(id uuid PRIMARY KEY,user_id uuid,job_id uuid,status text,resume_version_id uuid,cover_letter_id uuid);
+CREATE TABLE public.interview_prep(id uuid PRIMARY KEY,user_id uuid,job_id uuid,application_id uuid,brief jsonb);
+CREATE TABLE public.openai_usage(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,job_id uuid,kind text,model text,success boolean,error text,prompt_tokens integer,completion_tokens integer,estimated_cost_cents numeric,resume_version_id uuid,cover_letter_id uuid,match_score integer,created_at timestamptz DEFAULT now());
+CREATE FUNCTION public.update_updated_at_column() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at=now(); RETURN NEW; END $$;

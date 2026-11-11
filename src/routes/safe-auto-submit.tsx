@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +13,8 @@ import {
 } from "@/lib/safe-auto-submit-dashboard.functions";
 import { runSafeAutoSubmitDryRun } from "@/lib/safe-auto-submit-dryrun.functions";
 
-export const Route = createFileRoute("/safe-auto-submit")({ component: SafeAutoSubmitPage });
+export const Route = createFileRoute("/safe-auto-submit")({
+  head: () => pageMetadata("Submission Safety", "Submission Safety for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: SafeAutoSubmitPage });
 
 function YesNo({ value }: { value: boolean }) {
   return (

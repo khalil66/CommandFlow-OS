@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,7 +15,8 @@ import { ScoreBar } from "@/components/score-bar";
 import { tailorResume } from "@/lib/resume.functions";
 import { getUsageToday } from "@/lib/usage.functions";
 
-export const Route = createFileRoute("/resume")({ component: ResumeStudio });
+export const Route = createFileRoute("/resume")({
+  head: () => pageMetadata("Resume Studio", "Resume Studio for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: ResumeStudio });
 
 function ResumeStudio() {
   const [title, setTitle] = useState("Senior Data Analyst");

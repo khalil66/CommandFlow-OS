@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Briefcase } from "lucide-react";
 
-export const Route = createFileRoute("/auth")({ component: AuthPage });
+export const Route = createFileRoute("/auth")({
+  head: () => pageMetadata("Sign In", "Sign In for secure CommandFlow OS account access."), component: AuthPage });
 
 type DebugState = {
   action: string;

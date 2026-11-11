@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,7 +11,8 @@ import { toast } from "sonner";
 import { listCompanies, verifyCompany } from "@/lib/engine.functions";
 import { withRetry } from "@/lib/api-utils";
 
-export const Route = createFileRoute("/companies")({ component: CompaniesPage });
+export const Route = createFileRoute("/companies")({
+  head: () => pageMetadata("Companies", "Companies for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: CompaniesPage });
 
 function CompaniesPage() {
   const listFn = useServerFn(listCompanies);

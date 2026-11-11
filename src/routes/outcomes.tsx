@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,12 +16,7 @@ import { toast } from "sonner";
 import { ChartCard, EmptyChart, humanizeReason } from "@/components/chart-card";
 
 export const Route = createFileRoute("/outcomes")({
-  head: () => ({
-    meta: [
-      { title: "Outcome Learning Engine" },
-      { name: "description", content: "Track recruiter replies, interviews, and offers — and recalibrate scoring from real outcomes." },
-    ],
-  }),
+  head: () => pageMetadata("Outcome Learning", "Outcome Learning for CommandFlow OS recruiting operations, with private account access and manual application approval."),
   component: OutcomesPage,
 });
 

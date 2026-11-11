@@ -1,28 +1,56 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  Activity, AlertTriangle, CheckCircle2, Clock, History, Loader2, PauseCircle,
-  PlayCircle, RefreshCw, Trash2, Zap,
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  History,
+  Loader2,
+  PauseCircle,
+  PlayCircle,
+  RefreshCw,
+  Trash2,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  listRetryQueue, getRetryQueueMetrics, retryQueueItem,
-  retryAllQueued, removeQueueItem,
+  listRetryQueue,
+  getRetryQueueMetrics,
+  retryQueueItem,
+  retryAllQueued,
+  removeQueueItem,
+  resumeRetryQueue,
 } from "@/lib/retry-queue.functions";
 import { withRetry } from "@/lib/api-utils";
 
-export const Route = createFileRoute("/ai-queue")({ component: AIQueuePage });
+export const Route = createFileRoute("/ai-queue")({
+  head: () => pageMetadata("AI Retry Queue", "AI Retry Queue for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: AIQueuePage });
 
 function fmtCountdown(target: string | null): string {
   if (!target) return "—";
@@ -47,9 +75,21 @@ const STATUS_STYLE: Record<string, string> = {
 
 const HEALTH_STYLE: Record<string, { label: string; cls: string; Icon: any }> = {
   healthy: { label: "Healthy", cls: "border-success/40 text-success", Icon: CheckCircle2 },
-  throttled: { label: "Throttled", cls: "border-warning/40 text-warning-foreground", Icon: Activity },
-  quota_limited: { label: "Quota Limited", cls: "border-destructive/40 text-destructive", Icon: AlertTriangle },
-  paused: { label: "Paused", cls: "border-muted-foreground/40 text-muted-foreground", Icon: PauseCircle },
+  throttled: {
+    label: "Throttled",
+    cls: "border-warning/40 text-warning-foreground",
+    Icon: Activity,
+  },
+  quota_limited: {
+    label: "Quota Limited",
+    cls: "border-destructive/40 text-destructive",
+    Icon: AlertTriangle,
+  },
+  paused: {
+    label: "Paused",
+    cls: "border-muted-foreground/40 text-muted-foreground",
+    Icon: PauseCircle,
+  },
 };
 
 function AIQueuePage() {
@@ -64,6 +104,7 @@ function AIQueuePage() {
   const retryOneFn = useServerFn(retryQueueItem);
   const retryAllFn = useServerFn(retryAllQueued);
   const removeFn = useServerFn(removeQueueItem);
+  const resumeFn = useServerFn(resumeRetryQueue);
 
   const refresh = async () => {
     try {
@@ -71,17 +112,26 @@ function AIQueuePage() {
         withRetry(() => listFn(), { label: "Queue", silent: true }),
         withRetry(() => metricsFn(), { label: "Metrics", silent: true }),
       ]);
-      setItems(l.items); setMetrics(m);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+      setItems(l.items);
+      setMetrics(m);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
   // Auto-refresh metrics + countdown
   useEffect(() => {
-    const i = setInterval(() => setTick(t => t + 1), 1000);
+    const i = setInterval(() => setTick((t) => t + 1), 1000);
     const r = setInterval(refresh, 30_000);
-    return () => { clearInterval(i); clearInterval(r); };
+    return () => {
+      clearInterval(i);
+      clearInterval(r);
+    };
   }, []);
 
   const handleRetry = async (id: string) => {
@@ -91,18 +141,28 @@ function AIQueuePage() {
       if (res.ok) toast.success("Retry succeeded");
       else toast.warning(`Retry queued again: ${res.reason ?? "rate limit"}`);
       await refresh();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(null); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleRetryAll = async () => {
     setBusy("all");
     try {
       const res: any = await retryAllFn();
-      toast.success(`Processed ${res.processed} — ${res.succeeded} succeeded, ${res.failed} re-queued`);
+      if (!res.processed) toast.warning(res.reason ?? "No due eligible records");
+      else
+        toast.success(
+          `Processed ${res.processed} — ${res.succeeded} succeeded, ${res.failed} failed`,
+        );
       await refresh();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(null); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleRemove = async (id: string) => {
@@ -110,7 +170,9 @@ function AIQueuePage() {
       await removeFn({ data: { id } });
       toast.success("Removed from queue");
       await refresh();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   const sorted = useMemo(() => {
@@ -119,6 +181,7 @@ function AIQueuePage() {
   }, [items, tick]);
 
   const queuedCount = metrics?.queued ?? 0;
+  const awaitingApproval = metrics?.awaiting_approval ?? true;
   const health = HEALTH_STYLE[metrics?.health ?? "healthy"];
 
   return (
@@ -127,7 +190,7 @@ function AIQueuePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">AI Retry Queue</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Quota-aware packet generation queue. Auto-retries every 15 minutes with backoff.
+            Packet retries · manual application approval
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -136,18 +199,21 @@ function AIQueuePage() {
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="sm" disabled={busy === "all" || queuedCount === 0}>
-                {busy === "all" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5 mr-1.5" />}
+              <Button size="sm" disabled={busy === "all" || queuedCount === 0 || awaitingApproval}>
+                {busy === "all" ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-3.5 w-3.5 mr-1.5" />
+                )}
                 Retry All Queued ({queuedCount})
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Retry every queued job now?</AlertDialogTitle>
+                <AlertDialogTitle>Retry up to three due jobs?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will process {queuedCount} queued/quota-limited jobs sequentially.
-                  Requests are throttled to respect OpenAI rate limits. Items that hit the
-                  quota again will be re-queued automatically.
+                  Only due, eligible records will run. Daily usage limits remain enforced. A quota
+                  or provider failure stops the batch. Applications remain in Manual Review.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -159,16 +225,76 @@ function AIQueuePage() {
         </div>
       </div>
 
+      {awaitingApproval && (
+        <div className="border-l-2 border-warning bg-muted/30 p-4 text-sm">
+          <p className="font-medium">Step 315 · awaiting approval</p>
+          <p className="text-muted-foreground mt-1">
+            Scheduled execution is inactive. Existing retry records and attempts are preserved.
+          </p>
+        </div>
+      )}
+      {!awaitingApproval && metrics?.paused > 0 && (
+        <Button
+          variant="outline"
+          onClick={async () => {
+            try {
+              await resumeFn();
+              toast.success("Queue resumed");
+              await refresh();
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Queue could not be resumed");
+            }
+          }}
+        >
+          <PlayCircle className="h-4 w-4 mr-2" />
+          Resume after recovery
+        </Button>
+      )}
       {/* Metrics row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <MetricCard label="Queued" value={metrics?.queued ?? 0} Icon={Clock} tone="warning" />
         <MetricCard label="Retrying" value={metrics?.retrying ?? 0} Icon={Loader2} tone="accent" />
-        <MetricCard label="Completed" value={metrics?.completed ?? 0} Icon={CheckCircle2} tone="success" />
-        <MetricCard label="Failed" value={metrics?.failed ?? 0} Icon={AlertTriangle} tone="destructive" />
-        <MetricCard label="Quota Limited" value={metrics?.quota_limited ?? 0} Icon={Zap} tone="destructive" />
+        <MetricCard
+          label="Completed"
+          value={metrics?.completed ?? 0}
+          Icon={CheckCircle2}
+          tone="success"
+        />
+        <MetricCard
+          label="Failed"
+          value={metrics?.failed ?? 0}
+          Icon={AlertTriangle}
+          tone="destructive"
+        />
+        <MetricCard
+          label="Quota Limited"
+          value={metrics?.quota_limited ?? 0}
+          Icon={Zap}
+          tone="destructive"
+        />
         <MetricCard label="Due Now" value={metrics?.due_now ?? 0} Icon={PlayCircle} tone="accent" />
       </div>
 
+      <div className="flex flex-wrap gap-6 border-y border-border py-3 text-sm">
+        <span>
+          Paused <strong className="tabular-nums">{metrics?.paused ?? 0}</strong>
+        </span>
+        <span>
+          Abandoned leases <strong className="tabular-nums">{metrics?.abandoned ?? 0}</strong>
+        </span>
+        <span>
+          Processing time{" "}
+          <strong className="tabular-nums">
+            {((metrics?.total_duration_ms ?? 0) / 1000).toFixed(1)}s
+          </strong>
+        </span>
+        <span>
+          Estimated AI cost{" "}
+          <strong className="tabular-nums">
+            ${((metrics?.total_cost_cents ?? 0) / 100).toFixed(4)}
+          </strong>
+        </span>
+      </div>
       {/* Health */}
       <Card>
         <CardContent className="flex items-center justify-between py-4 px-5">
@@ -176,15 +302,21 @@ function AIQueuePage() {
             <health.Icon className="h-5 w-5 text-muted-foreground" />
             <div>
               <p className="text-xs text-muted-foreground">Queue health</p>
-              <Badge variant="outline" className={`mt-1 ${health.cls}`}>{health.label}</Badge>
+              <Badge variant="outline" className={`mt-1 ${health.cls}`}>
+                {health.label}
+              </Badge>
             </div>
           </div>
           <p className="text-xs text-muted-foreground max-w-md text-right">
-            {metrics?.health === "quota_limited"
-              ? "OpenAI quota is exhausted. New attempts will be throttled until the next billing reset."
-              : metrics?.health === "throttled"
-              ? "Multiple jobs are being processed — throttling enforces a global concurrency cap."
-              : "All systems nominal. New jobs will be processed on the next scheduled run."}
+            {awaitingApproval
+              ? "Activation requires review approval. No queued records are being processed."
+              : metrics?.health === "paused"
+                ? "Processing is paused. Inspect failures and outstanding leases before resuming."
+                : metrics?.health === "quota_limited"
+                  ? "Quota-limited records remain preserved. Resolve the quota before explicitly resuming."
+                  : metrics?.health === "throttled"
+                    ? "Claims are bounded and protected by database leases."
+                    : "Ready for approved, due-only processing. No automatic applications are submitted."}
           </p>
         </CardContent>
       </Card>
@@ -206,8 +338,7 @@ function AIQueuePage() {
               <CheckCircle2 className="h-8 w-8 text-success" />
               <p className="text-sm font-medium">Queue is empty</p>
               <p className="text-xs text-muted-foreground max-w-sm">
-                Jobs hit by OpenAI quota or rate-limit errors land here. They retry
-                automatically with exponential backoff (15m → 30m → 45m → 1h → 2h).
+                No packet retries are pending.
               </p>
             </div>
           ) : (
@@ -224,11 +355,16 @@ function AIQueuePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.map(item => <QueueRow
-                  key={item.id} item={item}
-                  busy={busy === item.id}
-                  onRetry={handleRetry} onRemove={handleRemove}
-                />)}
+                {sorted.map((item) => (
+                  <QueueRow
+                    key={item.id}
+                    item={item}
+                    busy={busy === item.id}
+                    awaitingApproval={awaitingApproval}
+                    onRetry={handleRetry}
+                    onRemove={handleRemove}
+                  />
+                ))}
               </TableBody>
             </Table>
           )}
@@ -238,10 +374,25 @@ function AIQueuePage() {
   );
 }
 
-function MetricCard({ label, value, Icon, tone }: { label: string; value: number; Icon: any; tone: string }) {
-  const cls = tone === "success" ? "text-success" :
-    tone === "warning" ? "text-warning-foreground" :
-    tone === "destructive" ? "text-destructive" : "text-accent";
+function MetricCard({
+  label,
+  value,
+  Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  Icon: any;
+  tone: string;
+}) {
+  const cls =
+    tone === "success"
+      ? "text-success"
+      : tone === "warning"
+        ? "text-warning-foreground"
+        : tone === "destructive"
+          ? "text-destructive"
+          : "text-accent";
   return (
     <Card>
       <CardContent className="p-4">
@@ -255,7 +406,7 @@ function MetricCard({ label, value, Icon, tone }: { label: string; value: number
   );
 }
 
-function QueueRow({ item, busy, onRetry, onRemove }: any) {
+function QueueRow({ item, busy, awaitingApproval, onRetry, onRemove }: any) {
   const [open, setOpen] = useState(false);
   const job = item.job_listings;
   const isTerminal = item.status === "completed" || item.status === "failed";
@@ -265,7 +416,9 @@ function QueueRow({ item, busy, onRetry, onRemove }: any) {
       <TableRow className="hover:bg-muted/40">
         <TableCell>
           <div className="font-medium text-sm">{job?.company_name ?? "—"}</div>
-          <div className="text-xs text-muted-foreground">{job?.title ?? item.job_id.slice(0, 8)}</div>
+          <div className="text-xs text-muted-foreground">
+            {job?.title ?? item.job_id.slice(0, 8)}
+          </div>
           {job?.ats && <div className="text-[10px] text-muted-foreground mt-0.5">{job.ats}</div>}
         </TableCell>
         <TableCell>
@@ -285,9 +438,7 @@ function QueueRow({ item, busy, onRetry, onRemove }: any) {
           {isTerminal ? (
             <span className="text-xs text-muted-foreground">—</span>
           ) : (
-            <div className="text-xs font-mono tabular-nums">
-              {fmtCountdown(item.next_retry_at)}
-            </div>
+            <div className="text-xs font-mono tabular-nums">{fmtCountdown(item.next_retry_at)}</div>
           )}
         </TableCell>
         <TableCell className="max-w-[260px]">
@@ -311,12 +462,32 @@ function QueueRow({ item, busy, onRetry, onRemove }: any) {
         </TableCell>
         <TableCell>
           <div className="flex gap-1">
-            <Button size="sm" variant="ghost" title="Retry now"
-              onClick={() => onRetry(item.id)} disabled={busy || isTerminal}>
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            <Button
+              size="sm"
+              variant="ghost"
+              title="Retry now"
+              onClick={() => onRetry(item.id)}
+              disabled={
+                busy ||
+                isTerminal ||
+                awaitingApproval ||
+                item.status === "retrying" ||
+                item.status === "paused"
+              }
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
             </Button>
-            <Button size="sm" variant="ghost" title="Remove from queue"
-              onClick={() => onRemove(item.id)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              title="Remove from queue"
+              onClick={() => onRemove(item.id)}
+              disabled={awaitingApproval || busy || item.status === "retrying"}
+            >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -326,28 +497,33 @@ function QueueRow({ item, busy, onRetry, onRemove }: any) {
         <TableRow>
           <TableCell colSpan={7} className="bg-muted/30 p-3">
             <ol className="space-y-1">
-              {history.slice().reverse().map((h, idx) => (
-                <li key={idx} className="text-xs flex items-start gap-2 font-mono">
-                  <span className="text-muted-foreground tabular-nums">
-                    {new Date(h.ts).toLocaleString()}
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    #{h.attempt ?? "-"}
-                  </Badge>
-                  <span className="text-foreground">{h.event}</span>
-                  {h.duration_ms != null && (
-                    <span className="text-muted-foreground">
-                      · {Math.round(h.duration_ms / 100) / 10}s
+              {history
+                .slice()
+                .reverse()
+                .map((h, idx) => (
+                  <li key={idx} className="text-xs flex items-start gap-2 font-mono">
+                    <span className="text-muted-foreground tabular-nums">
+                      {new Date(h.ts).toLocaleString()}
                     </span>
-                  )}
-                  {h.error && <span className="text-destructive truncate">· {h.error}</span>}
-                  {h.next_retry_at && (
-                    <span className="text-muted-foreground">
-                      · next: {new Date(h.next_retry_at).toLocaleTimeString()}
-                    </span>
-                  )}
-                </li>
-              ))}
+                    <Badge variant="outline" className="text-[10px]">
+                      #{h.attempt ?? "-"}
+                    </Badge>
+                    <span className="text-foreground">{h.event ?? h.code}</span>
+                    {h.duration_ms != null && (
+                      <span className="text-muted-foreground">
+                        · {Math.round(h.duration_ms / 100) / 10}s
+                      </span>
+                    )}
+                    {(h.error || h.message) && (
+                      <span className="text-destructive truncate">· {h.error ?? h.message}</span>
+                    )}
+                    {h.next_retry_at && (
+                      <span className="text-muted-foreground">
+                        · next: {new Date(h.next_retry_at).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </li>
+                ))}
             </ol>
           </TableCell>
         </TableRow>

@@ -1,0 +1,15 @@
+// REVIEW ONLY. Not the active deployment configuration. Never deploy before approval.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "commandflow-retry-review",
+  "main": "../../src/server.ts",
+  "compatibility_date": "2025-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "RETRY_REPAIR_ENABLED": "false",
+    "AUTONOMOUS_RETRY_ENABLED": "false"
+  },
+  "triggers": { "crons": ["*/15 * * * *"] }
+}
+// Proposed only after explicit approval: triggers.crons = ["*/15 * * * *"].
+// Keep the native scheduled handler; do not add an HTTP cron callback.

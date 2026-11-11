@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,7 +18,8 @@ import {
 import { getPipeline, updatePipelineFields, PIPELINE_STAGES, PipelineStage } from "@/lib/pipeline.functions";
 import { updateApplicationStatus } from "@/lib/applications.functions";
 
-export const Route = createFileRoute("/pipeline")({ component: PipelinePage });
+export const Route = createFileRoute("/pipeline")({
+  head: () => pageMetadata("Interview Pipeline", "Interview Pipeline for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: PipelinePage });
 
 type App = any;
 

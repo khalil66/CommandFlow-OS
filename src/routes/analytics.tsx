@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,7 +15,8 @@ import { Link } from "@tanstack/react-router";
 import { Loader2, BarChart3, TrendingUp, Target, CheckCircle2, XCircle, BellRing, Lightbulb, AlertTriangle, Info, Clock, FileDiff } from "lucide-react";
 import { ChartCard, EmptyChart, humanizeReason, chartTooltipStyle, chartAxisProps as axisProps } from "@/components/chart-card";
 
-export const Route = createFileRoute("/analytics")({ component: Analytics });
+export const Route = createFileRoute("/analytics")({
+  head: () => pageMetadata("Analytics", "Analytics for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: Analytics });
 
 const COLORS = [
   "var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)",
