@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 export { confidenceLabel, computeQuality } from "./packet-quality";
 
 export const generatePacket = createServerFn({ method: "POST" })
@@ -37,7 +38,7 @@ export const decideApplication = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .eq("job_id", data.job_id)
       .maybeSingle();
-    const payload: any = {
+    const payload: Database["public"]["Tables"]["applications"]["Insert"] = {
       user_id: userId,
       job_id: data.job_id,
       status: statusMap[data.decision],

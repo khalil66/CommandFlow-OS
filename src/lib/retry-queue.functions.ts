@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const RETRY_DELAYS_MIN = [15, 30, 45, 60, 120]; // backoff per attempt
 
@@ -11,7 +13,7 @@ function nextRetryFor(attempt: number): Date {
 
 /** Internal helper — used both by smart-apply and the public cron route. */
 export async function enqueueRetryRow(
-  supabase: any,
+  supabase: SupabaseClient<Database>,
   userId: string,
   args: {
     job_id: string;
@@ -135,7 +137,7 @@ export const getRetryQueueMetrics = createServerFn({ method: "GET" })
       lease_expires_at?: string;
       retry_status?: string;
     }>;
-    const by = (s: string) => rows.filter((r: any) => r.status === s).length;
+    const by = (s: string) => rows.filter((r) => r.status === s).length;
     const queued = by("queued");
     const retrying = by("retrying");
     const completed = by("completed");
@@ -143,11 +145,11 @@ export const getRetryQueueMetrics = createServerFn({ method: "GET" })
     const quotaLimited = by("quota_limited");
     const now = Date.now();
     const due = rows.filter(
-      (r: any) =>
+      (r) =>
         (r.status === "queued" || r.status === "quota_limited") &&
         new Date(r.next_retry_at).getTime() <= now,
     ).length;
-    const nearMax = rows.filter((r: any) => r.retry_attempts >= r.max_attempts - 1).length;
+    const nearMax = rows.filter((r) => r.retry_attempts >= r.max_attempts - 1).length;
 
     let health: "healthy" | "throttled" | "quota_limited" | "paused" = "healthy";
     if (quotaLimited > 0) health = "quota_limited";

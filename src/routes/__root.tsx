@@ -8,6 +8,7 @@ import {
   Scripts,
   useNavigate,
   useRouterState,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -59,11 +60,11 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   const nav = useNavigate();
-  const msg = (error?.message ?? "").toLowerCase();
+  const msg = (error instanceof Error ? error.message : "").toLowerCase();
   const isUnauthorized = msg.includes("unauthorized") || msg.includes("no authorization header");
 
   useEffect(() => {
