@@ -12,7 +12,7 @@ let serverEntryPromise: Promise<ServerEntry> | undefined;
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
     serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => ((m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry)),
+      (m) => (m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry),
     );
   }
   return serverEntryPromise;
@@ -67,6 +67,17 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 }
 
 export default {
+  async scheduled(
+    _event: unknown,
+    env: Record<string, unknown>,
+    ctx: { waitUntil: (task: Promise<unknown>) => void },
+  ) {
+    // Both flags are absent/off in the production configuration. No cron is registered.
+    if (env["AUTONOMOUS_RETRY_ENABLED"] !== "true" || env["RETRY_REPAIR_ENABLED"] !== "true")
+      return;
+    const { runScheduledRetry } = await import("./lib/retry-scheduled.server");
+    ctx.waitUntil(runScheduledRetry(env));
+  },
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();

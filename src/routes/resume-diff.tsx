@@ -10,7 +10,7 @@ import { listResumes } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/resume-diff")({
   component: ResumeDiffPage,
-  validateSearch: (s: Record<string, unknown>) => ({
+  validateSearch: (s: Record<string, unknown>): { resume_id?: string; variant_key?: string } => ({
     resume_id: typeof s.resume_id === "string" ? s.resume_id : undefined,
     variant_key: typeof s.variant_key === "string" ? s.variant_key : undefined,
   }),

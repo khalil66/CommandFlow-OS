@@ -9,8 +9,13 @@ import { openAIFetch } from "./openai-fetch";
 import { prepOutputSchema } from "./generation-contracts";
 import { validateSavedPacket, withPacketLease } from "./retry-database.server";
 
-export async function generatePacketCore(supabase: SupabaseClient<Database>, userId: string, jobId: string) {
-  z.string().uuid().parse(userId); z.string().uuid().parse(jobId);
+export async function generatePacketCore(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  jobId: string,
+) {
+  z.string().uuid().parse(userId);
+  z.string().uuid().parse(jobId);
   return withPacketLease(supabase, userId, jobId, () => buildPacket(supabase, userId, jobId));
 }
 
@@ -62,10 +67,17 @@ const KHALIL_PROOF = `- 10,000+ Tier 2/3 support tickets analyzed (Zendesk + Sal
 - MBA student, Jacksonville FL, remote-first`;
 
 async function callPrep(args: {
-  title: string; company: string; category: string | null;
-  description: string; ats: string | null; portfolio_project: string | null;
-  trust_score: number; interview_probability: number;
-  is_remote_first: boolean; mba_friendly: boolean; funding_stage: string | null;
+  title: string;
+  company: string;
+  category: string | null;
+  description: string;
+  ats: string | null;
+  portfolio_project: string | null;
+  trust_score: number;
+  interview_probability: number;
+  is_remote_first: boolean;
+  mba_friendly: boolean;
+  funding_stage: string | null;
 }) {
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -95,12 +107,15 @@ ${PREP_SCHEMA_HINT}`;
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [{ role: "system", content: PREP_SYSTEM }, { role: "user", content: userPrompt }],
+        messages: [
+          { role: "system", content: PREP_SYSTEM },
+          { role: "user", content: userPrompt },
+        ],
         response_format: { type: "json_object" },
         temperature: 0.5,
       }),
     },
-    { label: `packet-prep:${args.company.slice(0, 24)}` }
+    { label: `packet-prep:${args.company.slice(0, 24)}` },
   );
   const j = await resp.json();
   const usage = j.usage ?? {};
@@ -115,159 +130,208 @@ ${PREP_SCHEMA_HINT}`;
  * invoked from both authenticated server functions AND cron/admin paths
  * (e.g. the AI retry queue processor).
  */
-async function buildPacket(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  jobId: string,
-) {
-    const { data: job } = await supabase.from("job_listings").select("*")
-      .eq("id", jobId).eq("user_id", userId).maybeSingle();
-    if (!job) throw new Error("Job not found");
+async function buildPacket(supabase: SupabaseClient<Database>, userId: string, jobId: string) {
+  const { data: job } = await supabase
+    .from("job_listings")
+    .select("*")
+    .eq("id", jobId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!job) throw new Error("Job not found");
 
-    const { data: company } = job.company_id
-      ? await supabase.from("companies").select("*").eq("id", job.company_id).eq("user_id", userId).maybeSingle()
-      : { data: null as any };
+  const { data: company } = job.company_id
+    ? await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", job.company_id)
+        .eq("user_id", userId)
+        .maybeSingle()
+    : { data: null as any };
 
-    // 1. Resume generation calls a server-only helper, never an RPC stub.
-    // Cache: if we already generated a resume + cover for this job in the last 7 days
-    // (same jobId + role bucket + company), reuse instead of paying OpenAI again.
-    const cacheCutoff = new Date(Date.now() - 7 * 86400_000).toISOString();
-    const { data: cachedResume } = await supabase.from("resume_versions")
-      .select("*").eq("user_id", userId).eq("job_id", job.id)
-      .gte("created_at", cacheCutoff)
-      .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    const { data: cachedCover } = cachedResume
-      ? await supabase.from("cover_letters")
-          .select("*").eq("user_id", userId).eq("job_id", job.id)
-          .gte("created_at", cacheCutoff)
-          .order("created_at", { ascending: false }).limit(1).maybeSingle()
-      : { data: null as any };
+  // 1. Resume generation calls a server-only helper, never an RPC stub.
+  // Cache: if we already generated a resume + cover for this job in the last 7 days
+  // (same jobId + role bucket + company), reuse instead of paying OpenAI again.
+  const cacheCutoff = new Date(Date.now() - 7 * 86400_000).toISOString();
+  const { data: cachedResume } = await supabase
+    .from("resume_versions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("job_id", job.id)
+    .gte("created_at", cacheCutoff)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { data: cachedCover } = cachedResume
+    ? await supabase
+        .from("cover_letters")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("job_id", job.id)
+        .gte("created_at", cacheCutoff)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null as any };
 
-    let tailored: Awaited<ReturnType<typeof tailorResumeInternal>>;
-    if (cachedResume && cachedCover) {
-      console.log(`[packet] cache hit for job ${job.id} (${job.company_name})`);
-      tailored = {
-        matchScore: cachedResume.match_score ?? 0,
-        summary: cachedResume.summary ?? "",
-        skills: cachedResume.skills ?? [],
-        bullets: cachedResume.bullets ?? [],
-        keywords: cachedResume.keywords ?? [],
-        cover: cachedCover.body ?? "",
-        explanation: cachedResume.explanation ?? "",
-        ats_readability: 80,
-        portfolio_project: null,
-        links: { portfolio: PORTFOLIO_URL, linkedin: "https://www.linkedin.com/in/khalilhickson" },
-        resume_id: cachedResume.id,
-        cover_id: cachedCover.id,
-      } as any;
-    } else {
-      tailored = await tailorResumeInternal(supabase, userId, {
-          title: job.title,
-          company: job.company_name,
-          category: job.role_category ?? job.category ?? "operations",
-          job_description: job.description ?? `${job.title} at ${job.company_name}`,
-          job_id: job.id,
-          save: true,
-      });
-    }
+  let tailored: Awaited<ReturnType<typeof tailorResumeInternal>>;
+  if (cachedResume && cachedCover) {
+    console.log(`[packet] cache hit for job ${job.id} (${job.company_name})`);
+    tailored = {
+      matchScore: cachedResume.match_score ?? 0,
+      summary: cachedResume.summary ?? "",
+      skills: cachedResume.skills ?? [],
+      bullets: cachedResume.bullets ?? [],
+      keywords: cachedResume.keywords ?? [],
+      cover: cachedCover.body ?? "",
+      explanation: cachedResume.explanation ?? "",
+      ats_readability: 80,
+      portfolio_project: null,
+      links: { portfolio: PORTFOLIO_URL, linkedin: "https://www.linkedin.com/in/khalilhickson" },
+      resume_id: cachedResume.id,
+      cover_id: cachedCover.id,
+    } as any;
+  } else {
+    tailored = await tailorResumeInternal(supabase, userId, {
+      title: job.title,
+      company: job.company_name,
+      category: job.role_category ?? job.category ?? "operations",
+      job_description: job.description ?? `${job.title} at ${job.company_name}`,
+      job_id: job.id,
+      save: true,
+    });
+  }
 
-    // 2. Interview prep / why-this-company
-    const portfolio = projectsForRole(job.role_category ?? job.title)[0] ?? null;
-    let prep: any = {};
-    try {
-      const prepResponse = await callPrep({
-        title: job.title, company: job.company_name,
-        category: job.role_category ?? null,
-        description: job.description ?? "",
-        ats: job.ats ?? null,
-        portfolio_project: portfolio,
-        trust_score: company?.trust_score ?? 80,
-        interview_probability: job.interview_probability ?? 0,
-        is_remote_first: company?.is_remote_first ?? true,
-        mba_friendly: company?.mba_friendly ?? false,
-        funding_stage: company?.funding_stage ?? null,
-      });
-      const tokens = prepResponse.usage;
-      const { error: usageError } = await supabase.from("openai_usage").insert({
-        user_id: userId, job_id: job.id, kind: "interview_prep", model: "gpt-4o-mini", success: true,
-        prompt_tokens: tokens.prompt_tokens ?? 0, completion_tokens: tokens.completion_tokens ?? 0,
-        estimated_cost_cents: (tokens.prompt_tokens ?? 0) * 0.000015 + (tokens.completion_tokens ?? 0) * 0.000060,
-      });
-      if (usageError) throw new Error("Interview preparation usage could not be recorded");
-      prep = prepOutputSchema.parse(prepResponse.content);
-    } catch (error) {
-      const { error: logError } = await supabase.from("automation_logs").insert({
-        user_id: userId, job_id: job.id, action: "tailor_resume", status: "failed",
-        details: { stage: "interview_preparation", reason: "packet_prep_failed" },
-      });
-      if (logError) console.error("Interview preparation failure could not be recorded");
-      throw error;
-    }
-
-    // 3. Quality score
-    const keywordAlignment = Math.min(100, (tailored.keywords?.length ?? 0) * 8);
-    const quality = computeQuality({
-      resume_match: tailored.matchScore ?? 0,
-      keyword_alignment: keywordAlignment,
-      portfolio_alignment: portfolio ? 100 : 50,
-      interview_probability: job.interview_probability ?? 0,
+  // 2. Interview prep / why-this-company
+  const portfolio = projectsForRole(job.role_category ?? job.title)[0] ?? null;
+  let prep: any = {};
+  try {
+    const prepResponse = await callPrep({
+      title: job.title,
+      company: job.company_name,
+      category: job.role_category ?? null,
+      description: job.description ?? "",
+      ats: job.ats ?? null,
+      portfolio_project: portfolio,
       trust_score: company?.trust_score ?? 80,
-      ats_compatibility: SUPPORTED_ATS.includes(job.ats ?? "") ? 100 : 30,
-      salary_quality: salaryQuality(job.salary_min, !!job.salary_estimated),
+      interview_probability: job.interview_probability ?? 0,
+      is_remote_first: company?.is_remote_first ?? true,
+      mba_friendly: company?.mba_friendly ?? false,
+      funding_stage: company?.funding_stage ?? null,
     });
-    const confidence = confidenceLabel(quality.score);
-
-    // 4. Upsert application in manual_review
-    const { data: existing } = await supabase.from("applications")
-      .select("id").eq("user_id", userId).eq("job_id", job.id).maybeSingle();
-    const appPayload = {
-      user_id: userId, job_id: job.id,
-      status: "manual_review" as const,
-      priority: "manual" as const,
-      resume_version_id: tailored.resume_id ?? null,
-      cover_letter_id: tailored.cover_id ?? null,
-      portfolio_project: portfolio,
-      notes: `Quality ${quality.score} · ${confidence}`,
-    };
-    if (existing) {
-      const { error } = await supabase.from("applications").update(appPayload)
-        .eq("id", existing.id).eq("user_id", userId).in("status", ["manual_review", "queued"]);
-      if (error) throw new Error("Application could not be saved");
-    } else {
-      const { error } = await supabase.from("applications").insert(appPayload);
-      if (error) throw new Error("Application could not be saved");
-    }
-    const { data: application, error: appError } = await supabase.from("applications")
-      .select("id, status, resume_version_id, cover_letter_id")
-      .eq("user_id", userId).eq("job_id", job.id).single();
-    if (appError || !application || application.status !== "manual_review" ||
-        !application.resume_version_id || !application.cover_letter_id) {
-      throw new Error("Packet requires an existing manual-review application and saved artifacts");
-    }
-    const validatedPrep = prepOutputSchema.parse(prep);
-    const { error: prepError } = await supabase.from("interview_prep").insert({
-      user_id: userId, application_id: application.id, job_id: job.id,
-      brief: validatedPrep, recruiter_questions: validatedPrep.recruiter_questions,
-      technical_questions: validatedPrep.technical_questions, star_answers: validatedPrep.star_examples,
+    const tokens = prepResponse.usage;
+    const { error: usageError } = await supabase.from("openai_usage").insert({
+      user_id: userId,
+      job_id: job.id,
+      kind: "interview_prep",
+      model: "gpt-4o-mini",
+      success: true,
+      prompt_tokens: tokens.prompt_tokens ?? 0,
+      completion_tokens: tokens.completion_tokens ?? 0,
+      estimated_cost_cents:
+        (tokens.prompt_tokens ?? 0) * 0.000015 + (tokens.completion_tokens ?? 0) * 0.00006,
     });
-    if (prepError) throw new Error("Interview preparation could not be saved");
-    await validateSavedPacket(supabase, userId, job.id, application.id);
+    if (usageError) throw new Error("Interview preparation usage could not be recorded");
+    prep = prepOutputSchema.parse(prepResponse.content);
+  } catch (error) {
+    const { error: logError } = await supabase.from("automation_logs").insert({
+      user_id: userId,
+      job_id: job.id,
+      action: "tailor_resume",
+      status: "failed",
+      details: { stage: "interview_preparation", reason: "packet_prep_failed" },
+    });
+    if (logError) console.error("Interview preparation failure could not be recorded");
+    throw error;
+  }
 
-    return {
-      job, company,
-      resume: {
-        summary: tailored.summary, skills: tailored.skills, bullets: tailored.bullets,
-        keywords: tailored.keywords, match_score: tailored.matchScore,
-      },
-      cover: { body: tailored.cover },
-      portfolio_project: portfolio,
-      portfolio_url: PORTFOLIO_URL,
-      linkedin_url: LINKEDIN_URL,
-      prep,
-      quality: { score: quality.score, breakdown: quality.breakdown, confidence },
-      explanation: tailored.explanation,
-      ats_summary: prep.ats_summary ?? "",
-      readiness_explanation: prep.readiness_explanation ?? tailored.explanation,
-    };
+  // 3. Quality score
+  const keywordAlignment = Math.min(100, (tailored.keywords?.length ?? 0) * 8);
+  const quality = computeQuality({
+    resume_match: tailored.matchScore ?? 0,
+    keyword_alignment: keywordAlignment,
+    portfolio_alignment: portfolio ? 100 : 50,
+    interview_probability: job.interview_probability ?? 0,
+    trust_score: company?.trust_score ?? 80,
+    ats_compatibility: SUPPORTED_ATS.includes(job.ats ?? "") ? 100 : 30,
+    salary_quality: salaryQuality(job.salary_min, !!job.salary_estimated),
+  });
+  const confidence = confidenceLabel(quality.score);
+
+  // 4. Upsert application in manual_review
+  const { data: existing } = await supabase
+    .from("applications")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("job_id", job.id)
+    .maybeSingle();
+  const appPayload = {
+    user_id: userId,
+    job_id: job.id,
+    status: "manual_review" as const,
+    priority: "manual" as const,
+    resume_version_id: tailored.resume_id ?? null,
+    cover_letter_id: tailored.cover_id ?? null,
+    portfolio_project: portfolio,
+    notes: `Quality ${quality.score} · ${confidence}`,
+  };
+  if (existing) {
+    const { error } = await supabase
+      .from("applications")
+      .update(appPayload)
+      .eq("id", existing.id)
+      .eq("user_id", userId)
+      .in("status", ["manual_review", "queued"]);
+    if (error) throw new Error("Application could not be saved");
+  } else {
+    const { error } = await supabase.from("applications").insert(appPayload);
+    if (error) throw new Error("Application could not be saved");
+  }
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("id, status, resume_version_id, cover_letter_id")
+    .eq("user_id", userId)
+    .eq("job_id", job.id)
+    .single();
+  if (
+    appError ||
+    !application ||
+    application.status !== "manual_review" ||
+    !application.resume_version_id ||
+    !application.cover_letter_id
+  ) {
+    throw new Error("Packet requires an existing manual-review application and saved artifacts");
+  }
+  const validatedPrep = prepOutputSchema.parse(prep);
+  const { error: prepError } = await supabase.from("interview_prep").insert({
+    user_id: userId,
+    application_id: application.id,
+    job_id: job.id,
+    brief: validatedPrep,
+    recruiter_questions: validatedPrep.recruiter_questions,
+    technical_questions: validatedPrep.technical_questions,
+    star_answers: validatedPrep.star_examples,
+  });
+  if (prepError) throw new Error("Interview preparation could not be saved");
+  await validateSavedPacket(supabase, userId, job.id, application.id);
+
+  return {
+    job,
+    company,
+    resume: {
+      summary: tailored.summary,
+      skills: tailored.skills,
+      bullets: tailored.bullets,
+      keywords: tailored.keywords,
+      match_score: tailored.matchScore,
+    },
+    cover: { body: tailored.cover },
+    portfolio_project: portfolio,
+    portfolio_url: PORTFOLIO_URL,
+    linkedin_url: LINKEDIN_URL,
+    prep,
+    quality: { score: quality.score, breakdown: quality.breakdown, confidence },
+    explanation: tailored.explanation,
+    ats_summary: prep.ats_summary ?? "",
+    readiness_explanation: prep.readiness_explanation ?? tailored.explanation,
+  };
 }
-

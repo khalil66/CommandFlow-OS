@@ -66,9 +66,12 @@ const ROLE_PROOF_POINTS: Record<string, string[]> = {
   ],
 };
 
-function bucketForCategory(category?: string | null, title?: string): keyof typeof ROLE_PROOF_POINTS {
+function bucketForCategory(
+  category?: string | null,
+  title?: string,
+): keyof typeof ROLE_PROOF_POINTS {
   const t = `${category ?? ""} ${title ?? ""}`.toLowerCase();
-  if (t.includes("data") || t.includes("analyst") && t.includes("business")) return "data";
+  if (t.includes("data") || (t.includes("analyst") && t.includes("business"))) return "data";
   if (t.includes("operations") || t.includes("ops")) return "operations";
   if (t.includes("customer success") || t.includes("csm")) return "customer_success";
   if (t.includes("support") || t.includes("technical")) return "technical_support";
@@ -92,24 +95,34 @@ Hard rules:
 - Mention the recommended portfolio project by name once if it is genuinely relevant.
 - Optimize for ATS readability: short sentences, common section terms, no symbols beyond standard punctuation.`;
 
-export async function tailorResumeInternal(supabase: SupabaseClient<Database>, userId: string, input: unknown) {
+export async function tailorResumeInternal(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  input: unknown,
+) {
   userId = z.string().uuid().parse(userId);
   const data = resumeArgsSchema.parse(input);
   if (data.job_id) {
-    const { data: job, error } = await supabase.from("job_listings").select("id")
-      .eq("user_id", userId).eq("id", data.job_id).maybeSingle();
+    const { data: job, error } = await supabase
+      .from("job_listings")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("id", data.job_id)
+      .maybeSingle();
     if (error || !job) throw new Error("Job not found");
   }
-  if (process.env["RETRY_REPAIR_ENABLED"] !== "true") return legacyTailorResume(supabase, userId, data);
-    const apiKey = process.env["OPENAI_API_KEY"];
-    if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+  if (process.env["RETRY_REPAIR_ENABLED"] !== "true")
+    return legacyTailorResume(supabase, userId, data);
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
-    const reservationId = await reserveUsage(supabase, userId, data.job_id);
-    const bucket = bucketForCategory(data.category, data.title);
-    const proofPoints = ROLE_PROOF_POINTS[bucket];
-    const portfolio = projectsForRole(data.title)[0] ?? projectsForRole(data.category ?? "")[0] ?? null;
+  const reservationId = await reserveUsage(supabase, userId, data.job_id);
+  const bucket = bucketForCategory(data.category, data.title);
+  const proofPoints = ROLE_PROOF_POINTS[bucket];
+  const portfolio =
+    projectsForRole(data.title)[0] ?? projectsForRole(data.category ?? "")[0] ?? null;
 
-    const userPrompt = `JOB TITLE: ${data.title}
+  const userPrompt = `JOB TITLE: ${data.title}
 COMPANY: ${data.company}
 TARGET CATEGORY: ${data.category ?? "general"}
 
@@ -120,7 +133,7 @@ CANDIDATE PROFILE:
 ${KHALIL_PROFILE}
 
 ROLE-SPECIFIC PROOF POINTS (prioritize these in bullets and cover):
-${proofPoints.map(p => `- ${p}`).join("\n")}
+${proofPoints.map((p) => `- ${p}`).join("\n")}
 
 RECOMMENDED PORTFOLIO PROJECT: ${portfolio ?? "(none specifically mapped — choose from profile)"}
 
@@ -134,37 +147,37 @@ Return JSON with:
 - explanation (why this scored what it did, 2-3 sentences)
 - ats_readability (0-100, your assessment of ATS-friendliness)`;
 
-    const model = "gpt-4o-mini";
-    let costCents = 0;
-    let promptTokens = 0;
-    let completionTokens = 0;
-    let resume_id: string | null = null;
-    let cover_id: string | null = null;
-    try {
-      const resp =
-      await openAIFetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.4,
-          }),
-        },
-        { label: `resume:${data.company.slice(0, 24)}` }
-      );
+  const model = "gpt-4o-mini";
+  let costCents = 0;
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let resume_id: string | null = null;
+  let cover_id: string | null = null;
+  try {
+    const resp = await openAIFetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SYSTEM },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.4,
+        }),
+      },
+      { label: `resume:${data.company.slice(0, 24)}` },
+    );
     const json = await resp.json();
     const content = json.choices?.[0]?.message?.content ?? "{}";
     const usage = json.usage ?? {};
     // gpt-4o-mini: $0.15/1M input, $0.60/1M output → cents
     promptTokens = usage.prompt_tokens ?? 0;
     completionTokens = usage.completion_tokens ?? 0;
-    costCents =
-      ((usage.prompt_tokens ?? 0) * 0.000015) +
-      ((usage.completion_tokens ?? 0) * 0.000060);
+    costCents = (usage.prompt_tokens ?? 0) * 0.000015 + (usage.completion_tokens ?? 0) * 0.00006;
     const parsed = resumeOutputSchema.parse(JSON.parse(content));
 
     const out = {
@@ -181,58 +194,95 @@ Return JSON with:
     };
 
     if (data.save) {
-      const { data: r, error: resumeError } = await supabase.from("resume_versions").insert({
-        user_id: userId, job_id: data.job_id ?? null,
-        label: `${data.company} — ${data.title}`,
-        target_role: data.category ?? null,
-        summary: out.summary, skills: out.skills, bullets: out.bullets,
-        keywords: out.keywords, match_score: out.matchScore, explanation: out.explanation,
-      }).select("id").maybeSingle();
+      const { data: r, error: resumeError } = await supabase
+        .from("resume_versions")
+        .insert({
+          user_id: userId,
+          job_id: data.job_id ?? null,
+          label: `${data.company} — ${data.title}`,
+          target_role: data.category ?? null,
+          summary: out.summary,
+          skills: out.skills,
+          bullets: out.bullets,
+          keywords: out.keywords,
+          match_score: out.matchScore,
+          explanation: out.explanation,
+        })
+        .select("id")
+        .maybeSingle();
       if (resumeError || !r) throw new Error("Resume could not be saved");
       resume_id = r.id;
 
-      const { data: c, error: coverError } = await supabase.from("cover_letters").insert({
-        user_id: userId, job_id: data.job_id ?? null, body: out.cover,
-      }).select("id").maybeSingle();
+      const { data: c, error: coverError } = await supabase
+        .from("cover_letters")
+        .insert({
+          user_id: userId,
+          job_id: data.job_id ?? null,
+          body: out.cover,
+        })
+        .select("id")
+        .maybeSingle();
       if (coverError || !c) throw new Error("Cover letter could not be saved");
       cover_id = c.id;
     }
 
-    await finishUsage(supabase, userId, reservationId, { success: true, model,
-      prompt_tokens: promptTokens, completion_tokens: completionTokens,
-      estimated_cost_cents: costCents, resume_id, cover_id, match_score: out.matchScore });
+    await finishUsage(supabase, userId, reservationId, {
+      success: true,
+      model,
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      estimated_cost_cents: costCents,
+      resume_id,
+      cover_id,
+      match_score: out.matchScore,
+    });
     return { ...out, resume_id, cover_id };
-    } catch (error) {
-      await finishUsage(supabase, userId, reservationId, { success: false, model,
-        prompt_tokens: promptTokens, completion_tokens: completionTokens,
-        estimated_cost_cents: costCents, resume_id, cover_id,
-        error: error instanceof Error ? error.message.slice(0, 200) : "Generation failed" });
-      throw error;
-    }
+  } catch (error) {
+    await finishUsage(supabase, userId, reservationId, {
+      success: false,
+      model,
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      estimated_cost_cents: costCents,
+      resume_id,
+      cover_id,
+      error: error instanceof Error ? error.message.slice(0, 200) : "Generation failed",
+    });
+    throw error;
+  }
 }
 
-async function legacyTailorResume(supabase: SupabaseClient<Database>, userId: string, data: z.infer<typeof resumeArgsSchema>) {
-    const apiKey = process.env["OPENAI_API_KEY"];
-    if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+async function legacyTailorResume(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  data: z.infer<typeof resumeArgsSchema>,
+) {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
-    // Per-user daily caps (resume + cover letter generated together count as 1 of each)
+  // Per-user daily caps (resume + cover letter generated together count as 1 of each)
 
-    const since = new Date(); since.setUTCHours(0, 0, 0, 0);
-    const { data: usageToday } = await supabase
-      .from("openai_usage")
-      .select("kind, success")
-      .eq("user_id", userId)
-      .gte("created_at", since.toISOString());
-    const resumeUsed = (usageToday ?? []).filter((r: any) => r.kind === "resume" && r.success).length;
-    const coverUsed = (usageToday ?? []).filter((r: any) => r.kind === "cover_letter" && r.success).length;
-    if (resumeUsed >= 25) throw new Error("Daily resume generation limit reached (25/day). Resets at 00:00 UTC.");
-    if (coverUsed >= 25) throw new Error("Daily cover letter generation limit reached (25/day).");
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  const { data: usageToday } = await supabase
+    .from("openai_usage")
+    .select("kind, success")
+    .eq("user_id", userId)
+    .gte("created_at", since.toISOString());
+  const resumeUsed = (usageToday ?? []).filter((r: any) => r.kind === "resume" && r.success).length;
+  const coverUsed = (usageToday ?? []).filter(
+    (r: any) => r.kind === "cover_letter" && r.success,
+  ).length;
+  if (resumeUsed >= 25)
+    throw new Error("Daily resume generation limit reached (25/day). Resets at 00:00 UTC.");
+  if (coverUsed >= 25) throw new Error("Daily cover letter generation limit reached (25/day).");
 
-    const bucket = bucketForCategory(data.category, data.title);
-    const proofPoints = ROLE_PROOF_POINTS[bucket];
-    const portfolio = projectsForRole(data.title)[0] ?? projectsForRole(data.category ?? "")[0] ?? null;
+  const bucket = bucketForCategory(data.category, data.title);
+  const proofPoints = ROLE_PROOF_POINTS[bucket];
+  const portfolio =
+    projectsForRole(data.title)[0] ?? projectsForRole(data.category ?? "")[0] ?? null;
 
-    const userPrompt = `JOB TITLE: ${data.title}
+  const userPrompt = `JOB TITLE: ${data.title}
 COMPANY: ${data.company}
 TARGET CATEGORY: ${data.category ?? "general"}
 
@@ -243,7 +293,7 @@ CANDIDATE PROFILE:
 ${KHALIL_PROFILE}
 
 ROLE-SPECIFIC PROOF POINTS (prioritize these in bullets and cover):
-${proofPoints.map(p => `- ${p}`).join("\n")}
+${proofPoints.map((p) => `- ${p}`).join("\n")}
 
 RECOMMENDED PORTFOLIO PROJECT: ${portfolio ?? "(none specifically mapped — choose from profile)"}
 
@@ -257,89 +307,118 @@ Return JSON with:
 - explanation (why this scored what it did, 2-3 sentences)
 - ats_readability (0-100, your assessment of ATS-friendliness)`;
 
-    const model = "gpt-4o-mini";
-    let resp: Response;
-    try {
-      resp = await openAIFetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.4,
-          }),
-        },
-        { label: `resume:${data.company.slice(0, 24)}` }
-      );
-    } catch (e: any) {
-      await supabase.from("openai_usage").insert({
-        user_id: userId, kind: "resume", model, success: false,
-        error: `${e?.code ?? "error"}: ${(e?.message ?? String(e)).slice(0, 200)}`,
+  const model = "gpt-4o-mini";
+  let resp: Response;
+  try {
+    resp = await openAIFetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SYSTEM },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.4,
+        }),
+      },
+      { label: `resume:${data.company.slice(0, 24)}` },
+    );
+  } catch (e: any) {
+    await supabase.from("openai_usage").insert({
+      user_id: userId,
+      kind: "resume",
+      model,
+      success: false,
+      error: `${e?.code ?? "error"}: ${(e?.message ?? String(e)).slice(0, 200)}`,
+      job_id: data.job_id ?? null,
+    } as any);
+    throw e;
+  }
+  const json = await resp.json();
+  const content = json.choices?.[0]?.message?.content ?? "{}";
+  const usage = json.usage ?? {};
+  // gpt-4o-mini: $0.15/1M input, $0.60/1M output → cents
+  const costCents =
+    (usage.prompt_tokens ?? 0) * 0.000015 + (usage.completion_tokens ?? 0) * 0.00006;
+  const parsed = JSON.parse(content);
+
+  const out = {
+    matchScore: Number(parsed.matchScore ?? 0),
+    summary: String(parsed.summary ?? ""),
+    skills: Array.isArray(parsed.skills) ? parsed.skills.map(String) : [],
+    bullets: Array.isArray(parsed.bullets) ? parsed.bullets.map(String) : [],
+    keywords: Array.isArray(parsed.keywords) ? parsed.keywords.map(String) : [],
+    cover: String(parsed.cover ?? ""),
+    explanation: String(parsed.explanation ?? ""),
+    ats_readability: Number(parsed.ats_readability ?? 80),
+    portfolio_project: portfolio,
+    links: { portfolio: PORTFOLIO_URL, linkedin: LINKEDIN_URL },
+  };
+
+  let resume_id: string | null = null;
+  let cover_id: string | null = null;
+  if (data.save) {
+    const { data: r } = await supabase
+      .from("resume_versions")
+      .insert({
+        user_id: userId,
         job_id: data.job_id ?? null,
-      } as any);
-      throw e;
-    }
-    const json = await resp.json();
-    const content = json.choices?.[0]?.message?.content ?? "{}";
-    const usage = json.usage ?? {};
-    // gpt-4o-mini: $0.15/1M input, $0.60/1M output → cents
-    const costCents =
-      ((usage.prompt_tokens ?? 0) * 0.000015) +
-      ((usage.completion_tokens ?? 0) * 0.000060);
-    const parsed = JSON.parse(content);
-
-    const out = {
-      matchScore: Number(parsed.matchScore ?? 0),
-      summary: String(parsed.summary ?? ""),
-      skills: Array.isArray(parsed.skills) ? parsed.skills.map(String) : [],
-      bullets: Array.isArray(parsed.bullets) ? parsed.bullets.map(String) : [],
-      keywords: Array.isArray(parsed.keywords) ? parsed.keywords.map(String) : [],
-      cover: String(parsed.cover ?? ""),
-      explanation: String(parsed.explanation ?? ""),
-      ats_readability: Number(parsed.ats_readability ?? 80),
-      portfolio_project: portfolio,
-      links: { portfolio: PORTFOLIO_URL, linkedin: LINKEDIN_URL },
-    };
-
-    let resume_id: string | null = null;
-    let cover_id: string | null = null;
-    if (data.save) {
-      const { data: r } = await supabase.from("resume_versions").insert({
-        user_id: userId, job_id: data.job_id ?? null,
         label: `${data.company} — ${data.title}`,
         target_role: data.category ?? null,
-        summary: out.summary, skills: out.skills, bullets: out.bullets,
-        keywords: out.keywords, match_score: out.matchScore, explanation: out.explanation,
-      }).select("id").maybeSingle();
-      resume_id = r?.id ?? null;
-
-      const { data: c } = await supabase.from("cover_letters").insert({
-        user_id: userId, job_id: data.job_id ?? null, body: out.cover,
-      }).select("id").maybeSingle();
-      cover_id = c?.id ?? null;
-    }
-
-    // Log success — one row per kind so analytics can split them
-    await supabase.from("openai_usage").insert([
-      {
-        user_id: userId, kind: "resume", model, success: true,
-        job_id: data.job_id ?? null, resume_version_id: resume_id,
+        summary: out.summary,
+        skills: out.skills,
+        bullets: out.bullets,
+        keywords: out.keywords,
         match_score: out.matchScore,
-        prompt_tokens: usage.prompt_tokens ?? 0,
-        completion_tokens: usage.completion_tokens ?? 0,
-        estimated_cost_cents: costCents / 2,
-      },
-      {
-        user_id: userId, kind: "cover_letter", model, success: true,
-        job_id: data.job_id ?? null, cover_letter_id: cover_id,
-        match_score: out.matchScore,
-        prompt_tokens: 0, completion_tokens: 0,
-        estimated_cost_cents: costCents / 2,
-      },
-    ] as any);
+        explanation: out.explanation,
+      })
+      .select("id")
+      .maybeSingle();
+    resume_id = r?.id ?? null;
 
-    return { ...out, resume_id, cover_id };
+    const { data: c } = await supabase
+      .from("cover_letters")
+      .insert({
+        user_id: userId,
+        job_id: data.job_id ?? null,
+        body: out.cover,
+      })
+      .select("id")
+      .maybeSingle();
+    cover_id = c?.id ?? null;
+  }
+
+  // Log success — one row per kind so analytics can split them
+  await supabase.from("openai_usage").insert([
+    {
+      user_id: userId,
+      kind: "resume",
+      model,
+      success: true,
+      job_id: data.job_id ?? null,
+      resume_version_id: resume_id,
+      match_score: out.matchScore,
+      prompt_tokens: usage.prompt_tokens ?? 0,
+      completion_tokens: usage.completion_tokens ?? 0,
+      estimated_cost_cents: costCents / 2,
+    },
+    {
+      user_id: userId,
+      kind: "cover_letter",
+      model,
+      success: true,
+      job_id: data.job_id ?? null,
+      cover_letter_id: cover_id,
+      match_score: out.matchScore,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      estimated_cost_cents: costCents / 2,
+    },
+  ] as any);
+
+  return { ...out, resume_id, cover_id };
 }

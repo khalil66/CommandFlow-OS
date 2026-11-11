@@ -11,7 +11,8 @@ export function retryDueAt(attempt: number, now = Date.now()) {
 
 export function retryFailure(error: unknown) {
   const message = error instanceof Error ? error.message : "Packet generation failed";
-  const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+  const status =
+    typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
   const daily = message.includes("DAILY_LIMIT");
   const quota = message.includes("quota") || status === 402;
   const denied = status === 403 || /refusal|refused|denied/i.test(message);
@@ -19,7 +20,17 @@ export function retryFailure(error: unknown) {
   // Unknown inference outcomes must not be replayed by a scheduler.
   const unknown = /network|timeout|fetch failed|lease|unknown|5\d\d/i.test(message);
   return {
-    code: daily ? "daily_limit" : quota ? "quota_exhausted" : denied ? "provider_denied" : rate ? "rate_limit" : unknown ? "unknown_outcome" : "packet_failed",
+    code: daily
+      ? "daily_limit"
+      : quota
+        ? "quota_exhausted"
+        : denied
+          ? "provider_denied"
+          : rate
+            ? "rate_limit"
+            : unknown
+              ? "unknown_outcome"
+              : "packet_failed",
     pause: quota || denied || unknown,
     status: quota || daily ? "quota_limited" : denied || unknown ? "paused" : "queued",
     message: message.slice(0, 400),

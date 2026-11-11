@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generatePacket, confidenceLabel } from "./packet.functions";
+import { confidenceLabel } from "./packet-quality";
 import { evaluateAutoReview, AUTO_THRESHOLDS } from "./auto-review-scoring";
 import { sendSmsInternal } from "./sms.functions";
 import { runFinalQC, assignResumeVariant } from "./qc-gate";
@@ -249,7 +249,8 @@ export const runSmartApply = createServerFn({ method: "POST" })
     const routingFailures = new Map<string, number>();
     const processedJobIds: string[] = [];
     const bestFit: Array<{ title: string; company: string; interview: number }> = [];
-    const generateFn = (data: any) => generatePacket({ data });
+    const { generatePacketCore } = await import("./packet-generation.server");
+    const generateFn = (data: { job_id: string }) => generatePacketCore(supabase, userId, data.job_id);
 
     const scanned = (jobs ?? []).length;
     const cutoffMs = Date.now() - AUTO_GATES.freshDays * 86400000;

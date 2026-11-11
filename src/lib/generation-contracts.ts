@@ -24,13 +24,17 @@ export const prepOutputSchema = z.object({
   talking_points: z.array(z.string().min(1)).min(1),
   recruiter_questions: z.array(z.string().min(1)).min(1),
   technical_questions: z.array(z.string().min(1)).min(1),
-  star_examples: z.array(z.object({
-    question: z.string().min(1),
-    situation: z.string().min(1),
-    task: z.string().min(1),
-    action: z.string().min(1),
-    result: z.string().min(1),
-  })).min(1),
+  star_examples: z
+    .array(
+      z.object({
+        question: z.string().min(1),
+        situation: z.string().min(1),
+        task: z.string().min(1),
+        action: z.string().min(1),
+        result: z.string().min(1),
+      }),
+    )
+    .min(1),
   why_company: z.string().min(1),
   linkedin_tips: z.array(z.string().min(1)).min(1),
   ats_summary: z.string().min(1),
