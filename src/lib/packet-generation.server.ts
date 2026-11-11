@@ -115,7 +115,10 @@ ${PREP_SCHEMA_HINT}`;
         temperature: 0.5,
       }),
     },
-    { label: `packet-prep:${args.company.slice(0, 24)}` },
+    {
+      label: `packet-prep:${args.company.slice(0, 24)}`,
+      ...(process.env["RETRY_REPAIR_ENABLED"] === "true" ? { maxRetries: 0 } : {}),
+    },
   );
   const j = await resp.json();
   const usage = j.usage ?? {};

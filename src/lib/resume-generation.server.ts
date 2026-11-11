@@ -169,7 +169,7 @@ Return JSON with:
           temperature: 0.4,
         }),
       },
-      { label: `resume:${data.company.slice(0, 24)}` },
+      { label: `resume:${data.company.slice(0, 24)}`, maxRetries: 0 },
     );
     const json = await resp.json();
     const content = json.choices?.[0]?.message?.content ?? "{}";
