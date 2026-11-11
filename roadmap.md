@@ -1,4 +1,5 @@
 # Autonomous AI retry repair
+- [x] Complete Step 315B independent verification and report unresolved blockers without activation.
 - [x] Extract shared resume and packet server helpers.
 - [x] Stage atomic usage reservations, queue leases, fencing, and packet validation SQL (do not apply to production).
 - [x] Implement inactive scheduled Worker and authenticated retry orchestration.
@@ -6,4 +7,7 @@
 - [x] Apply required package security update and check preview diagnostics.
 - [x] Provide exact file, migration, security, test, build, and blocker report.
 - [ ] Reconcile Steps 314AV–314AW audits (blocked: audit documents not supplied).
+- [ ] Resolve independently reproduced usage-evidence security weaknesses (blocked: follow-up repair approval; no fixes authorized in Step 315B).
+- [ ] Reconcile active legacy production heartbeat and queue-history changes (blocked: explicit authorization; no schedule changes permitted).
+- [ ] Independently validate production bundle and native cron output (blocked: manual application builds prohibited in this workspace; no production artifact available).
 - [ ] Approve production migration and scheduler activation (blocked: explicit approval and production validation required).
