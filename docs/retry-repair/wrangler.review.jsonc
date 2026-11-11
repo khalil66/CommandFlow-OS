@@ -9,7 +9,7 @@
     "RETRY_REPAIR_ENABLED": "false",
     "AUTONOMOUS_RETRY_ENABLED": "false"
   },
-  "triggers": { "crons": [] }
+  "triggers": { "crons": ["*/15 * * * *"] }
 }
 // Proposed only after explicit approval: triggers.crons = ["*/15 * * * *"].
 // Keep the native scheduled handler; do not add an HTTP cron callback.
