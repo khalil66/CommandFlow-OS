@@ -1,0 +1,32 @@
+Step 315B actual command results (2026-11-11 UTC)
+Vitest targeted: exit 0; 13 tests passed.
+Existing PostgreSQL tests: exit 0; 11 passed (run before independent tests altered only local fixtures).
+Independent PostgreSQL tests: exit 0; 7 checks, including 2 successful security vulnerability reproductions.
+Focused ESLint: exit 0.
+Full current ESLint: exit 1; 5439 errors, 45 warnings.
+Pinned pre315 ESLint: exit 1; 5719 errors, 45 warnings.
+Current dependency audit: exit 1; 80 unique advisories.
+Pinned baseline dependency audit: exit 1; 91 unique advisories.
+Authenticated read-only browser: exit 0; 25 rows; disabled retry controls; signed-out redirected; no runtime errors.
+Separate production build: NOT RUN; exit code N/A; manual application builds prohibited by workspace instructions.
+Latest available automatic validation: 2026-11-11T06:59:05Z build OK (not independent production build).
+Cron artifact check: UNVERIFIED; no production artifact available.
+Live data check: 25 records retained, total attempts 0; full-row fingerprint changed during existing active production heartbeat.
+SQL migration: review-only unchanged; not applied.
+Production deployment, migration, queue processing and scheduler activation: not performed.
+
+Saved independent test output:
+test_authenticated_cannot_update_controls (__main__.IndependentVerification.test_authenticated_cannot_update_controls) ... ok
+test_concurrent_reservations_mix_authenticated_and_service_role (__main__.IndependentVerification.test_concurrent_reservations_mix_authenticated_and_service_role) ... ok
+test_current_owner_usage_delete_policy_can_erase_limit_evidence (__main__.IndependentVerification.test_current_owner_usage_delete_policy_can_erase_limit_evidence) ... ok
+test_foreign_owner_cannot_claim_finish_or_unlock (__main__.IndependentVerification.test_foreign_owner_cannot_claim_finish_or_unlock) ... ok
+test_owner_can_forge_failed_usage_into_success_evidence (__main__.IndependentVerification.test_owner_can_forge_failed_usage_into_success_evidence) ... ok
+test_skip_locked_claim_does_not_wait_for_locked_row (__main__.IndependentVerification.test_skip_locked_claim_does_not_wait_for_locked_row) ... ok
+test_twenty_four_workers_claim_thirty_six_distinct_records (__main__.IndependentVerification.test_twenty_four_workers_claim_thirty_six_distinct_records) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.666s
+
+OK
+SECURITY BLOCKER reproduced: current owner DELETE privileges allow erasing 25/day usage evidence.
+SECURITY BLOCKER reproduced: authenticated caller can certify provider success without artifacts.
