@@ -185,7 +185,7 @@ async function buildPacket(supabase: SupabaseClient<Database>, userId: string, j
       cover: cachedCover.body ?? "",
       explanation: cachedResume.explanation ?? "",
       ats_readability: 80,
-      portfolio_project: null,
+      portfolio_project: projectsForRole(job.role_category ?? job.title)[0] ?? null,
       links: { portfolio: PORTFOLIO_URL, linkedin: "https://www.linkedin.com/in/khalilhickson" },
       resume_id: cachedResume.id,
       cover_id: cachedCover.id,
