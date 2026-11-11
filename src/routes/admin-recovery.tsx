@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,7 +13,8 @@ import {
   getAdminRecoveryStatus,
 } from "@/lib/admin-recovery.functions";
 
-export const Route = createFileRoute("/admin-recovery")({ component: AdminRecoveryPage });
+export const Route = createFileRoute("/admin-recovery")({
+  head: () => pageMetadata("Temporary Admin Recovery", "Temporary Admin Recovery for secure CommandFlow OS account access."), component: AdminRecoveryPage });
 
 function AdminRecoveryPage() {
   const nav = useNavigate();

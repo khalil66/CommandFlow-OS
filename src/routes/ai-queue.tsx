@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -48,7 +49,8 @@ import {
 } from "@/lib/retry-queue.functions";
 import { withRetry } from "@/lib/api-utils";
 
-export const Route = createFileRoute("/ai-queue")({ component: AIQueuePage });
+export const Route = createFileRoute("/ai-queue")({
+  head: () => pageMetadata("AI Retry Queue", "AI Retry Queue for CommandFlow OS recruiting operations, with private account access and manual application approval."), component: AIQueuePage });
 
 function fmtCountdown(target: string | null): string {
   if (!target) return "—";
