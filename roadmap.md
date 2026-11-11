@@ -1,4 +1,5 @@
 # Autonomous AI retry repair
+- [ ] Complete Step 315B independent verification and report unresolved blockers without activation.
 - [x] Extract shared resume and packet server helpers.
 - [x] Stage atomic usage reservations, queue leases, fencing, and packet validation SQL (do not apply to production).
 - [x] Implement inactive scheduled Worker and authenticated retry orchestration.
