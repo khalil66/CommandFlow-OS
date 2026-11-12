@@ -479,3 +479,52 @@ Workspace rules forbid manually running project builds/typechecks; only automati
 
 ### Restrictions honored
 No schedules modified, no queue writes, no attempts reset, no retries executed, no deploy, no migrations, no automation activated.
+
+## Step 315D — Remediation readiness and safe cutover plan (planned only, 2026-11-12 13:40 UTC)
+
+**Assessment: NO-GO.** Checklist: `docs/retry-repair/cutover-checklist.md`. Nothing was executed.
+
+### Job 1 pause mechanism
+- `cron.alter_job(1, active := false)` (reversible), later `cron.unschedule(1)`. Requires the privileged data-change path; the sandbox read role is denied on schema `cron` (verified). Verification queries in checklist §2/§5.
+
+### Old endpoint
+- **Deployed (production):** pre-315 handler; job 1's runs report `succeeded` and queue `history`/`updated_at` advance every 15 min — it mutates rows.
+- **Staged:** `src/routes/api/public/hooks/retry-queue.ts` returns 410 with no reads/writes/provider calls. Retirement takes effect only on publish. Pausing job 1 *before* publish is required because unpublished code changes nothing in production.
+
+### Staged migration review
+- Dependencies: only `public.ai_retry_queue`, `auth.uid()`, `gen_random_uuid()`; no extensions beyond defaults.
+- Permissions: every `retry_*` function `REVOKE ALL FROM PUBLIC`, EXECUTE to authenticated/service_role only, `SECURITY DEFINER` with fixed `search_path`; owner assertion via `retry_assert_user`.
+- RLS: new tables have owner-read only; no user INSERT/UPDATE/DELETE grants.
+- Claiming: `FOR UPDATE SKIP LOCKED`, due/max/paused gating, lease tokens; 11 disposable-DB tests passed earlier (concurrent claims, fencing, recovery).
+- Reservations: row-locked daily count ≤ 25; concurrent test passed.
+- Rollback compatibility: purely additive (new tables, nullable columns, one NOT NULL DEFAULT 0); legacy code ignores them. Note: the first claim increments `retry_attempts` and appends history — so the migration is safe to apply but the 25 records stay untouched only while the scheduler and Retry buttons remain disabled.
+
+### Deployment order
+1 Backup+fingerprint → 2 pause job 1 → 3 verify 60 min no writes → 4 publish (410 endpoint, flags off) → 5 apply migration with security fixes → 6 regenerate types → 7 24h observation → 8 unschedule job 1 → (separate approval) scheduler.
+
+### Remaining security issues
+- **S1 High — user-editable AI usage records:** `openai_usage` has owner INSERT/UPDATE/DELETE policies (roles `public`). A user can delete/alter usage rows and defeat legacy count-based limits. Fix: revoke user write grants; write only via server/security-definer path; keep SELECT.
+- **S2 High — user-editable queue rows:** `ai_retry_queue` allows owner UPDATE/DELETE, so a client could clear `lease_token`, reset attempts or rewrite history, undermining fencing and the preservation requirement. Fix: drop user UPDATE/INSERT policies; mutations only via `retry_*` RPCs. Keep DELETE only if "Remove" is required, else route through RPC.
+- **S3 High — live mutating public endpoint** (until §2+§3 done).
+- **M1** unbounded history growth (~96 entries/record/day while job 1 runs).
+- **M2** `retry_assert_user` callable by authenticated users (harmless check, but expose minimal surface).
+- **L1** accepted `is_admin` definer warning; legacy lint debt.
+
+### Production build verification plan
+Manual builds are disallowed in this workspace, so evidence will be: (a) latest automatic preview build OK; (b) publish-time build log captured from the platform; (c) post-publish smoke: endpoint 410, public pages load, auth redirect works, flags off. A Worker `scheduled()` dry-run cannot be verified without an isolated deployed environment — remains a prerequisite for scheduler activation, not for this cutover.
+
+### Rollback
+Never re-enable job 1 or restore the mutating endpoint. App rollback only to builds containing the 410 handler. DB rollback leaves additive objects inert; destructive withdrawal requires backup + explicit approval.
+
+### GO/NO-GO per action
+| Action | Status | Prerequisites |
+|---|---|---|
+| Backup/fingerprint | GO (read-only) | owner approval to export |
+| Pause job 1 | NO-GO | backup done; owner approval; privileged path |
+| Publish 410 endpoint | NO-GO | job 1 paused + 60 min clean; publish build log |
+| Apply migration | NO-GO | S1/S2 fixes added and re-tested on disposable DB |
+| Unschedule job 1 | NO-GO | 24h clean observation |
+| Activate scheduler | NO-GO | separate approval; isolated scheduled dry-run |
+
+### Restrictions honored
+No production SQL writes, schedule changes, deploys, migrations, retries, or queue changes.
