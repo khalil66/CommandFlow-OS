@@ -443,3 +443,39 @@ This optional down script has not been executed or validated as a production rol
 
 ## Stop / approval boundary
 **STOPPED at verification/reporting.** No deployment, migration application, generation/provider execution, queue-processing call, attempt reset or scheduler activation occurred in Step 315B. Production configuration was not changed. All 25 records still exist with zero attempts, but existing production heartbeat changed history; unchanged-data confirmation is explicitly withheld. New native scheduler remains unactivated by this work; total production scheduling is not inactive. Resolve security/audit/build/legacy-heartbeat blockers through separately authorized work, not by quietly changing flags, records or schedules.
+
+## Step 315C — Production schedule and queue integrity investigation (read-only, 2026-11-12 13:39 UTC)
+
+### Active schedules
+| ID | Name | Frequency | Active | Target | Credentials |
+|---|---|---|---|---|---|
+| 1 | `ai-retry-queue-heartbeat` | `*/15 * * * *` | yes | published app `/api/public/hooks/retry-queue` (stable production URL) | header token stored in job command — referenced only, not exposed |
+
+- Execution history: 15,607 recorded runs; last run 2026-11-12 13:30:00 UTC, status `succeeded`.
+- No other database schedules exist. The Step 315 native Worker cron is **not** in active `wrangler.jsonc` (only in `docs/retry-repair/wrangler.review.jsonc`). External/third-party schedulers could not be inventoried from this workspace.
+
+### Which schedule modified the 25 records
+Job 1. The published (pre-Step-315) app still serves the old mutating heartbeat; the 410 retirement exists only in preview source and is not deployed. Observed earlier: 07:00 run appended history to 22 records, 06:30 to two, 06:00 to one.
+
+### Fields changed
+- `history` (appended entries; current length 874–880 per record), `updated_at` (latest 2026-11-12 13:00:07 UTC), and heartbeat-driven `next_retry_at`/`retry_status`/`last_retry_at` nudges.
+- **Unchanged:** row count 25, `retry_attempts` sum 0, `max_attempts`, `kind`, `job_id`, `user_id`.
+
+### Backups / audit comparison
+No point-in-time backup, row-level audit trigger, or pre-change snapshot of `ai_retry_queue` is accessible from this workspace. Comparison is limited to the in-row `history` array and cron run records. History is growing roughly every 15 minutes, so the "unchanged history" requirement is being violated by the live legacy job, not by Step 315 code.
+
+### Security blockers by severity
+- **High:** live legacy heartbeat endpoint on production mutates queue rows and is reachable via `/api/public/*`; protection depends solely on a shared header token.
+- **High:** unbounded `history` growth (~96 entries/day/record) — storage and readability risk.
+- **Medium:** quota/usage evidence rows are user-writable under current RLS, so limit evidence is not tamper-proof until the staged reservation tables are applied.
+- **Medium:** staged migration not applied; atomic reservations/fenced claims are not active in production.
+- **Low:** `is_admin` security-definer warning (accepted, documented); full-project lint debt.
+
+### Why the production build cannot be independently verified
+Workspace rules forbid manually running project builds/typechecks; only automatic preview validation is available (build OK). No isolated deployed environment exists to run a scheduled Worker dry-run, and deploying is prohibited in this step.
+
+### Could new and legacy schedulers run simultaneously?
+**Yes, if activated as-is.** Job 1 is independent of the Worker cron. If the review cron were enabled without first disabling job 1 and deploying the 410 endpoint, both would act every 15 minutes: the legacy job would rewrite `next_retry_at`/history while the new processor claims rows, defeating lease fencing assumptions. Required order before activation: (1) deploy retired endpoint, (2) unschedule job 1, (3) apply migration, (4) enable flags + cron.
+
+### Restrictions honored
+No schedules modified, no queue writes, no attempts reset, no retries executed, no deploy, no migrations, no automation activated.
